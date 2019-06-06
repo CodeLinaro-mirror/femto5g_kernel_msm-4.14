@@ -26,10 +26,9 @@ source "drivers/mxc/mipi/Kconfig"
 
 # drivers common to MXC and MX8 go here:
 
-#if ARCH_MXC_ARM64
+if ARM64
 source "drivers/mxc/hantro/Kconfig"
-#endif
-
+endif
 
 endmenu
 
