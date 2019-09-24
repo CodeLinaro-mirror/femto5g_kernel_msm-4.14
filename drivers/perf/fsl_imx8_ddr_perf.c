@@ -587,10 +587,12 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 			if (cfg == 0x41) {
 				/* revert axi read channel(axi_channel) value */
 				cfg2 ^= READ_CHANNEL_REVERT;
+
 				cfg2 |= FIELD_PREP(READ_PORT_MASK, cfg2);
 			} else {
 				/* revert axi write channel(axi_channel) value */
 				cfg2 ^= WRITE_CHANNEL_REVERT;
+
 				cfg2 |= FIELD_PREP(WRITE_PORT_MASK, cfg2);
 			}
 
