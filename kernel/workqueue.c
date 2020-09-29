@@ -60,6 +60,7 @@
 #include "workqueue_internal.h"
 
 #include <trace/hooks/dtask.h>
+#include <trace/hooks/wqlockup.h>
 /* events/workqueue.h uses default TRACE_INCLUDE_PATH */
 #undef TRACE_INCLUDE_PATH
 
@@ -8016,6 +8017,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 			pr_emerg("BUG: workqueue lockup - pool");
 			pr_cont_pool_info(pool);
 			pr_cont(" stuck for %us!\n", stall_time);
+			trace_android_vh_wq_lockup_pool(pool->cpu, pool->attrs->cpumask, pool_ts);
 		}
 	}
 

@@ -48,6 +48,7 @@
 #include <trace/hooks/traps.h>
 #include <trace/hooks/ufshcd.h>
 #include <trace/hooks/vmscan.h>
+#include <trace/hooks/wqlockup.h>
 /* keep-sorted end */
 
 /*
@@ -165,4 +166,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_transfer_rsp_status);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_update_sysfs);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_wait_for_uic_cmd);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_wq_lockup_pool);
 /* keep-sorted end */
