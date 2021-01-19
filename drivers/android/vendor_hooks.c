@@ -39,6 +39,7 @@
 #include <trace/hooks/remoteproc.h>
 #include <trace/hooks/selinux.h>
 #include <trace/hooks/signal.h>
+#include <trace/hooks/softlockup.h>
 #include <trace/hooks/sys.h>
 #include <trace/hooks/syscall_check.h>
 #include <trace/hooks/sysrqcrash.h>
@@ -161,4 +162,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_uic_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_transfer_rsp_status);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_update_sysfs);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_wait_for_uic_cmd);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
 /* keep-sorted end */
