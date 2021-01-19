@@ -12,6 +12,8 @@
 #include "sched.h"
 #include "smp.h"
 
+#include <trace/hooks/sched.h>
+
 /* Linker adds these: start and end of __cpuidle functions */
 extern char __cpuidle_text_start[], __cpuidle_text_end[];
 
@@ -522,6 +524,8 @@ dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
 {
 	raw_spin_rq_unlock_irq(rq);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
+
+	trace_android_rvh_dequeue_task_idle(p);
 	dump_stack();
 	raw_spin_rq_lock_irq(rq);
 	return true;
