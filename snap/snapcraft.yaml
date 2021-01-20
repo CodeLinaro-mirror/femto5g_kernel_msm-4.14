@@ -30,3 +30,29 @@ grade: stable
 confinement: strict
 
 license: "GPL-2.0 AND GPL-3.0 AND CC-BY-SA-4.0"
+
+build-packages:
+  - bison
+  - device-tree-compiler
+  - dpkg-dev
+  - flex
+  - libfdt-dev
+  - libssl-dev
+  - python3-cryptography
+  - python3-pycryptodome
+  - python3-pyelftools
+  - python3-serial
+  - u-boot-tools
+  - wget
+  - libjson-c-dev:${CRAFT_ARCH_BUILD_FOR}
+  - libcryptsetup-dev:${CRAFT_ARCH_BUILD_FOR}
+  - to armhf:
+    - binutils-arm-linux-gnueabi
+    - gcc-arm-linux-gnueabihf
+    - pkgconf:armhf
+  - to arm64:
+    - on amd64:
+      - gcc-aarch64-linux-gnu
+      - pkgconf:arm64
+    - on arm64:
+      - gcc
