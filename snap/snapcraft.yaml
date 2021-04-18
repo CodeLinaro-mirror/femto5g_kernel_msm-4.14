@@ -97,6 +97,26 @@ parts:
     prime:
       - firmware
 
+  firmware-nxp:
+    after:
+      - initrd
+    plugin: dump
+    source: https://github.com/NXP/imx-firmware.git
+    source-type: git
+    source-tag: lf-6.12.34-2.1.0
+    organize:
+      'cyw-wifi-bt/1CX_CYW4356/*': firmware/brcm/
+      'cyw-wifi-bt/1FD_CYW4359/*': firmware/brcm/
+      'cyw-wifi-bt/1MW_CYW43455/*': firmware/brcm/
+      'brcm/': firmware/brcm/
+      'nxp/FwImage_8997/*': firmware/nxp/
+      'nxp/FwImage_8987/*': firmware/nxp/
+      'nxp/FwImage_IW612_SD/*': firmware/nxp/
+      'nxp/wifi_mod_para.conf': firmware/nxp/
+    stage:
+      - firmware/brcm
+      - firmware/nxp
+
 package-repositories:
    - type: apt
      architectures: [$CRAFT_ARCH_BUILD_FOR]
