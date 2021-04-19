@@ -31,6 +31,14 @@ confinement: strict
 
 license: "GPL-2.0 AND GPL-3.0 AND CC-BY-SA-4.0"
 
+platforms:
+  arm64:
+    build-on: [amd64, arm64]
+    build-for: arm64
+  armhf:
+    build-on: [amd64, arm64, armhf]
+    build-for: armhf
+
 build-packages:
   - bison
   - device-tree-compiler
