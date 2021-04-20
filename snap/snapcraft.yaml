@@ -41,6 +41,16 @@ platforms:
     build-on: [amd64, arm64, armhf]
     build-for: armhf
 
+# environment to run fde-setup hook
+environment:
+  LD_LIBRARY_PATH: ${SNAP}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}
+
+hooks:
+  fde-setup:
+    plugs:
+      - tee
+      - home
+
 parts:
   # Provide the kernel.
   # Trimming any modules we know a priori to not be needed by the target device
