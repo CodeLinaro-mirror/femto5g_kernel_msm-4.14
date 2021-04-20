@@ -71,7 +71,12 @@ parts:
     after:
       - firmware
       - kernel
+      - optee-uc-fde-client
     plugin: initrd
+    initrd-addons:
+      - usr/bin/fde-reveal-key
+      - usr/bin/fde-setup
+      - usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/libteec.so*
     initrd-firmware:
       - firmware/imx/sdma/sdma-imx7d.bin
       - firmware/regulatory.db
@@ -207,6 +212,32 @@ parts:
       '*': optee-uc-fde/
     prime:
       - -*
+
+  optee-uc-fde-client:
+    after:
+      - optee-client
+      - optee-uc-fde
+    plugin: nil
+    source-type: local
+    build-environment:
+      - to armhf:
+        - ARCH: "arm"
+      - else:
+        - ARCH: "${CRAFT_ARCH_BUILD_FOR}"
+      - CROSS_COMPILE: "${CRAFT_ARCH_TRIPLET_BUILD_FOR}-"
+      # we are not using TA build here (early TA is used), so
+      # it does not matter what key is used to sign built TA
+      # support cross build
+      - TA_DEV_KIT_DIR: "${CRAFT_STAGE}/export-ta_arm"
+      - OPTEE_CLIENT_EXPORT: "${CRAFT_STAGE}/usr"
+      - DESTDIR: "${CRAFT_PART_INSTALL}"
+    override-build: |
+      make -C ${CRAFT_STAGE}/optee-uc-fde O=${CRAFT_PART_BUILD}/out fde-key-manager fde-reveal-key fde-setup fde-helper
+      make -C ${CRAFT_STAGE}/optee-uc-fde O=${CRAFT_PART_BUILD}/out fde-key-manager fde-reveal-key fde-setup fde-helper install
+      install -D -m 755 ${CRAFT_PART_INSTALL}/usr/bin/fde-setup ${CRAFT_PART_INSTALL}/meta/hooks/fde-setup
+      ln -sf fde-reveal-key ${CRAFT_PART_INSTALL}/usr/bin/fde-setup
+    prime:
+      - meta/
 
 build-packages:
   - bison
