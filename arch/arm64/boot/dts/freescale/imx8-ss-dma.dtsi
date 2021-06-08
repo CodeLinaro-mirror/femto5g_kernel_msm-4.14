@@ -279,7 +279,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_SPI_0 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "spi0_lpcg_clk",
 				     "spi0_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_SPI_0>;
@@ -291,7 +291,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_SPI_1 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "spi1_lpcg_clk",
 				     "spi1_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_SPI_1>;
@@ -303,7 +303,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_SPI_2 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "spi2_lpcg_clk",
 				     "spi2_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_SPI_2>;
@@ -315,7 +315,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_SPI_3 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "spi3_lpcg_clk",
 				     "spi3_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_SPI_3>;
@@ -327,7 +327,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_UART_0 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "uart0_lpcg_baud_clk",
 				     "uart0_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_0>;
@@ -339,7 +339,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_UART_1 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "uart1_lpcg_baud_clk",
 				     "uart1_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_1>;
@@ -351,7 +351,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_UART_2 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "uart2_lpcg_baud_clk",
 				     "uart2_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_2>;
@@ -363,7 +363,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_UART_3 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "uart3_lpcg_baud_clk",
 				     "uart3_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_3>;
@@ -536,7 +536,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_I2C_0 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "i2c0_lpcg_clk",
 				     "i2c0_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_I2C_0>;
@@ -548,7 +548,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_I2C_1 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "i2c1_lpcg_clk",
 				     "i2c1_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_I2C_1>;
@@ -560,7 +560,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_I2C_2 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "i2c2_lpcg_clk",
 				     "i2c2_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_I2C_2>;
@@ -572,7 +572,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_I2C_3 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "i2c3_lpcg_clk",
 				     "i2c3_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_I2C_3>;
@@ -584,7 +584,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_ADC_0 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "adc0_lpcg_clk",
 				     "adc0_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_ADC_0>;
@@ -596,7 +596,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_ADC_1 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		bit-offset = <0 16>;
 		clock-output-names = "adc1_lpcg_clk",
 				     "adc1_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_ADC_1>;
@@ -608,7 +608,7 @@ dma_subsys: bus@5a000000 {
 		#clock-cells = <1>;
 		clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>,
 			 <&dma_ipg_clk>, <&dma_ipg_clk>;
-		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>;
+		bit-offset = <0 16 20>;
 		clock-output-names = "can0_lpcg_pe_clk",
 				     "can0_lpcg_ipg_clk",
 				     "can0_lpcg_chi_clk";
