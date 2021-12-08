@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Canonical Ltd
 name: rz-kernel
 type: kernel
 build-base: core24
