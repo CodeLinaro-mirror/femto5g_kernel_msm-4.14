@@ -218,6 +218,16 @@ parts:
     prime:
       - usr/lib/*/lib*so*
 
+  optee-uc-fde:
+    plugin: dump
+    source: https://git.launchpad.net/~ondrak/+git/optee-uc-fde
+    source-type: git
+    source-branch: with-helper
+    organize:
+      '*': optee-uc-fde/
+    prime:
+      - -*
+
 package-repositories:
    - type: apt
      architectures: [$CRAFT_ARCH_BUILD_FOR]
