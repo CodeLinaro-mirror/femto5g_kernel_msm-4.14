@@ -212,5 +212,7 @@ struct plat_stmmacenet_data {
 	unsigned int jumbo_mtu;
 	bool clks_suspended;
 	bool is_phy_off;
+	bool wait_for_mac_rx_clk;
+	bool wait_for_emac_rx_clk;
 };
 #endif

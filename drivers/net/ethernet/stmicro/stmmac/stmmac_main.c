@@ -192,7 +192,7 @@ static void stmmac_stop_all_queues(struct stmmac_priv *priv)
  * stmmac_start_all_queues - Start all queues
  * @priv: driver private structure
  */
-static void stmmac_start_all_queues(struct stmmac_priv *priv)
+void stmmac_start_all_queues(struct stmmac_priv *priv)
 {
 	u32 tx_queues_cnt = priv->plat->tx_queues_to_use;
 	u32 queue;
@@ -2428,7 +2428,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
 		atds = 1;
 
-	if (!priv->avoid_reset) {
+	if (!priv->avoid_reset && !priv->plat->wait_for_mac_rx_clk) {
 		ret = priv->hw->dma->reset(priv->ioaddr);
 		if (ret) {
 			dev_err(priv->device, "Failed to reset the dma\n");
@@ -5279,6 +5279,10 @@ int stmmac_suspend(struct device *dev)
 			priv->plat->clks_suspended = true;
 		}
 	}
+
+	if (priv->plat->wait_for_emac_rx_clk)
+		priv->plat->wait_for_mac_rx_clk = true;
+
 	mutex_unlock(&priv->lock);
 
 	priv->oldlink = -1;
@@ -5466,17 +5470,16 @@ int stmmac_resume(struct device *dev)
 
 	stmmac_enable_all_queues(priv);
 
-	stmmac_start_all_queues(priv);
-
-	if (priv->plat->mac2mac_en || priv->plat->switch_mdio) {
+	if (priv->plat->wait_for_emac_rx_clk && priv->plat->wait_for_mac_rx_clk) {
+		netif_carrier_off(ndev);
+	} else if (priv->plat->mac2mac_en) {
 		stmmac_mac2mac_adjust_link(priv->plat->mac2mac_rgmii_speed,
 					   priv);
 		priv->plat->mac2mac_link = true;
-		if (priv->hw_offload_enabled)
-			ethqos_ipa_offload_event_handler(priv,
-							 EV_PHY_LINK_UP);
+		stmmac_start_all_queues(priv);
 		netif_carrier_on(ndev);
-	}
+	} else
+		stmmac_start_all_queues(priv);
 
 	mutex_unlock(&priv->lock);
 
