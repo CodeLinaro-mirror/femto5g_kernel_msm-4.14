@@ -1735,6 +1735,7 @@ static const struct ieee80211_ops carl9170_ops = {
 
 void *carl9170_alloc(size_t priv_size)
 {
+	struct carl9170_sta_tid *tid_info;
 	struct ieee80211_hw *hw;
 	struct ar9170 *ar;
 	struct sk_buff *skb;
@@ -1794,8 +1795,9 @@ void *carl9170_alloc(size_t priv_size)
 	INIT_DELAYED_WORK(&ar->stat_work, carl9170_stat_work);
 	INIT_DELAYED_WORK(&ar->tx_janitor, carl9170_tx_janitor);
 	INIT_LIST_HEAD(&ar->tx_ampdu_list);
-	rcu_assign_pointer(ar->tx_ampdu_iter,
-			   (struct carl9170_sta_tid *) &ar->tx_ampdu_list);
+	tid_info = list_entry_rcu(ar->tx_ampdu_list.next,
+				struct carl9170_sta_tid, list);
+	rcu_assign_pointer(ar->tx_ampdu_iter, tid_info);
 
 	bitmap_zero(&ar->vif_bitmap, ar->fw.vif_num);
 	INIT_LIST_HEAD(&ar->vif_list);
