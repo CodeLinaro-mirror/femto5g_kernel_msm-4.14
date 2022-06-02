@@ -390,6 +390,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C1_GATE>,
 					 <&clk IMX93_CLK_BUS_AON>;
 				clock-names = "per", "ipg";
+				dmas = <&edma1 7 0 0>, <&edma1 8 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -402,6 +404,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C2_GATE>,
 					 <&clk IMX93_CLK_BUS_AON>;
 				clock-names = "per", "ipg";
+				dmas = <&edma1 9 0 0>, <&edma1 10 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -414,6 +418,8 @@
 				clocks = <&clk IMX93_CLK_LPSPI1_GATE>,
 					 <&clk IMX93_CLK_BUS_AON>;
 				clock-names = "per", "ipg";
+				dmas = <&edma1 11 0 0>, <&edma1 12 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -426,6 +432,8 @@
 				clocks = <&clk IMX93_CLK_LPSPI2_GATE>,
 					 <&clk IMX93_CLK_BUS_AON>;
 				clock-names = "per", "ipg";
+				dmas = <&edma1 13 0 0>, <&edma1 14 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -844,6 +852,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C3_GATE>,
 					 <&clk IMX93_CLK_BUS_WAKEUP>;
 				clock-names = "per", "ipg";
+				dmas = <&edma2 8 0 0>, <&edma2 9 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -856,6 +866,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C4_GATE>,
 					 <&clk IMX93_CLK_BUS_WAKEUP>;
 				clock-names = "per", "ipg";
+				dmas = <&edma2 10 0 0>, <&edma2 11 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -1086,6 +1098,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C5_GATE>,
 					 <&clk IMX93_CLK_BUS_WAKEUP>;
 				clock-names = "per", "ipg";
+				dmas = <&edma2 71 0 0>, <&edma2 72 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -1098,6 +1112,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C6_GATE>,
 					 <&clk IMX93_CLK_BUS_WAKEUP>;
 				clock-names = "per", "ipg";
+				dmas = <&edma2 73 0 0>, <&edma2 74 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -1110,6 +1126,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C7_GATE>,
 					 <&clk IMX93_CLK_BUS_WAKEUP>;
 				clock-names = "per", "ipg";
+				dmas = <&edma2 75 0 0>, <&edma2 76 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
@@ -1122,6 +1140,8 @@
 				clocks = <&clk IMX93_CLK_LPI2C8_GATE>,
 					 <&clk IMX93_CLK_BUS_WAKEUP>;
 				clock-names = "per", "ipg";
+				dmas = <&edma2 77 0 0>, <&edma2 78 0 1>;
+				dma-names = "tx","rx";
 				status = "disabled";
 			};
 
