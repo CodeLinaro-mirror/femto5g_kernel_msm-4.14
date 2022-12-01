@@ -6,7 +6,7 @@ description: The i.MX Ubuntu kernel package as a snap
 
 grade: stable
 build-base: core22
-confinement: devmode
+confinement: strict
 type: kernel
 adopt-info: kernel
 
@@ -31,6 +31,7 @@ parts:
     after:
       - firmware
       - optee-uc-fde-client
+      - snap-bootstrap
     plugin: kernel
     kernel-kdefconfig: [ "snappy_defconfig" ]
     kernel-with-firmware: false
@@ -43,6 +44,7 @@ parts:
       - usr/bin/fde-reveal-key
       - usr/bin/fde-setup
       - usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/libteec.so*
+      - usr/lib/snapd/snap-bootstrap
     kernel-initrd-firmware:
       - firmware/imx/sdma/sdma-imx7d.bin
       - firmware/regulatory.db
@@ -232,6 +234,32 @@ parts:
       ln -sf fde-reveal-key ${CRAFT_PART_INSTALL}/usr/bin/fde-setup
     prime:
       - meta/
+
+  snap-bootstrap:
+    plugin: nil
+    override-build: |
+      export GOPATH="${CRAFT_PART_BUILD}/go"
+      mkdir -p ${CRAFT_PART_BUILD}/go/src/github.com/snapcore
+      git clone --depth=1 https://github.com/kubiko/snapd.git -b poc-single-boot-install ${CRAFT_PART_BUILD}/go/src/github.com/snapcore/snapd
+      cd ${CRAFT_PART_BUILD}/go/src/github.com/snapcore/snapd
+      ./get-deps.sh
+      export GOARCH=${CRAFT_ARCH_BUILD_FOR}
+      export CGO_ENABLED=1
+      export CC=${CRAFT_ARCH_TRIPLET_BUILD_FOR}-gcc
+      if [ "${CRAFT_ARCH_BUILD_FOR}" = "arm64" ]; then
+        export GOARCH=arm64
+        unset GOARM
+      else
+        export GOARCH=arm
+        export GOARM=7
+      fi
+      export FARCH=${CRAFT_ARCH_BUILD_FOR}
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/lib/snapd
+      go build -mod=vendor  -buildmode=pie -tags nomanagers -ldflags "-s -w"  -o  ${CRAFT_PART_INSTALL}/usr/lib/snapd/snap-bootstrap ${PWD}/cmd/snap-bootstrap
+    prime:
+      - -*
+    build-snaps:
+      - go/1.18/stable
 
   test-keys:
     plugin: dump
