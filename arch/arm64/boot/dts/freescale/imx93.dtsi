@@ -1129,7 +1129,7 @@
 				assigned-clock-rates = <400000000>;
 				bus-width = <8>;
 				fsl,tuning-start-tap = <1>;
-				fsl,tuning-step = <2>;
+				fsl,tuning-step= <2>;
 				status = "disabled";
 			};
 
@@ -1143,7 +1143,7 @@
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
-				fsl,tuning-step = <2>;
+				fsl,tuning-step= <2>;
 				status = "disabled";
 			};
 
@@ -1210,7 +1210,7 @@
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
-				fsl,tuning-step = <2>;
+				fsl,tuning-step= <2>;
 				status = "disabled";
 			};
 
