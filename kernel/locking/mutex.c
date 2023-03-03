@@ -34,6 +34,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/lock.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/dtask.h>
+
 #ifndef CONFIG_PREEMPT_RT
 #include "mutex.h"
 
@@ -689,6 +692,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 	}
 
 	raw_spin_lock(&current->blocked_lock);
+	trace_android_vh_mutex_wait_start(lock);
 	__set_task_blocked_on(current, lock, BO_T_MUTEX);
 	set_current_state(state);
 	trace_contention_begin(lock, LCB_F_MUTEX);
@@ -772,6 +776,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 	}
 	__clear_task_blocked_on(current, lock);
 	__set_current_state(TASK_RUNNING);
+	trace_android_vh_mutex_wait_finish(lock);
 	raw_spin_unlock(&current->blocked_lock);
 
 	if (ww_ctx) {
@@ -802,6 +807,7 @@ skip_wait:
 err:
 	clear_task_blocked_on(current, lock);
 	__set_current_state(TASK_RUNNING);
+	trace_android_vh_mutex_wait_finish(lock);
 	__mutex_remove_waiter(lock, &waiter);
 err_early_kill:
 	WARN_ON(get_task_blocked_on(current));
