@@ -343,7 +343,7 @@ static int ls_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 	pcie->pci = pci;
-	pci->pp.ops = pcie->drvdata->ops;
+	pci->pp.ops = pcie->drvdata->ops ? pcie->drvdata->ops : &ls_pcie_host_ops;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_base);
