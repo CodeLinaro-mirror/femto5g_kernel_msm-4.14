@@ -823,7 +823,7 @@ static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
 		if (!dom->level_indexing_mode)
 			freq = dom->opp[idx].perf * dom->mult_factor;
 		else
-			freq = dom->opp[idx].indicative_freq * dom->mult_factor;
+			freq = dom->opp[idx].indicative_freq * 1000;
 
 		data.level = dom->opp[idx].perf;
 		data.freq = freq;
