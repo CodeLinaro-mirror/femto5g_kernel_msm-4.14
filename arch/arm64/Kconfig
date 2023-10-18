@@ -1589,7 +1589,10 @@ config XEN
 config ARCH_FORCE_MAX_ORDER
 	int
 	default "13" if ARM64_64K_PAGES || (ARCH_THUNDER && ARM64_4K_PAGES)
+	default "13" if ARM64_64K_PAGES || (ARCH_THUNDER && ARM64_4K_PAGES)
+	range 11 13 if ARM64_16K_PAGES
 	default "11" if ARM64_16K_PAGES
+	range 10 15 if ARM64_4K_PAGES
 	default "10"
 	help
 	  The kernel page allocator limits the size of maximal physically
