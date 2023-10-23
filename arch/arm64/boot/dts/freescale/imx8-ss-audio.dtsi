@@ -422,7 +422,6 @@ audio_subsys: bus@59000000 {
 		status = "disabled";
 	};
 
-
 	edma1: dma-controller@599f0000 {
 		compatible = "fsl,imx8qm-edma";
 		reg =	<0x599F0000 0x10000>,
