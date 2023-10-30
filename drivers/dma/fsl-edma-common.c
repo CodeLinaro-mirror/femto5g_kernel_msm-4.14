@@ -85,14 +85,8 @@ static void fsl_edma3_enable_request(struct fsl_edma_chan *fsl_chan)
 
 	edma_writel_chreg(fsl_chan, val, ch_sbr);
 
-	if (flags & FSL_EDMA_DRV_HAS_CHMUX) {
-		/*
-		 * ch_mux: With the exception of 0, attempts to write a value
-		 * already in use will be forced to 0.
-		 */
-		if (!edma_readl(fsl_chan->edma, fsl_chan->mux_addr))
-			edma_writel(fsl_chan->edma, fsl_chan->srcid, fsl_chan->mux_addr);
-	}
+	if (flags & FSL_EDMA_DRV_HAS_CHMUX)
+		edma_writel(fsl_chan->edma, fsl_chan->srcid, fsl_chan->mux_addr);
 
 	val = edma_readl_chreg(fsl_chan, ch_csr);
 	val |= EDMA_V3_CH_CSR_ERQ;
