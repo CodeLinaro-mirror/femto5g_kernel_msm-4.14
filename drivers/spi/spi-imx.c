@@ -1262,7 +1262,6 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		spi_imx->spi_bus_clk = t->speed_hz;
 
 	spi_imx->bits_per_word = t->bits_per_word;
-	spi_imx->count = t->len;
 
 	/*
 	 * Initialize the functions for transfer. To transfer non byte-aligned
