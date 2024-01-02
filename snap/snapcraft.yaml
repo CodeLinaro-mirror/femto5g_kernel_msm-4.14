@@ -1,11 +1,11 @@
-name: pc-kernel
-version: null
-version-script: |
-    . debian/debian.env
-    dpkg-parsechangelog -l $DEBIAN/changelog -S version
-summary: The Ubuntu generic Linux kernel
-description: This Ubuntu generic Linux kernel
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Canonical Ltd
+name: snapdragon-kernel
+summary: snapdragon linux kernel
+description: The Ubuntu kernel package as a snap
+
 grade: stable
+build-base: core22
 confinement: strict
 type: kernel
 
