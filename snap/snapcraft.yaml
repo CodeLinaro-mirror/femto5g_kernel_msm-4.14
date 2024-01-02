@@ -24,6 +24,31 @@ parts:
       - -Image*
       - -kernel.img
 
+  initrd:
+    after:
+      - firmware
+      - kernel
+    plugin: initrd
+    initrd-stage-firmware: true
+    initrd-firmware:
+      - renesas_usb_fw.mem
+    initrd-modules:
+      - i2c-qcom-cci
+      - i2c-qcom-geni
+      - libarc4
+      - mdt-loader
+      - phy-qcom-qusb2
+      - qcom_glink_smem
+      - qmi-helpers
+      - rtc-pm8xxx
+      - slim_qcom_ngd_ctrl
+      - slimbus
+      - wcd934x
+      - xhci-pci
+      - xhci-pci-renesas
+    prime:
+      - -initrd*
+
   firmware:
     plugin: nil
     stage-packages:
