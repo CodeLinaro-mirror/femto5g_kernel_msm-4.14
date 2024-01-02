@@ -8,6 +8,7 @@ grade: stable
 build-base: core22
 confinement: strict
 type: kernel
+adopt-info: kernel
 
 architectures:
   - build-on: [arm64, amd64]
@@ -20,6 +21,9 @@ parts:
     kernel-image-target: Image.gz
     build-environment:
       - PATH: "/usr/lib/ccache:${PATH}"
+    override-build: |
+      craftctl default
+      craftctl set version=$(git --git-dir=${CRAFT_PROJECT_DIR}/.git describe --tags | cut -c 14-42)-22
     prime:
       - -Image*
       - -kernel.img
