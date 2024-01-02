@@ -38,3 +38,20 @@ parts:
     build-packages:
       - cpio
       - libssl-dev
+
+build-packages:
+  - bison
+  - device-tree-compiler
+  - dpkg-dev
+  - flex
+  - gcc
+  - libfdt-dev
+  - libssl-dev
+  - mkbootimg
+  - pahole
+  - python3-cryptography
+  - python3-pycryptodome
+  - python3-pyelftools
+  - python3-serial
+  - rt5-clients
+  - wget
