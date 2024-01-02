@@ -50,6 +50,11 @@ parts:
       - wcd934x
       - xhci-pci
       - xhci-pci-renesas
+    override-prime: |
+      craftctl default
+      # Trim firmware
+      trim_tool="https://git.launchpad.net/~canonical-kernel-snaps/+git/kernel-snaps-uc22/plain/trim-firmware"
+      curl -s ${trim_tool} | bash /dev/stdin ${CRAFT_PRIME}
     prime:
       - -initrd*
 
