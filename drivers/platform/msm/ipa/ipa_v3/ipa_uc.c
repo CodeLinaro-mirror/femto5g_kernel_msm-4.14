@@ -1,5 +1,5 @@
 /* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1173,7 +1173,7 @@ int ipa3_add_ttl_vlan_map(
 {
 	struct ipa_mem_buffer  mem;
 	struct ipa_ttl_vlan_ids *cmd;
-	int res;
+	int res, i;
 
 	if (!map) {
 		IPAERR("null argument (ie. map) passed\n");
@@ -1181,7 +1181,7 @@ int ipa3_add_ttl_vlan_map(
 	}
 	IPADBG("map add attempt. num_vlan: %u\n", map->num_vlanids);
 
-	for(int i=0; i < IPA_TTL_MAX_VLAN; i++)
+	for(i=0; i < IPA_TTL_MAX_VLAN; i++)
 	{
 		IPADBG("Vlan id's %d\n", map->vlans[i]);
 	}
