@@ -1204,9 +1204,11 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 				     "can't lock I2C peripheral clock rate\n");
 
 	lpi2c_imx->rate_per = clk_get_rate(lpi2c_imx->clks[0].clk);
-	if (!lpi2c_imx->rate_per)
+	if (!lpi2c_imx->rate_per) {
+		clk_rate_exclusive_put(lpi2c_imx->clks[0].clk);
 		return dev_err_probe(&pdev->dev, -EINVAL,
 				     "can't get I2C peripheral clock rate\n");
+	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, I2C_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -1250,6 +1252,8 @@ rpm_disable:
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	clk_rate_exclusive_put(lpi2c_imx->clks[0].clk);
 
 	return ret;
 }
