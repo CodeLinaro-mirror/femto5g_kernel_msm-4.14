@@ -409,6 +409,13 @@ struct mt9m114 {
 
 		struct v4l2_ctrl *tpg[4];
 	} ifp;
+
+	/* regulator supplies */
+	struct regulator *dovdd; /* Digital I/O (1.8V) supply */
+	struct regulator *avdd; /* Analog (2.8V) supply */
+	struct regulator *dvdd; /* Digital Core (1.8V) supply */
+	struct regulator *extclk; /* Digital Core (1.8V) supply */
+	struct regulator *ctrl_4t245; /* EXT CLOCK ENABLE data pin supply*/
 };
 
 /* -----------------------------------------------------------------------------
@@ -2111,10 +2118,45 @@ static int mt9m114_power_on(struct mt9m114 *sensor)
 	int ret;
 
 	/* Enable power and clocks. */
-	ret = regulator_bulk_enable(ARRAY_SIZE(sensor->supplies),
-				    sensor->supplies);
-	if (ret < 0)
-		return ret;
+	if (sensor->dovdd) {
+		ret = regulator_enable(sensor->dovdd);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to enable dovdd\n");
+			return ret;
+		}
+	}
+
+	if (sensor->avdd) {
+		ret = regulator_enable(sensor->avdd);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to enable avdd\n");
+			return ret;
+		}
+	}
+
+	if (sensor->dvdd) {
+		ret = regulator_enable(sensor->dvdd);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to enable dvdd\n");
+			return ret;
+		}
+	}
+
+	if (sensor->extclk) {
+		ret = regulator_enable(sensor->extclk);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to enable extclk\n");
+			return ret;
+		}
+	}
+
+	if (sensor->ctrl_4t245) {
+		ret = regulator_enable(sensor->ctrl_4t245);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to enable ctrl_4t245\n");
+			return ret;
+		}
+	}
 
 	ret = clk_prepare_enable(sensor->clk);
 	if (ret < 0)
@@ -2194,8 +2236,42 @@ error_regulator:
 
 static void mt9m114_power_off(struct mt9m114 *sensor)
 {
+	int ret;
 	clk_disable_unprepare(sensor->clk);
-	regulator_bulk_disable(ARRAY_SIZE(sensor->supplies), sensor->supplies);
+	if (sensor->ctrl_4t245) {
+		ret = regulator_disable(sensor->ctrl_4t245);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to disable ctrl_4t245\n");
+		}
+	}
+
+	if (sensor->extclk) {
+		ret = regulator_disable(sensor->extclk);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to disable extclk\n");
+		}
+	}
+
+	if (sensor->dvdd) {
+		ret = regulator_disable(sensor->dvdd);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to disable dvdd\n");
+		}
+	}
+
+	if (sensor->avdd) {
+		ret = regulator_disable(sensor->avdd);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to disable avdd\n");
+		}
+	}
+
+	if (sensor->dovdd) {
+		ret = regulator_disable(sensor->dovdd);
+		if (ret < 0) {
+			dev_err(&sensor->client->dev, "failed to disable dovdd\n");
+		}
+	}
 }
 
 static int __maybe_unused mt9m114_runtime_resume(struct device *dev)
@@ -2378,11 +2454,47 @@ static int mt9m114_probe(struct i2c_client *client)
 	sensor->supplies[1].supply = "vdd";
 	sensor->supplies[2].supply = "vaa";
 
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sensor->supplies),
-				      sensor->supplies);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "Failed to get regulators\n");
+	sensor->dovdd = devm_regulator_get(dev, "DOVDD");
+	if (IS_ERR(sensor->dovdd)) {
+		ret = PTR_ERR(sensor->dovdd);
+		dev_err_probe(dev, ret, "cannot get dovdd regulator\n");
 		goto error_ep_free;
+	}
+
+	sensor->avdd = devm_regulator_get(dev, "AVDD");
+	if (IS_ERR(sensor->avdd)) {
+		ret = PTR_ERR(sensor->avdd);
+		dev_err_probe(dev, ret, "cannot get avdd regulator\n");
+		goto error_ep_free;
+	}
+
+	sensor->dvdd = devm_regulator_get(dev, "DVDD");
+	if (IS_ERR(sensor->dvdd)) {
+		ret = PTR_ERR(sensor->dvdd);
+		dev_err_probe(dev, ret, "can't get dvdd regulator\n");
+		goto error_ep_free;
+	}
+
+	sensor->extclk = devm_regulator_get_optional(dev, "EXTCLK");
+	if (IS_ERR(sensor->extclk)) {
+		dev_warn(dev, "can't get extclk regulator\n");
+		if (PTR_ERR(sensor->extclk) != -ENODEV) {
+			ret = PTR_ERR(sensor->extclk);
+			goto error_ep_free;
+		}
+
+		sensor->extclk = NULL;
+	}
+
+	sensor->ctrl_4t245 = devm_regulator_get_optional(dev, "CTRL_4T245");
+	if (IS_ERR(sensor->ctrl_4t245)) {
+		dev_warn(dev, "can't get extclk enable\n");
+		if (PTR_ERR(sensor->ctrl_4t245) != -ENODEV) {
+			ret = PTR_ERR(sensor->ctrl_4t245);
+			goto error_ep_free;
+		}
+
+		sensor->ctrl_4t245 = NULL;
 	}
 
 	ret = mt9m114_clk_init(sensor);
