@@ -661,6 +661,18 @@
 	status = "okay";
 };
 
+&tpm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_led1>;
+	status = "okay";
+};
+
+&tpm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_led2>;
+	status = "okay";
+};
+
 &iomuxc {
 	pinctrl_eqos: eqosgrp {
 		fsl,pins = <
@@ -982,6 +994,17 @@
 			MX93_PAD_GPIO_IO09__LPSPI3_SIN      0x3fe
 			MX93_PAD_GPIO_IO10__LPSPI3_SOUT     0x3fe
 			MX93_PAD_GPIO_IO11__LPSPI3_SCK      0x3fe
+		>;
+	};
+	pinctrl_led1: ledsgrp1 {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO04__TPM3_CH0  0x02
+			MX93_PAD_GPIO_IO12__TPM3_CH2  0x02
+		>;
+	};
+	pinctrl_led2: ledsgrp2 {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO13__TPM4_CH2  0x02
 		>;
 	};
 };

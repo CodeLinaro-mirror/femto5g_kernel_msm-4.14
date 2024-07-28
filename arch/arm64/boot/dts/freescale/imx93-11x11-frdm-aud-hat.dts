@@ -161,6 +161,14 @@
 	};
 };
 
+&tpm3 {
+	status = "disabled";
+};
+
+&tpm4 {
+	status = "disabled";
+};
+
 &sai3 {
 	#sound-dai-cells = <0>;
 	pinctrl-names = "default";

@@ -118,6 +118,14 @@
 	};
 };
 
+&tpm3 {
+	status = "disabled";
+};
+
+&tpm4 {
+	status = "disabled";
+};
+
 &parallel_csi {
 	status = "okay";
 

@@ -18,6 +18,14 @@
 	status = "disabled";
 };
 
+&tpm3 {
+	status = "disabled";
+};
+
+&tpm4 {
+	status = "disabled";
+};
+
 / {
 	backlight: backlight {
 		compatible = "pwm-backlight";
