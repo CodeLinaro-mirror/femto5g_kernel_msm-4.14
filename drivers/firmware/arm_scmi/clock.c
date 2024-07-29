@@ -1005,7 +1005,8 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 			scmi_clock_describe_rates_get(ph, clkid, clk);
 	}
 
-	if (PROTOCOL_REV_MAJOR(version) >= 0x3) {
+	/* Use the v2 version for SCMI protocol versions 2.1 and later */
+	if (version >= 0x20001) {
 		cinfo->clock_config_set = scmi_clock_config_set_v2;
 		cinfo->clock_config_get = scmi_clock_config_get_v2;
 	} else {
