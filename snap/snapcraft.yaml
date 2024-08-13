@@ -82,11 +82,13 @@ parts:
       - firmware
       - kernel
       - optee-uc-fde-client
+      - snap-bootstrap
     plugin: initrd
     initrd-addons:
       - usr/bin/fde-reveal-key
       - usr/bin/fde-setup
       - usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/libteec.so*
+      - usr/lib/snapd/snap-bootstrap
     initrd-firmware:
       - firmware/imx/sdma/sdma-imx7d.bin
       - firmware/regulatory.db
@@ -260,6 +262,30 @@ parts:
     prime:
       - meta/
 
+  snap-bootstrap:
+    plugin: nil
+    override-build: |
+      export GOPATH="${CRAFT_PART_BUILD}/go"
+      mkdir -p ${CRAFT_PART_BUILD}/go/src/github.com/snapcore
+      git clone --depth=1 https://github.com/kubiko/snapd.git -b poc-single-boot-install ${CRAFT_PART_BUILD}/go/src/github.com/snapcore/snapd
+      cd ${CRAFT_PART_BUILD}/go/src/github.com/snapcore/snapd
+      ./get-deps.sh
+      export GOARCH=${CRAFT_ARCH_BUILD_FOR}
+      export CGO_ENABLED=1
+      export CC=${CRAFT_ARCH_TRIPLET_BUILD_FOR}-gcc
+      if [ "${CRAFT_ARCH_BUILD_FOR}" = "arm64" ]; then
+        export GOARCH=arm64
+        unset GOARM
+      else
+        export GOARCH=arm
+        export GOARM=7
+      fi
+      export FARCH=${CRAFT_ARCH_BUILD_FOR}
+      mkdir -p ${CRAFT_PART_INSTALL}/usr/lib/snapd
+      go build -mod=vendor  -buildmode=pie -tags nomanagers -ldflags "-s -w"  -o  ${CRAFT_PART_INSTALL}/usr/lib/snapd/snap-bootstrap ${PWD}/cmd/snap-bootstrap
+    prime:
+      - -*
+
   test-keys:
     plugin: dump
     source: https://git.launchpad.net/~ondrak/+git/dev-keys
@@ -285,6 +311,9 @@ parts:
         -r ${CRAFT_PART_INSTALL}/kernel.img \
         -k ${CRAFT_STAGE}/signing-key
       rm ${CRAFT_STAGE}/kernel_${CRAFT_ARCH_BUILD_FOR}.its
+
+build-snaps:
+  - go/latest/stable
 
 build-packages:
   - bison
