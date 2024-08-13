@@ -76,6 +76,14 @@ parts:
       - firmware/imx/sdma/sdma-imx7d.bin
       - firmware/regulatory.db
       - firmware/regulatory.db.p7s
+    override-prime: |
+      craftctl default
+      # Trim firmware
+      trim_tool="https://git.launchpad.net/canonical-kernel-snaps/plain/trim-firmware"
+      curl -s ${trim_tool} | bash /dev/stdin ${CRAFT_PRIME}
+      # make sure we have all ath10 firmware files
+      mkdir -p ${CRAFT_PRIME}/firmware/ath10k/QCA9377/hw1.0
+      install -D ${CRAFT_STAGE}/firmware/ath10k/QCA9377/hw1.0/* ${CRAFT_PRIME}/firmware/ath10k/QCA9377/hw1.0
     prime:
       - -initrd.img*
 
