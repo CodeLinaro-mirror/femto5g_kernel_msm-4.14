@@ -1532,7 +1532,6 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 			nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
 			nxp_set_baudrate_cmd(hdev, NULL);
 		}
-		ps_cleanup(nxpdev);
 	}
 	ps_cleanup(nxpdev);
 	hci_unregister_dev(hdev);
