@@ -136,7 +136,6 @@ static struct fsl_lpspi_devtype_data imx93_lpspi_devtype_data = {
 };
 
 static struct fsl_lpspi_devtype_data imx7ulp_lpspi_devtype_data = {
-	.prescale_max = 7,
 };
 
 static const struct of_device_id fsl_lpspi_dt_ids[] = {
