@@ -1,0 +1,7 @@
+name: pc-kernel
+summary: The Ubuntu generic Linux kernel
+description: This Ubuntu generic Linux kernel
+
+grade: stable
+confinement: strict
+type: kernel
