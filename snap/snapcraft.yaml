@@ -75,6 +75,16 @@ parts:
     prime:
       - -initrd.img*
 
+  firmware:
+    plugin: nil
+    stage-packages:
+      - linux-firmware
+      - wireless-regdb
+    organize:
+      lib/firmware: firmware
+    prime:
+      - firmware
+
 package-repositories:
    - type: apt
      architectures: [$CRAFT_ARCH_BUILD_FOR]
