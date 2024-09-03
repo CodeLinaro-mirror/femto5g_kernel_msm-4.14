@@ -330,6 +330,9 @@ DECLARE_HOOK(android_vh_page_cache_miss,
 		pgoff_t start, pgoff_t len,
 		pgoff_t index, bool buffer),
 	TP_ARGS(file, start, len, index, buffer));
+DECLARE_HOOK(android_vh_init_adjust_zone_wmark,
+	TP_PROTO(struct zone *zone, u64 interval),
+	TP_ARGS(zone, interval));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */
