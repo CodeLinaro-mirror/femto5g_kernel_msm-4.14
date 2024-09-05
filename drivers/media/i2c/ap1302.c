@@ -472,7 +472,8 @@ static int ap1302_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ap1302_g_frame_interval(struct v4l2_subdev *sd,
+static int ap1302_get_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct ap1302_device *ap1302_dev = to_ap1302_device(sd);
@@ -484,7 +485,8 @@ static int ap1302_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ap1302_s_frame_interval(struct v4l2_subdev *sd,
+static int ap1302_set_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	return 0;
@@ -526,8 +528,6 @@ static int ap1302_link_setup(struct media_entity *entity,
 }
 
 static struct v4l2_subdev_video_ops ap1302_subdev_video_ops = {
-	.g_frame_interval = ap1302_g_frame_interval,
-	.s_frame_interval = ap1302_s_frame_interval,
 	.s_stream = ap1302_s_stream,
 };
 
@@ -540,6 +540,8 @@ static const struct v4l2_subdev_pad_ops ap1302_subdev_pad_ops = {
 	.enum_frame_size       = ap1302_enum_frame_size,
 	.get_fmt               = ap1302_get_fmt,
 	.set_fmt               = ap1302_set_fmt,
+	.get_frame_interval	= ap1302_get_frame_interval,
+	.set_frame_interval	= ap1302_set_frame_interval,
 };
 
 static struct v4l2_subdev_ops ap1302_subdev_ops = {

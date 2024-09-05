@@ -677,7 +677,8 @@ static int mxc_pcsi_s_power(struct v4l2_subdev *sd, int on)
 	return v4l2_subdev_call(sen_sd, core, s_power, on);
 }
 
-static int mxc_pcsi_g_frame_interval(struct v4l2_subdev *sd,
+static int mxc_pcsi_get_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct mxc_parallel_csi_dev *pcsidev = sd_to_mxc_pcsi_dev(sd);
@@ -687,10 +688,11 @@ static int mxc_pcsi_g_frame_interval(struct v4l2_subdev *sd,
 	if (!sen_sd)
 		return -EINVAL;
 
-	return v4l2_subdev_call(sen_sd, video, g_frame_interval, interval);
+	return v4l2_subdev_call_state_active(sen_sd, pad, get_frame_interval, interval);
 }
 
-static int mxc_pcsi_s_frame_interval(struct v4l2_subdev *sd,
+static int mxc_pcsi_set_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct mxc_parallel_csi_dev *pcsidev = sd_to_mxc_pcsi_dev(sd);
@@ -700,7 +702,7 @@ static int mxc_pcsi_s_frame_interval(struct v4l2_subdev *sd,
 	if (!sen_sd)
 		return -EINVAL;
 
-	return v4l2_subdev_call(sen_sd, video, s_frame_interval, interval);
+	return v4l2_subdev_call_state_active(sen_sd, pad, set_frame_interval, interval);
 }
 
 static int mxc_pcsi_s_stream(struct v4l2_subdev *sd, int enable)
@@ -766,6 +768,9 @@ static struct v4l2_subdev_pad_ops pcsi_pad_ops = {
 	.enum_frame_interval = mxc_pcsi_enum_frame_interval,
 	.get_fmt = mxc_pcsi_get_fmt,
 	.set_fmt = mxc_pcsi_set_fmt,
+	.get_frame_interval = mxc_pcsi_get_frame_interval,
+	.set_frame_interval = mxc_pcsi_set_frame_interval,
+
 };
 
 static struct v4l2_subdev_core_ops pcsi_core_ops = {
@@ -773,8 +778,6 @@ static struct v4l2_subdev_core_ops pcsi_core_ops = {
 };
 
 static struct v4l2_subdev_video_ops pcsi_video_ops = {
-	.g_frame_interval = mxc_pcsi_g_frame_interval,
-	.s_frame_interval = mxc_pcsi_s_frame_interval,
 	.s_stream	  = mxc_pcsi_s_stream,
 };
 

@@ -569,7 +569,7 @@ static int dwc_csi_device_pg_enable(struct dwc_csi_device *csidev)
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 	/* Pattern generator create data stream only according to stream 0 */
-	fmt = v4l2_subdev_state_get_stream_format(state, DWC_CSI2RX_PAD_SINK, 0);
+	fmt = v4l2_subdev_state_get_format(state, DWC_CSI2RX_PAD_SINK, 0);
 
 	val = CSI2RX_PPI_PG_PATTERN_HRES_HRES(fmt->width);
 	dwc_csi_write(csidev, CSI2RX_PPI_PG_PATTERN_HRES, val);
@@ -929,7 +929,7 @@ static int dwc_csi_subdev_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		fmt = v4l2_subdev_state_get_stream_format(sd_state, code->pad,
+		fmt = v4l2_subdev_state_get_format(sd_state, code->pad,
 							  code->stream);
 		code->code = fmt->code;
 		return 0;
@@ -990,7 +990,7 @@ static int dwc_csi_subdev_set_fmt(struct v4l2_subdev *sd,
 			      &sdformat->format.height, 1,
 			      DWC_CSI2RX_MAX_PIX_HEIGHT, 0, 0);
 
-	fmt = v4l2_subdev_state_get_stream_format(sd_state, sdformat->pad,
+	fmt = v4l2_subdev_state_get_format(sd_state, sdformat->pad,
 						  sdformat->stream);
 	if (!fmt)
 		return -EINVAL;
@@ -1225,7 +1225,6 @@ static const struct v4l2_subdev_core_ops dwc_csi_subdev_core_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops dwc_csi_subdev_pad_ops = {
-	.init_cfg = dwc_csi_subdev_init_cfg,
 	.enum_mbus_code	= dwc_csi_subdev_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = dwc_csi_subdev_set_fmt,

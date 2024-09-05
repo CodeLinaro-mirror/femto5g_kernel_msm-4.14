@@ -3051,17 +3051,6 @@ static int ub960_init_state(struct v4l2_subdev *sd,
 	return _ub960_set_routing(sd, state, &routing);
 }
 
-static const struct v4l2_subdev_pad_ops ub960_pad_ops = {
-	.enable_streams = ub960_enable_streams,
-	.disable_streams = ub960_disable_streams,
-
-	.set_routing = ub960_set_routing,
-	.get_frame_desc = ub960_get_frame_desc,
-
-	.get_fmt = v4l2_subdev_get_fmt,
-	.set_fmt = ub960_set_fmt,
-};
-
 static int ub960_log_status(struct v4l2_subdev *sd)
 {
 	struct ub960_data *priv = sd_to_ub960(sd);
@@ -3215,7 +3204,8 @@ static const struct v4l2_subdev_internal_ops ub960_internal_ops = {
 	.init_state = ub960_init_state,
 };
 
-static int ub960_g_frame_interval(struct v4l2_subdev *sd,
+static int ub960_get_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_interval *interval)
 {
 	struct ub960_data *priv = sd_to_ub960(sd);
@@ -3228,7 +3218,8 @@ static int ub960_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ub960_s_frame_interval(struct v4l2_subdev *sd,
+static int ub960_set_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_interval *interval)
 {
 	struct ub960_data *priv = sd_to_ub960(sd);
@@ -3241,14 +3232,21 @@ static int ub960_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct v4l2_subdev_video_ops ub960_subdev_video_ops = {
-	.g_frame_interval = ub960_g_frame_interval,
-	.s_frame_interval = ub960_s_frame_interval,
+static const struct v4l2_subdev_pad_ops ub960_pad_ops = {
+	.enable_streams = ub960_enable_streams,
+	.disable_streams = ub960_disable_streams,
+
+	.set_routing = ub960_set_routing,
+	.get_frame_desc = ub960_get_frame_desc,
+
+	.get_fmt = v4l2_subdev_get_fmt,
+	.set_fmt = ub960_set_fmt,
+	.get_frame_interval	= ub960_get_frame_interval,
+	.set_frame_interval	= ub960_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ub960_subdev_ops = {
 	.core = &ub960_subdev_core_ops,
-	.video = &ub960_subdev_video_ops,
 	.pad = &ub960_pad_ops,
 };
 

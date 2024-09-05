@@ -145,7 +145,6 @@ static int ox03c10_init_cfg(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops ox03c10_subdev_pad_ops = {
-	.init_cfg = ox03c10_init_cfg,
 	.enum_mbus_code = ox03c10_enum_mbus_code,
 	.enum_frame_size = ox03c10_enum_frame_size,
 	.get_frame_desc = ox03c10_get_frame_desc,

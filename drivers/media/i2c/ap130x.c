@@ -1563,7 +1563,7 @@ ap130x_get_pad_format(struct ap130x_device *ap130x,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&ap130x->sd, state, pad);
+		return v4l2_subdev_state_get_format(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ap130x->formats[pad].format;
 	default:
@@ -2115,7 +2115,6 @@ static const struct media_entity_operations ap130x_media_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ap130x_pad_ops = {
-	.init_cfg = ap130x_init_cfg,
 	.enum_mbus_code = ap130x_enum_mbus_code,
 	.enum_frame_size = ap130x_enum_frame_size,
 	.get_fmt = ap130x_get_fmt,

@@ -1168,7 +1168,8 @@ static int dwc_mipi_csi2_s_power(struct v4l2_subdev *sd, int on)
 	return v4l2_subdev_call(sen_sd, core, s_power, on);
 }
 
-static int dwc_mipi_csi2_g_frame_interval(struct v4l2_subdev *sd,
+static int dwc_mipi_csi2_get_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct dwc_mipi_csi2_host *csi2h = sd_to_dwc_mipi_csi2h(sd);
@@ -1178,10 +1179,11 @@ static int dwc_mipi_csi2_g_frame_interval(struct v4l2_subdev *sd,
 	if (!sen_sd)
 		return -EINVAL;
 
-	return v4l2_subdev_call(sen_sd, video, g_frame_interval, interval);
+	return v4l2_subdev_call_state_active(sen_sd, pad, get_frame_interval, interval);
 }
 
-static int dwc_mipi_csi2_s_frame_interval(struct v4l2_subdev *sd,
+static int dwc_mipi_csi2_set_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct dwc_mipi_csi2_host *csi2h = sd_to_dwc_mipi_csi2h(sd);
@@ -1191,7 +1193,7 @@ static int dwc_mipi_csi2_s_frame_interval(struct v4l2_subdev *sd,
 	if (!sen_sd)
 		return -EINVAL;
 
-	return v4l2_subdev_call(sen_sd, video, s_frame_interval, interval);
+	return v4l2_subdev_call_state_active(sen_sd, pad, set_frame_interval, interval);
 }
 
 static int dwc_mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
@@ -1223,6 +1225,9 @@ static struct v4l2_subdev_pad_ops dwc_mipi_csi2_pad_ops = {
 	.enum_frame_interval = dwc_mipi_csi2_enum_frame_interval,
 	.get_fmt             = dwc_mipi_csi2_get_fmt,
 	.set_fmt             = dwc_mipi_csi2_set_fmt,
+	.get_frame_interval  = dwc_mipi_csi2_get_frame_interval,
+	.set_frame_interval  = dwc_mipi_csi2_set_frame_interval,
+
 };
 
 static struct v4l2_subdev_core_ops dwc_mipi_csi2_core_ops = {
@@ -1230,8 +1235,6 @@ static struct v4l2_subdev_core_ops dwc_mipi_csi2_core_ops = {
 };
 
 static struct v4l2_subdev_video_ops dwc_mipi_csi2_video_ops = {
-	.g_frame_interval = dwc_mipi_csi2_g_frame_interval,
-	.s_frame_interval = dwc_mipi_csi2_s_frame_interval,
 	.s_stream	  = dwc_mipi_csi2_s_stream,
 };
 

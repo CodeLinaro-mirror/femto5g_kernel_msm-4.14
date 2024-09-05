@@ -995,7 +995,8 @@ static int mipi_csi2_s_power(struct v4l2_subdev *sd, int on)
 	return v4l2_subdev_call(sen_sd, core, s_power, on);
 }
 
-static int mipi_csi2_g_frame_interval(struct v4l2_subdev *sd,
+static int mipi_csi2_get_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct mxc_mipi_csi2_dev *csi2dev = sd_to_mxc_mipi_csi2_dev(sd);
@@ -1005,10 +1006,11 @@ static int mipi_csi2_g_frame_interval(struct v4l2_subdev *sd,
 	if (!sen_sd)
 		return -EINVAL;
 
-	return v4l2_subdev_call(sen_sd, video, g_frame_interval, interval);
+	return v4l2_subdev_call_state_active(sen_sd, pad, get_frame_interval, interval);
 }
 
-static int mipi_csi2_s_frame_interval(struct v4l2_subdev *sd,
+static int mipi_csi2_set_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval *interval)
 {
 	struct mxc_mipi_csi2_dev *csi2dev = sd_to_mxc_mipi_csi2_dev(sd);
@@ -1018,7 +1020,8 @@ static int mipi_csi2_s_frame_interval(struct v4l2_subdev *sd,
 	if (!sen_sd)
 		return -EINVAL;
 
-	return v4l2_subdev_call(sen_sd, video, s_frame_interval, interval);
+
+	return v4l2_subdev_call_state_active(sen_sd, pad, set_frame_interval, interval);
 }
 
 static void mipi_csi2_hw_config(struct mxc_mipi_csi2_dev *csi2dev)
@@ -1137,6 +1140,9 @@ static struct v4l2_subdev_pad_ops mipi_csi2_pad_ops = {
 	.enum_frame_interval = mipi_csi2_enum_frame_interval,
 	.get_fmt = mipi_csi2_get_fmt,
 	.set_fmt = mipi_csi2_set_fmt,
+	.get_frame_interval = mipi_csi2_get_frame_interval,
+	.set_frame_interval = mipi_csi2_set_frame_interval,
+
 };
 
 static struct v4l2_subdev_core_ops mipi_csi2_core_ops = {
@@ -1144,8 +1150,6 @@ static struct v4l2_subdev_core_ops mipi_csi2_core_ops = {
 };
 
 static struct v4l2_subdev_video_ops mipi_csi2_video_ops = {
-	.g_frame_interval = mipi_csi2_g_frame_interval,
-	.s_frame_interval = mipi_csi2_s_frame_interval,
 	.s_stream	  = mipi_csi2_s_stream,
 };
 

@@ -60,7 +60,7 @@ static int mxc_isi_crossbar_gasket_enable(struct mxc_isi_crossbar *xbar,
 	 * since gasket enable callback be called only once.
 	 */
 	stream = fd.num_entries > 0 ? fd.entry[0].stream : 0;
-	fmt = v4l2_subdev_state_get_stream_format(state, port, 0);
+	fmt = v4l2_subdev_state_get_format(state, port, 0);
 	if (!fmt)
 		return -EINVAL;
 

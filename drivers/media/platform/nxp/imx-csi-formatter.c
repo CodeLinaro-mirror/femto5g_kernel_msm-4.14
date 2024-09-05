@@ -288,7 +288,7 @@ static int formatter_subdev_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		fmt = v4l2_subdev_state_get_stream_format(sd_state, code->pad,
+		fmt = v4l2_subdev_state_get_format(sd_state, code->pad,
 							  code->stream);
 		code->code = fmt->code;
 		return 0;
@@ -327,7 +327,7 @@ static int formatter_subdev_set_fmt(struct v4l2_subdev *sd,
 			      &sdformat->format.height, 1,
 			      CSI_FORMATTER_MAX_PIX_HEIGHT, 0, 0);
 
-	fmt = v4l2_subdev_state_get_stream_format(sd_state, sdformat->pad,
+	fmt = v4l2_subdev_state_get_format(sd_state, sdformat->pad,
 						  sdformat->stream);
 	*fmt = sdformat->format;
 
@@ -618,7 +618,6 @@ static int formatter_subdev_disable_streams(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops formatter_subdev_pad_ops = {
-	.init_cfg = formatter_subdev_init_state,
 	.enum_mbus_code	= formatter_subdev_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = formatter_subdev_set_fmt,
