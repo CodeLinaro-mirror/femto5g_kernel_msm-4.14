@@ -30,6 +30,7 @@
 #include <linux/of_dma.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <linux/platform_device.h>
 
 #include "virt-dma.h"
 

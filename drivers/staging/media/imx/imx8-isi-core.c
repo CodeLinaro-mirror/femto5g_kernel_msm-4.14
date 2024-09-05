@@ -5,6 +5,7 @@
  */
 
 #include "imx8-isi-hw.h"
+#include <linux/of_platform.h>
 
 static const struct soc_device_attribute imx8_soc[] = {
 	{

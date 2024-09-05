@@ -14,6 +14,7 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mixel-lvds-combo.h>
 #include <linux/pm_domain.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <drm/bridge/fsl_imx_ldb.h>

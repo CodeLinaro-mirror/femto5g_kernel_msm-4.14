@@ -6,6 +6,8 @@
 #ifndef ELE_MU_IOCTL_H
 #define ELE_MU_IOCTL_H
 
+#include <linux/time.h>
+
 /* IOCTL definitions. */
 
 struct ele_mu_ioctl_setup_iobuf {

@@ -6,6 +6,7 @@
 #include <dt-bindings/pinctrl/pads-imx8qxp.h>
 
 #include <linux/module.h>
+#include <linux/of_platform.h>
 #include "imx8-isi-hw.h"
 #include "imx8-common.h"
 

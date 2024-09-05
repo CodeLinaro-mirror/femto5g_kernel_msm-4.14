@@ -30,6 +30,7 @@
 #include "error.h"
 #include "jr.h"
 #include "sm.h"
+#include <linux/platform_device.h>
 
 /* Fixed known pattern for a key modifier */
 static u8 skeymod[] = {

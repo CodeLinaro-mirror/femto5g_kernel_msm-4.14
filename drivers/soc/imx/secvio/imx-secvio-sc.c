@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/miscdevice.h>
+#include <linux/mod_devicetable.h>
 
 #include <linux/firmware/imx/ipc.h>
 #include <linux/firmware/imx/sci.h>

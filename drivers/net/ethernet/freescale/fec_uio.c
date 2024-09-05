@@ -16,6 +16,7 @@
 #include <linux/etherdevice.h>
 #include <linux/clk.h>
 #include <linux/of_gpio.h>
+#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/busfreq-imx.h>
 #include <linux/of_mdio.h>

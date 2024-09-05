@@ -5,6 +5,7 @@
  * Copyright (C) 2023 Wei Fang <wei.fang@nxp.com>
  */
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/ptp_clock_kernel.h>

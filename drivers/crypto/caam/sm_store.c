@@ -39,6 +39,8 @@
 #include "error.h"
 #include "sm.h"
 #include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #define SECMEM_KEYMOD_LEN 8
 #define GENMEM_KEYMOD_LEN 16
