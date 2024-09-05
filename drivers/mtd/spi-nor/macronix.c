@@ -98,11 +98,11 @@ static int spi_nor_macronix_set_octal_dtr(struct spi_nor *nor, bool enable)
 		return ret;
 
 	if (enable) {
-		for (i = 0; i < nor->info->id_len; i++)
-			if (buf[i * 2] != nor->info->id[i])
+		for (i = 0; i < nor->info->id->len; i++)
+			if (buf[i * 2] != nor->info->id->bytes[i])
 				return -EINVAL;
 	} else {
-		if (memcmp(buf, nor->info->id, nor->info->id_len))
+		if (memcmp(buf, nor->info->id->bytes, nor->info->id->len))
 			return -EINVAL;
 	}
 
