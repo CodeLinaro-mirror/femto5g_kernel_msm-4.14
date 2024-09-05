@@ -351,7 +351,7 @@ _NonContiguous1MPagesAlloc(IN struct gfp_mdl_priv *MdlPriv,
         if (MdlPriv->Pages1M[i] == gcvNULL) {
             int order = get_order(gcd1M_PAGE_SIZE);
 
-            if (order >= MAX_ORDER)
+            if (order >= MAX_PAGE_ORDER)
                 gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
 
             MdlPriv->Pages1M[i] = alloc_pages(Gfp, order);
@@ -478,7 +478,7 @@ Alloc:
         if (mdlPriv->contiguousPages == gcvNULL) {
             int order = get_order(bytes);
 
-            if (order >= MAX_ORDER) {
+            if (order >= MAX_PAGE_ORDER) {
                 status = gcvSTATUS_OUT_OF_MEMORY;
                 goto OnError;
             }
