@@ -799,8 +799,8 @@ static int mxc_isi_cap_querycap(struct file *file, void *priv,
 {
 	struct mxc_isi_cap_dev *isi_cap = video_drvdata(file);
 
-	strlcpy(cap->driver, MXC_ISI_CAPTURE, sizeof(cap->driver));
-	strlcpy(cap->card, MXC_ISI_CAPTURE, sizeof(cap->card));
+	strscpy(cap->driver, MXC_ISI_CAPTURE, sizeof(cap->driver));
+	strscpy(cap->card, MXC_ISI_CAPTURE, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s.%d",
 		 dev_name(&isi_cap->pdev->dev), isi_cap->id);
 

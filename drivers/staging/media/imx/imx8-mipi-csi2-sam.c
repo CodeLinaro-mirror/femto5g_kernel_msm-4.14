@@ -1382,7 +1382,7 @@ static int csis_ioc_qcap(struct v4l2_subdev *dev, void *args)
 {
 	struct csi_state *state = mipi_sd_to_csi_state(dev);
 	struct v4l2_capability *cap = (struct v4l2_capability *)args;
-	strlcpy((char *)cap->driver, "csi_sam_subdev", sizeof(cap->driver));
+	strscpy((char *)cap->driver, "csi_sam_subdev", sizeof(cap->driver));
 	cap->bus_info[0] = state->index;
 	return 0;
 }

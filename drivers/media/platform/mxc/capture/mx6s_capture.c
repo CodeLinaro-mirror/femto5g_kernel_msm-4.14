@@ -1394,7 +1394,7 @@ static int mx6s_vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 		return -EINVAL;
 	}
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->pixelformat;
 
 	return 0;
@@ -1495,8 +1495,8 @@ static int mx6s_vidioc_querycap(struct file *file, void  *priv,
 	WARN_ON(priv != file->private_data);
 
 	/* cap->name is set by the friendly caller:-> */
-	strlcpy(cap->driver, MX6S_CAM_DRV_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, MX6S_CAM_DRIVER_DESCRIPTION, sizeof(cap->card));
+	strscpy(cap->driver, MX6S_CAM_DRV_NAME, sizeof(cap->driver));
+	strscpy(cap->card, MX6S_CAM_DRIVER_DESCRIPTION, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(csi_dev->dev));
 

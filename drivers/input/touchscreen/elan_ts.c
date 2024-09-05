@@ -328,7 +328,7 @@ static int elan_touch_probe(struct i2c_client *client)
 	}
 
 	elan_touch_data.client = client;
-	strlcpy(client->name, ELAN_TS_NAME, I2C_NAME_SIZE);
+	strscpy(client->name, ELAN_TS_NAME, I2C_NAME_SIZE);
 
 	INIT_WORK(&elan_touch_data.work, elan_touch_work_func);
 

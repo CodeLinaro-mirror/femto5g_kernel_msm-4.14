@@ -1069,7 +1069,7 @@ static int mxc_md_probe(struct platform_device *pdev)
 	mxc_md->parallel_csi = of_property_read_bool(nd, "parallel_csi");
 
 	/* register media device  */
-	strlcpy(mxc_md->media_dev.model, "FSL Capture Media Device",
+	strscpy(mxc_md->media_dev.model, "FSL Capture Media Device",
 		sizeof(mxc_md->media_dev.model));
 	mxc_md->media_dev.ops = &mxc_md_ops;
 	mxc_md->media_dev.dev = dev;
@@ -1078,7 +1078,7 @@ static int mxc_md_probe(struct platform_device *pdev)
 	v4l2_dev = &mxc_md->v4l2_dev;
 	v4l2_dev->mdev = &mxc_md->media_dev;
 	v4l2_dev->notify = mxc_sensor_notify;
-	strlcpy(v4l2_dev->name, "mx8-img-md", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "mx8-img-md", sizeof(v4l2_dev->name));
 
 	media_device_init(&mxc_md->media_dev);
 

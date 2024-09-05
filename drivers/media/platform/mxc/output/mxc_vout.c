@@ -393,7 +393,7 @@ static int update_setting_from_fbi(struct mxc_vout_output *vout,
 		mutex_unlock(&gfbi_mutex);
 		return -EINVAL;
 	}
-	strlcpy(vout->vfd->name, fbi->fix.id, sizeof(vout->vfd->name));
+	strscpy(vout->vfd->name, fbi->fix.id, sizeof(vout->vfd->name));
 
 	memset(&vout->task, 0, sizeof(struct ipu_task));
 
@@ -1031,8 +1031,8 @@ static int mxc_vidioc_querycap(struct file *file, void *fh,
 {
 	struct mxc_vout_output *vout = fh;
 
-	strlcpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, vout->vfd->name, sizeof(cap->card));
+	strscpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
+	strscpy(cap->card, vout->vfd->name, sizeof(cap->card));
 	cap->bus_info[0] = '\0';
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -1046,7 +1046,7 @@ static int mxc_vidioc_enum_fmt_vid_out(struct file *file, void *fh,
 	if (fmt->index >= NUM_MXC_VOUT_FORMATS)
 		return -EINVAL;
 
-	strlcpy(fmt->description, mxc_formats[fmt->index].description,
+	strscpy(fmt->description, mxc_formats[fmt->index].description,
 			sizeof(fmt->description));
 	fmt->pixelformat = mxc_formats[fmt->index].pixelformat;
 
@@ -2183,7 +2183,7 @@ static int mxc_vout_setup_output(struct mxc_vout_dev *dev)
 		mutex_init(&vout->task_lock);
 		mutex_init(&vout->accs_lock);
 
-		strlcpy(vout->vfd->name, fbi->fix.id, sizeof(vout->vfd->name));
+		strscpy(vout->vfd->name, fbi->fix.id, sizeof(vout->vfd->name));
 
 		video_set_drvdata(vout->vfd, vout);
 

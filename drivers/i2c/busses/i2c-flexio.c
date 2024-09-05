@@ -680,7 +680,7 @@ static int imx_flexio_i2c_master_probe(struct platform_device *pdev)
 	i2c_dev->adapter.nr = pdev->id;
 	i2c_dev->adapter.bus_recovery_info = &imx_flexio_i2c_recovery_info;
 
-	strlcpy(i2c_dev->adapter.name, dev_name(i2c_dev->dev),
+	strscpy(i2c_dev->adapter.name, dev_name(i2c_dev->dev),
 		sizeof(i2c_dev->adapter.name));
 
 	init_completion(&i2c_dev->complete);

@@ -665,8 +665,8 @@ static int mxc_isi_m2m_querycap(struct file *file, void *priv,
 {
 	struct mxc_isi_m2m_dev *isi_m2m = video_drvdata(file);
 
-	strlcpy(cap->driver, MXC_ISI_M2M, sizeof(cap->driver));
-	strlcpy(cap->card, MXC_ISI_M2M, sizeof(cap->card));
+	strscpy(cap->driver, MXC_ISI_M2M, sizeof(cap->driver));
+	strscpy(cap->card, MXC_ISI_M2M, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s.%d",
 		 dev_name(&isi_m2m->pdev->dev), isi_m2m->id);
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
@@ -1406,7 +1406,7 @@ static int isi_m2m_probe(struct platform_device *pdev)
 
 	/* V4L2 device */
 	v4l2_dev = &isi_m2m->v4l2_dev;
-	strlcpy(v4l2_dev->name, "mx8-isi-m2m", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "mx8-isi-m2m", sizeof(v4l2_dev->name));
 
 	ret = v4l2_device_register(&pdev->dev, v4l2_dev);
 	if (ret < 0) {
