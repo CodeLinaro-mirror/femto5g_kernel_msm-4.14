@@ -255,7 +255,7 @@ static int scmi_imx_bbm_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	return ph->set_priv(ph, binfo);
+	return ph->set_priv(ph, binfo, version);
 }
 
 static int scmi_imx_bbm_rtc_time_set(const struct scmi_protocol_handle *ph,

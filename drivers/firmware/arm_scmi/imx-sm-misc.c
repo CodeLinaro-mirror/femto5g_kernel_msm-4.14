@@ -212,7 +212,7 @@ static int scmi_imx_misc_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	return ph->set_priv(ph, minfo);
+	return ph->set_priv(ph, minfo, version);
 }
 
 static int scmi_imx_misc_ctrl_get(const struct scmi_protocol_handle *ph,
