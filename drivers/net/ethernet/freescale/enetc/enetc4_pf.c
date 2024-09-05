@@ -707,7 +707,6 @@ static void enetc4_pl_mac_link_down(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops enetc_pl_mac_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = enetc4_pl_mac_select_pcs,
 	.mac_config = enetc4_pl_mac_config,
 	.mac_link_up = enetc4_pl_mac_link_up,
