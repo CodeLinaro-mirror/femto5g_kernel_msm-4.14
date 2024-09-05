@@ -23,7 +23,7 @@ struct imx_rpmsg {
 	struct snd_soc_card card;
 	unsigned long sysclk;
 	bool lpa;
-	struct asoc_simple_jack hp_jack;
+	struct simple_util_jack hp_jack;
 	int sysclk_id;
 };
 

@@ -267,7 +267,7 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 
 	if (priv->card_type == CARD_CS42888) {
 		priv->is_stream_tdm[tx] = channels > 1 && channels % 2;
-		if (asoc_rtd_to_cpu(rtd, 0)->stream[!substream->stream].active &&
+		if (snd_soc_rtd_to_cpu(rtd, 0)->stream[!substream->stream].active &&
 			(priv->is_stream_tdm[tx] != priv->is_stream_tdm[!tx])) {
 			dev_err(dev, "Don't support different fmt for tx & rx\n");
 			return -EINVAL;
@@ -291,24 +291,24 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 			}
 
 			priv->dai_fmt |= SND_SOC_DAIFMT_DSP_A;
-			snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0),
+			snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0),
 					 BIT(channels) - 1, BIT(channels) - 1,
 					 8, cpu_priv->slot_width);
 		} else {
 			priv->dai_fmt |= SND_SOC_DAIFMT_LEFT_J;
-			snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0),
+			snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0),
 						 0x3, 0x3, 2,
 						 cpu_priv->slot_width);
 		}
 		/* set cpu DAI configuration */
-		ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
+		ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 					  snd_soc_daifmt_clock_provider_flipped(priv->dai_fmt));
 		if (ret) {
 			dev_err(dev, "failed to set cpu dai fmt: %d\n", ret);
 			return ret;
 		}
 		/* set codec DAI configuration */
-		ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0), priv->dai_fmt);
+		ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_codec(rtd, 0), priv->dai_fmt);
 		if (ret) {
 			dev_err(dev, "failed to set codec dai fmt: %d\n", ret);
 			return ret;
