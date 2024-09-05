@@ -712,7 +712,7 @@ static int enet_qos_probe(struct platform_device *pdev)
 	if (!dwmac)
 		return -ENOMEM;
 
-	plat_dat = stmmac_probe_config_dt(pdev, stmmac_res.mac);
+	plat_dat = devm_stmmac_probe_config_dt(pdev, stmmac_res.mac);
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
@@ -720,7 +720,6 @@ static int enet_qos_probe(struct platform_device *pdev)
 	if (!data) {
 		dev_err(&pdev->dev, "failed to get match data\n");
 		ret = -EINVAL;
-		goto err_match_data;
 	}
 
 	dwmac->ops = data;
@@ -729,7 +728,7 @@ static int enet_qos_probe(struct platform_device *pdev)
 	ret = imx_dwmac_parse_dt(dwmac, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to parse OF data\n");
-		goto err_parse_dt;
+		return ret;
 	}
 
 	plat_dat->host_dma_width = dwmac->ops->addr_width;
@@ -742,7 +741,7 @@ static int enet_qos_probe(struct platform_device *pdev)
 
 	ret = imx_dwmac_clks_config(dwmac, true);
 	if (ret)
-		goto err_clks_config;
+		return ret;
 
 	ret = imx_dwmac_init(pdev, dwmac);
 	if (ret)
@@ -758,10 +757,6 @@ static int enet_qos_probe(struct platform_device *pdev)
 
 err_dwmac_init:
 	imx_dwmac_clks_config(dwmac, false);
-err_clks_config:
-err_parse_dt:
-err_match_data:
-	stmmac_remove_config_dt(pdev, plat_dat);
 	return ret;
 }
 
