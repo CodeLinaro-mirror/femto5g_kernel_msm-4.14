@@ -654,7 +654,7 @@ int neutron_dev_init(struct neutron_device *ndev,
 	}
 
 	dma_set_mask_and_coherent(ndev->dev, DMA_BIT_MASK(32));
-	arch_setup_dma_ops(ndev->dev, 0, 0, NULL, true);
+	arch_setup_dma_ops(ndev->dev, 0, 0, true);
 
 	/* Init power state */
 	ndev->power_state = NEUTRON_POWER_OFF;
