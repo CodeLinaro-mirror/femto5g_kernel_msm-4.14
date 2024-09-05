@@ -201,8 +201,8 @@ static int crypto_tls_encrypt(struct aead_request *req)
 	 * the result is not overwritten by the second (cipher) request.
 	 */
 	hash = (u8 *)ALIGN((unsigned long)hash +
-			   crypto_ahash_alignmask(ctx->auth),
-			   crypto_ahash_alignmask(ctx->auth) + 1);
+			   crypto_tfm_alg_alignmask(crypto_ahash_tfm(ctx->auth)),
+			   crypto_tfm_alg_alignmask(crypto_ahash_tfm(ctx->auth)) + 1);
 
 	/*
 	 * STEP 1: create ICV together with necessary padding
@@ -361,8 +361,8 @@ static int crypto_tls_decrypt(struct aead_request *req)
 	 * space was allocated in crypto_tls_init_tfm
 	 */
 	hash = (u8 *)ALIGN((unsigned long)hash +
-			   crypto_ahash_alignmask(ctx->auth),
-			   crypto_ahash_alignmask(ctx->auth) + 1);
+			   crypto_tfm_alg_alignmask(crypto_ahash_tfm(ctx->auth)),
+			   crypto_tfm_alg_alignmask(crypto_ahash_tfm(ctx->auth)) + 1);
 	/*
 	 * Two bytes at the end of the associated data make the length field.
 	 * It must be updated with the length of the cleartext message before
@@ -432,8 +432,8 @@ static int crypto_tls_init_tfm(struct crypto_aead *tfm)
 	 * padded (up to a cipher blocksize) and chained with the payload
 	 */
 	ctx->reqoff = ALIGN(crypto_ahash_digestsize(auth) +
-			    crypto_ahash_alignmask(auth),
-			    crypto_ahash_alignmask(auth) + 1) +
+			    crypto_tfm_alg_alignmask(crypto_ahash_tfm(auth)),
+			    crypto_tfm_alg_alignmask(crypto_ahash_tfm(auth)) + 1) +
 			    max(crypto_ahash_digestsize(auth),
 				crypto_skcipher_blocksize(enc));
 
