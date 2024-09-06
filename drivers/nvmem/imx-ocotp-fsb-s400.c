@@ -314,17 +314,12 @@ static int fsb_s400_fuse_write(void *priv, unsigned int offset, void *val, size_
 }
 
 struct imx_fsb_s400_fuse *gfuse;
-static void imx_fsb_s400_fuse_fixup_cell_info(struct nvmem_device *nvmem,
-					      struct nvmem_layout *layout,
+static void imx_fsb_s400_fuse_fixup_dt_cell_info(struct nvmem_device *nvmem,
 					      struct nvmem_cell_info *cell)
 {
 	cell->priv = gfuse;
 	cell->read_post_process = fsb_s400_fuse_post_process;
 }
-
-static struct nvmem_layout imx_fsb_s400_fuse_layout = {
-	.fixup_cell_info = imx_fsb_s400_fuse_fixup_cell_info,
-};
 
 static int imx_fsb_s400_fuse_probe(struct platform_device *pdev)
 {
@@ -345,6 +340,7 @@ static int imx_fsb_s400_fuse_probe(struct platform_device *pdev)
 		return PTR_ERR(fuse->regs);
 
 	fuse->config.dev = &pdev->dev;
+	fuse->config.add_legacy_fixed_of_cells = true;
 	fuse->config.name = "fsb_s400_fuse";
 	fuse->config.id = NVMEM_DEVID_AUTO;
 	fuse->config.owner = THIS_MODULE;
@@ -359,7 +355,7 @@ static int imx_fsb_s400_fuse_probe(struct platform_device *pdev)
 	fuse->hw = of_device_get_match_data(&pdev->dev);
 
 	if (fuse->hw->reverse_mac_address || fuse->hw->increase_mac_address)
-		fuse->config.layout = &imx_fsb_s400_fuse_layout;
+		fuse->config.fixup_dt_cell_info = &imx_fsb_s400_fuse_fixup_dt_cell_info;
 
 	if (fuse->hw->oscca_fuse_read) {
 		np = of_find_compatible_node(NULL, NULL, "fsl,imx93-aonmix-ns-syscfg");
