@@ -370,7 +370,6 @@ static int pwm_rpchip_probe(struct platform_device *pdev)
 	chip->ops = &imx_tpm_pwm_ops;
 	chip->id = -1;
 	chip->of_xlate = of_pwm_xlate_with_flags;
-	chip->of_pwm_n_cells = 3;
 	ret = of_property_read_u32(np, "fsl,pwm-channel-number", &chip->npwm);
 	if (ret < 0) {
 		dev_err(dev, "failed to read pwm channel number from dts: %d\n",
