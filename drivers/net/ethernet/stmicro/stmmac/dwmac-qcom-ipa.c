@@ -3652,6 +3652,13 @@ void ethqos_ipa_offload_event_handler(void *data,
 					      EMAC_CHANNEL_1);
 		ETHQOSINFO("Mapped queue 0 to channel 1\n");
 		break;
+	case EV_DMA_RESET:
+		pdev = (eth_ipa_ctx.ethqos)->pdev;
+		dev = platform_get_drvdata(pdev);
+		priv = netdev_priv(dev);
+		if (!eth_ipa_ctx.ipa_offload_conn)
+			priv->hw->mac->map_mtl_to_dma(priv->hw, EMAC_QUEUE_0, EMAC_CHANNEL_1);
+		break;
 	case EV_INVALID:
 	default:
 		break;
