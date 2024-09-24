@@ -215,8 +215,8 @@ bool mmc_host_may_gate_card(struct mmc_card *card)
 	 * SDIO3.0 card allows the clock to be gated off so check if
 	 * that is the case or not.
 	 */
-	if (mmc_card_sdio(card) && card->cccr.async_intr_sup)
-		return true;
+	if (mmc_card_sdio(card))
+		return false;
 
 	/*
 	 * Don't gate SDIO cards! These need to be clocked at all times
