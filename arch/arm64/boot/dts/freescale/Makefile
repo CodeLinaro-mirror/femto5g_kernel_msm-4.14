@@ -465,7 +465,8 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk.dtb \
 			  imx93-11x11-frdm.dtb imx93-11x11-frdm-mt9m114.dtb \
 			  imx93-11x11-frdm-dsi.dtb imx93-11x11-frdm-tianma-wvga-panel.dtb \
 			  imx93-11x11-frdm-aud-hat.dtb imx93-11x11-frdm-ov5640.dtb \
-			  imx93-11x11-frdm-ld.dtb imx93-11x11-frdm-8mic.dtb
+			  imx93-11x11-frdm-ld.dtb imx93-11x11-frdm-8mic.dtb \
+			  imx93-11x11-frdm-lpuart.dtb \
 
 dtb-$(CONFIG_ARCH_MXC) += imx91-11x11-evk.dtb \
 			  imx91-11x11-evk-flexspi-m2.dtb imx91-11x11-evk-flexspi-nand-m2.dtb \
