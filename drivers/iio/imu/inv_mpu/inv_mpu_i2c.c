@@ -292,7 +292,7 @@ static void inv_enable_acc_gyro(struct inv_mpu_state *st)
 	set_inv_enable(indio_dev);
 
 	inv_switch_power_in_lp(st, true);
-	st->chip_config.accel_fs = ACCEL_FSR_2G;
+	st->chip_config.accel_fs = ACCEL_FSR_4G;
 	inv_set_accel_sf(st);
 	st->trigger_state = MISC_TRIGGER;
 	set_inv_enable(indio_dev);
