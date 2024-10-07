@@ -32,6 +32,7 @@
 #include <linux/async.h>
 #include <linux/suspend.h>
 #include <trace/events/power.h>
+#include <trace/hooks/dtask.h>
 #include <linux/cpufreq.h>
 #include <linux/devfreq.h>
 #include <linux/thermal.h>
@@ -262,8 +263,11 @@ static void dpm_wait(struct device *dev, bool async)
 	if (dev->power.no_pm)
 		return;
 
-	if (async || (pm_async_enabled && dev->power.async_suspend))
+	if (async || (pm_async_enabled && dev->power.async_suspend)) {
+		trace_android_vh_dpm_wait_start(dev);
 		wait_for_completion(&dev->power.completion);
+		trace_android_vh_dpm_wait_finish(dev);
+	}
 }
 
 static int dpm_wait_fn(struct device *dev, void *async_ptr)
