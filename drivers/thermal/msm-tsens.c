@@ -118,7 +118,9 @@ static int get_device_tree_data(struct platform_device *pdev,
 	const struct tsens_data *data;
 	int rc = 0;
 	struct resource *res_tsens_mem;
-	u32 zeroc_sensor_id;
+	u32 ltvr_id;
+	int ltvr_trip_temp;
+	int ltvr_clear_temp;
 
 	if (!of_match_node(tsens_table, of_node)) {
 		pr_err("Need to read SoC specific fuse map\n");
@@ -192,13 +194,46 @@ static int get_device_tree_data(struct platform_device *pdev,
 			}
 		}
 	}
+
+	tmdev->ltvr_resume_trigger =
+		of_property_read_bool(of_node, "ltvr-resume-trigger");
+
+	tmdev->ltvr_sensor_id = INT_MIN;
+	tmdev->ltvr_trip_temp_delta = INT_MIN;
+	tmdev->ltvr_clear_temp_delta = INT_MIN;
+
+	if (tmdev->ltvr_resume_trigger) {
+		if (!of_property_read_u32(of_node, "ltvr-sensor-id", &ltvr_id))
+			if (ltvr_id < TSENS_MAX_SENSORS)
+				tmdev->ltvr_sensor_id = (int)ltvr_id;
+
+		tmdev->ltvr_status_support =
+			of_property_read_bool(of_node, "ltvr-status-support");
+
+		if (!tmdev->ltvr_status_support) {
+			if (!of_property_read_u32(of_node,
+				"ltvr-trip-temp-delta", &ltvr_trip_temp))
+				tmdev->ltvr_trip_temp_delta =
+					(int)ltvr_trip_temp;
+			if (!of_property_read_u32(of_node,
+				"ltvr-clear-temp-delta", &ltvr_clear_temp))
+				tmdev->ltvr_clear_temp_delta =
+					(int)ltvr_clear_temp;
+		}
+
+		if (tmdev->ltvr_sensor_id < 0 || (!tmdev->ltvr_status_support &&
+			(tmdev->ltvr_trip_temp_delta < 0 ||
+				tmdev->ltvr_clear_temp_delta < 0)))
+			tmdev->ltvr_resume_trigger = false;
+	}
+	/*
+	 * Disable all the tsens thermal zones except
+	 * thermal zone for sensor ltvr_sensor_id on suspend.
+	 */
+	tmdev->tm_disable_on_suspend =
+		of_property_read_bool(of_node, "tm-disable-on-suspend");
 	tmdev->tsens_reinit_wa =
 			of_property_read_bool(of_node, "tsens-reinit-wa");
-
-	if (!of_property_read_u32(of_node, "zeroc-sensor-id", &zeroc_sensor_id))
-		tmdev->zeroc_sensor_id = (int)zeroc_sensor_id;
-	else
-		tmdev->zeroc_sensor_id = INT_MIN;
 
 	return rc;
 }
@@ -352,7 +387,9 @@ int tsens_tm_probe(struct platform_device *pdev)
 
 static int tsens_suspend(struct device *dev)
 {
-	return 0;
+	struct tsens_device *tmdev = dev_get_drvdata(dev);
+
+	return tmdev->ops->suspend(tmdev);
 }
 
 static int tsens_resume(struct device *dev)
