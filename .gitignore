@@ -80,11 +80,22 @@ modules.order
 # Debian directory (make deb-pkg)
 #
 #/debian/
+# Generated during debian/rules clean
+debian/canonical-certs.pem
+debian/canonical-revoked-certs.pem
+debian/changelog
+debian/control
+debian/copyright
 
 #
 # Snap directory (make snap-pkg)
 #
-/snap/
+parts
+stage
+prime
+snap/.snapcraft/
+snap/plugins/__pycache__/
+*.snap
 
 #
 # tar directory (make tar*-pkg)
