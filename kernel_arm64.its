@@ -1,0 +1,69 @@
+/*
+ * U-Boot uImage source file with multiple kernels, ramdisks and FDT blobs
+ */
+
+/dts-v1/;
+
+/ {
+	description = "Ubuntu Core kernel, ramdisk and FDT blobs for Renesas RZ board family";
+	#address-cells = <1>;
+
+	images {
+		kernel-ubuntu {
+			description = "ubuntu-kernel";
+			data = /incbin/("./Image");
+			type = "kernel";
+			arch = "arm64";
+			os = "linux";
+			compression = "none";
+			load =  <0x48080000>;
+			entry = <0x48080000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		ramdisk-uc {
+			description = "Ubuntu-Core-ramdisk";
+			data = /incbin/("./initrd.img");
+			type = "ramdisk";
+			arch = "arm64";
+			os = "linux";
+			compression = "none";
+			load =  <0x4E000000>;
+			entry = <0x4E000000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		r9a07g044l2-smarc {
+			description = "Renesas EBK for RZ/G2L Secure MPU";
+			data = /incbin/("./dtbs/renesas/r9a07g044l2-smarc.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			load =  <0x48000000>;
+			entry = <0x48000000>;
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+	};
+
+	configurations {
+	default = "r9a07g044l2-smarc.dtb";
+
+		r9a07g044l2-smarc.dtb {
+			description = "Renesas EBK for RZ/G2L Secure MPU";
+			kernel = "kernel-ubuntu";
+			ramdisk = "ramdisk-uc";
+			fdt = "r9a07g044l2-smarc";
+			signature-1 {
+				algo = "sha256,rsa2048";
+				key-name-hint="dev-key";
+				sign-images="fdt","kernel", "ramdisk";
+			};
+		};
+	};
+};
