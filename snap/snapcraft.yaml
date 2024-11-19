@@ -38,6 +38,29 @@ platforms:
     build-on: [amd64, arm64]
     build-for: arm64
 
+parts:
+  # Provide the kernel.
+  # Trimming any modules we know a priori to not be needed by the target device
+  # can marginally reduce kernel snap size.
+  kernel:
+    plugin: kernel
+    kernel-kdefconfig: [ "rz_snappy_defconfig" ]
+    kernel-image-target:
+      arm64: Image
+    build-environment:
+      - PATH: "/usr/lib/ccache:${PATH}"
+    override-build: |
+      pushd ${CRAFT_PROJECT_DIR}
+      fakeroot debian/rules clean || true
+      popd
+      craftctl default
+      craftctl set version=$(git --git-dir=${CRAFT_PROJECT_DIR}/.git describe --tags | cut -c 11-42)
+    organize:
+      kernel.img: Image
+    prime:
+      - -Image*
+      - -dtbs
+
 build-packages:
   - bison
   - device-tree-compiler
