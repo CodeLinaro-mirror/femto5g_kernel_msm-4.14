@@ -61,6 +61,29 @@ parts:
       - -Image*
       - -dtbs
 
+  # Provide the initrd for Ubuntu Core.
+  # The initrd includes important things such as snap-bootstrap which
+  # orchestrates the entire Ubuntu Core installation process. The documentation
+  # for this tool can be found here:
+  # https://github.com/snapcore/snapd/blob/master/cmd/snap-bootstrap/README.md
+  initrd:
+    after:
+      - firmware
+      - kernel
+      - optee-uc-fde-client
+    plugin: initrd
+    initrd-addons:
+      - usr/bin/fde-reveal-key
+      - usr/bin/fde-setup
+      - usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/libteec.so*
+    override-prime: |
+      craftctl default
+      # Trim firmware
+      trim_tool="https://git.launchpad.net/canonical-kernel-snaps/plain/trim-firmware"
+      curl -s ${trim_tool} | bash /dev/stdin ${CRAFT_PRIME}
+    prime:
+      - -initrd.img*
+
   firmware:
     plugin: nil
     stage-packages:
