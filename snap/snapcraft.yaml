@@ -91,6 +91,26 @@ parts:
     prime:
       - usr/lib/*/lib*so*
 
+  optee-uc-fde-client:
+    after:
+      - optee-client
+    plugin: nil
+    source: https://git.launchpad.net/~ondrak/+git/optee-uc-fde
+    source-type: git
+    source-branch: with-helper
+    build-environment:
+      - ARCH: "${CRAFT_ARCH_BUILD_FOR}"
+      - CROSS_COMPILE: "${CRAFT_ARCH_TRIPLET_BUILD_FOR}-"
+      - OPTEE_CLIENT_EXPORT: "${CRAFT_STAGE}/usr"
+      - DESTDIR: "${CRAFT_PART_INSTALL}"
+    override-build: |
+      make -C ${CRAFT_PART_SRC} O=${CRAFT_PART_BUILD}/out fde-key-manager fde-reveal-key fde-setup fde-helper
+      make -C ${CRAFT_PART_SRC} O=${CRAFT_PART_BUILD}/out fde-key-manager fde-reveal-key fde-setup fde-helper install
+      install -D -m 755 ${CRAFT_PART_INSTALL}/usr/bin/fde-setup ${CRAFT_PART_INSTALL}/meta/hooks/fde-setup
+      ln -sf fde-reveal-key ${CRAFT_PART_INSTALL}/usr/bin/fde-setup
+    prime:
+      - meta/
+
 build-packages:
   - bison
   - device-tree-compiler
