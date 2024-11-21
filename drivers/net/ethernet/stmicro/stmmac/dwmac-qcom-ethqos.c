@@ -2744,6 +2744,7 @@ static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 		reinit_completion(&ethqos->clk_enable_done);
 
 	ethqos->clks_suspended = 1;
+	priv->plat->clks_suspended = 1;
 
 	ethqos_update_rgmii_clk_and_bus_cfg(ethqos, 0);
 
@@ -2784,6 +2785,7 @@ static void qcom_ethqos_phy_resume_clks(struct qcom_ethqos *ethqos)
 	else
 		ethqos_update_rgmii_clk_and_bus_cfg(ethqos, SPEED_10);
 
+	priv->plat->clks_suspended = 0;
 	ethqos->clks_suspended = 0;
 
 	if (phy_intr_en)
