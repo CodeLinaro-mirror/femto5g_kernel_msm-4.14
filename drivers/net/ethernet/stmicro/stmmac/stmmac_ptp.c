@@ -37,6 +37,11 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	int neg_adj = 0;
 	u64 adj;
 
+	if (priv->plat->clks_suspended) {
+		pr_err("eth clocks suspended while accessing ptp register\n");
+		return 0;
+	}
+
 	if (ppb < 0) {
 		neg_adj = 1;
 		ppb = -ppb;
@@ -74,6 +79,11 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	u32 quotient, reminder;
 	int neg_adj = 0;
 
+	if (priv->plat->clks_suspended) {
+		pr_err("eth clocks suspended while accessing ptp register\n");
+		return 0;
+	}
+
 	if (delta < 0) {
 		neg_adj = 1;
 		delta = -delta;
@@ -109,6 +119,11 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	unsigned long flags;
 	u64 ns;
 
+	if (priv->plat->clks_suspended) {
+		pr_err("eth clocks suspended while accessing ptp register\n");
+		return 0;
+	}
+
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
 	ns = priv->hw->ptp->get_systime(priv->ptpaddr);
@@ -135,6 +150,11 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 	struct stmmac_priv *priv =
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	unsigned long flags;
+
+	if (priv->plat->clks_suspended) {
+		pr_err("eth clocks suspended while accessing ptp register\n");
+		return 0;
+	}
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
