@@ -149,7 +149,7 @@ parts:
     plugin: nil
     source: https://github.com/nxp-imx/imx-optee-os.git
     source-type: git
-    source-tag: lf-6.6.23-2.0.0
+    source-tag: lf-6.6.52-2.2.0
     source-depth: 1
     build-environment:
       # depending on architecture
