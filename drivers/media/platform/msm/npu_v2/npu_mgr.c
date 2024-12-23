@@ -2542,8 +2542,22 @@ int32_t npu_host_unload_network(struct npu_client *client,
 		return -EINVAL;
 	}
 
+	if (network->is_unloading) {
+		NPU_ERR("network is unloading\n");
+		network_put(network);
+		mutex_unlock(&host_ctx->lock);
+		return -EINVAL;
+	}
+
 	if (!network->is_active) {
 		NPU_ERR("network is not active\n");
+		network_put(network);
+		mutex_unlock(&host_ctx->lock);
+		return -EINVAL;
+	}
+
+	if (network->is_executing) {
+		NPU_ERR("network is in execution\n");
 		network_put(network);
 		mutex_unlock(&host_ctx->lock);
 		return -EINVAL;
@@ -2553,6 +2567,8 @@ int32_t npu_host_unload_network(struct npu_client *client,
 		NPU_ERR("fw in error state, skip unload network in fw\n");
 		goto free_network;
 	}
+
+	network->is_unloading = true;
 
 	NPU_DBG("Unload network %lld\n", network->id);
 	/* prepare IPC packet for UNLOAD */
@@ -2684,8 +2700,20 @@ int32_t npu_host_exec_network_v2(struct npu_client *client,
 		return -EINVAL;
 	}
 
+	if (network->is_unloading) {
+		NPU_ERR("network is unloading\n");
+		ret = -EINVAL;
+		goto exec_v2_done;
+	}
+
 	if (!network->is_active) {
 		NPU_ERR("network is not active\n");
+		ret = -EINVAL;
+		goto exec_v2_done;
+	}
+
+	if (network->is_executing) {
+		NPU_ERR("network is already in execution\n");
 		ret = -EINVAL;
 		goto exec_v2_done;
 	}
@@ -2707,6 +2735,7 @@ int32_t npu_host_exec_network_v2(struct npu_client *client,
 		goto exec_v2_done;
 	}
 
+	network->is_executing = true;
 	for (i = 0; i < num_patch_params; i++) {
 		exec_packet->patch_params[i].id = patch_buf_info[i].buf_id;
 		NPU_DBG("%d: patch_id: %x\n", i,
@@ -2810,6 +2839,7 @@ free_exec_cmd:
 	npu_free_network_cmd(host_ctx, exec_cmd);
 free_exec_packet:
 	kfree(exec_packet);
+	network->is_executing = false;
 exec_v2_done:
 	network_put(network);
 	mutex_unlock(&host_ctx->lock);
