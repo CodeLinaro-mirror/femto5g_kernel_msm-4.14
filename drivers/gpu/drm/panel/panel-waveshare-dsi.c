@@ -187,10 +187,6 @@ static int ws_panel_prepare(struct drm_panel *panel)
 
 static int ws_panel_enable(struct drm_panel *panel)
 {
-	struct ws_panel *ts = panel_to_ts(panel);
-
-	ws_panel_i2c_write(ts, 0xad, 0x01);
-
 	return 0;
 }
 
@@ -344,6 +340,7 @@ static int ws_panel_probe(struct i2c_client *i2c)
 	ws_panel_i2c_write(ts, 0xc0, 0x01);
 	ws_panel_i2c_write(ts, 0xc2, 0x01);
 	ws_panel_i2c_write(ts, 0xac, 0x01);
+	ws_panel_i2c_write(ts, 0xad, 0x01);
 
 	ret = of_drm_get_panel_orientation(dev->of_node, &ts->orientation);
 	if (ret) {
