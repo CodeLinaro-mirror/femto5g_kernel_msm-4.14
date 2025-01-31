@@ -4819,6 +4819,10 @@ int stmmac_suspend(struct device *dev)
 	if (priv->plat->wait_for_emac_rx_clk)
 		priv->plat->wait_for_mac_rx_clk = true;
 
+	if ( priv->plat->wait_for_mac_rx_clk) {
+		netif_carrier_off(ndev);
+	}
+
 	mutex_unlock(&priv->lock);
 
 	priv->oldlink = -1;
@@ -5003,7 +5007,7 @@ int stmmac_resume(struct device *dev)
 	stmmac_enable_all_queues(priv);
 
 	if (priv->plat->wait_for_emac_rx_clk && priv->plat->wait_for_mac_rx_clk) {
-		netif_carrier_off(ndev);
+		pr_debug(" waiting for clock readiness");
 	} else if (priv->plat->mac2mac_en) {
 		stmmac_mac2mac_adjust_link(priv->plat->mac2mac_rgmii_speed,
 					   priv);
