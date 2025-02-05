@@ -509,7 +509,7 @@
 			qcom,vdd-wlan-rfa3-info = <1904000 1904000 450000 0>;
 			qcom,wlan-ramdump-dynamic = <0x400000>;
 			mhi,max-channels = <30>;
-			mhi,buffer-len = <0x8000>;
+			mhi,buffer-len = <0x2000>;
 			mhi,timeout = <10000>;
 			qcom,smmu-s1-enable;
 			pcie-disable-l1ss;
@@ -621,7 +621,7 @@
 
 			qcom,wlan-ramdump-dynamic = <0x300000>;
 			mhi,max-channels = <30>;
-			mhi,buffer-len = <0x8000>;
+			mhi,buffer-len = <0x2000>;
 			mhi,timeout = <10000>;
 			mhi,ee = <0x3>, <0x4>;
 			mhi,ee-names = "SBL", "RDDM";
