@@ -1322,7 +1322,6 @@ static int npu_set_fw_state(struct npu_client *client, uint32_t enable)
 
 	if (host_ctx->network_num > 0) {
 		NPU_ERR("Need to unload network first\n");
-		mutex_unlock(&npu_dev->dev_lock);
 		return -EINVAL;
 	}
 
