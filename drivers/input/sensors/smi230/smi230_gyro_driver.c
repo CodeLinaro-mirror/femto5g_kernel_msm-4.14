@@ -166,10 +166,12 @@ static ssize_t smi230_gyro_store_pwr_cfg(struct device *dev,
 	err = kstrtoul(buf, 10, &pwr_cfg);
 	if (err)
 		return err;
+
+	mutex_lock(&interrupt_handling_lock);
 	if (pwr_cfg == 0) {
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
 		err = smi230_gyro_set_power_mode(p_smi230_dev);
-	} else if (pwr_cfg == 1) {
+	} else if (pwr_cfg == 3) {
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_SUSPEND;
 		err = smi230_gyro_set_power_mode(p_smi230_dev);
 	} else if (pwr_cfg == 2) {
@@ -177,15 +179,46 @@ static ssize_t smi230_gyro_store_pwr_cfg(struct device *dev,
 		err = smi230_gyro_set_power_mode(p_smi230_dev);
 	} else {
 		PERR("invalid param");
-		return count;
+		err = -EINVAL;
 	}
 
 	PDEBUG("set power cfg to %ld, err %d", pwr_cfg, err);
 
 	if (err) {
 		PERR("setting power config failed");
+		mutex_unlock(&interrupt_handling_lock);
 		return err;
 	}
+	mutex_unlock(&interrupt_handling_lock);
+	return count;
+}
+
+static ssize_t smi230_gyro_store_sus_etr(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	if (strncmp(buf, "suspend", 7) == 0)
+		p_smi230_dev->gyro_sus_etr = SMI230_GYRO_SUSPEND;
+	else if (strncmp(buf, "deep_suspend", 12) == 0)
+		p_smi230_dev->gyro_sus_etr = SMI230_GYRO_DEEP_SUSPEND;
+	else {
+		PERR("invalid param");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t smi230_gyro_store_frez_etr(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	if (strncmp(buf, "suspend", 7) == 0)
+		p_smi230_dev->gyro_frez_etr = SMI230_GYRO_SUSPEND;
+	else if (strncmp(buf, "deep_suspend", 12) == 0)
+		p_smi230_dev->gyro_frez_etr = SMI230_GYRO_DEEP_SUSPEND;
+	else
+		PERR("invalid param");
 	return count;
 }
 
@@ -203,6 +236,30 @@ static ssize_t smi230_gyro_show_pwr_cfg(struct device *dev,
 	return snprintf(buf, PAGE_SIZE,
 			"%x (0:active 80:suspend 20:deep suspend)\n",
 			p_smi230_dev->gyro_cfg.power);
+}
+
+static ssize_t smi230_gyro_show_sus_etr(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	if (p_smi230_dev->gyro_sus_etr == SMI230_GYRO_SUSPEND)
+		return snprintf(buf, PAGE_SIZE, "suspend\n");
+	else if (p_smi230_dev->gyro_sus_etr == SMI230_GYRO_DEEP_SUSPEND)
+		return snprintf(buf, PAGE_SIZE, "deep_suspend\n");
+	else
+		return snprintf(buf, PAGE_SIZE, "invalid value\n");
+}
+
+static ssize_t smi230_gyro_show_frez_etr(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	if (p_smi230_dev->gyro_frez_etr == SMI230_GYRO_SUSPEND)
+		return snprintf(buf, PAGE_SIZE, "suspend\n");
+	else if (p_smi230_dev->gyro_frez_etr == SMI230_GYRO_DEEP_SUSPEND)
+		return snprintf(buf, PAGE_SIZE, "deep_suspend\n");
+	else
+		return snprintf(buf, PAGE_SIZE, "invalid value\n");
 }
 
 static ssize_t smi230_gyro_show_value(struct device *dev,
@@ -421,6 +478,10 @@ static DEVICE_ATTR(fifo_wm, S_IRUGO | S_IWUSR | S_IWGRP,
 		   smi230_gyro_show_fifo_wm, smi230_gyro_store_fifo_wm);
 static DEVICE_ATTR(pwr_cfg, S_IRUGO | S_IWUSR | S_IWGRP,
 		   smi230_gyro_show_pwr_cfg, smi230_gyro_store_pwr_cfg);
+static DEVICE_ATTR(sus_etr, S_IRUGO | S_IWUSR | S_IWGRP,
+		   smi230_gyro_show_sus_etr, smi230_gyro_store_sus_etr);
+static DEVICE_ATTR(frez_etr, S_IRUGO | S_IWUSR | S_IWGRP,
+		   smi230_gyro_show_frez_etr, smi230_gyro_store_frez_etr);
 static DEVICE_ATTR(bw_odr, S_IRUGO | S_IWUSR | S_IWGRP, smi230_gyro_show_bw_odr,
 		   smi230_gyro_store_bw_odr);
 static DEVICE_ATTR(range, S_IRUGO | S_IWUSR | S_IWGRP, smi230_gyro_show_range,
@@ -433,6 +494,7 @@ static DEVICE_ATTR(self_test, S_IRUGO, smi230_gyro_show_self_test, NULL);
 static struct attribute *smi230_attributes[] = {
 	&dev_attr_chip_id.attr,	   &dev_attr_regs_dump.attr,
 	&dev_attr_fifo_wm.attr,	   &dev_attr_pwr_cfg.attr,
+	&dev_attr_sus_etr.attr,	   &dev_attr_frez_etr.attr,
 	&dev_attr_bw_odr.attr,	   &dev_attr_range.attr,
 	&dev_attr_gyro_value.attr, &dev_attr_driver_version.attr,
 	&dev_attr_self_test.attr,  NULL
@@ -722,6 +784,16 @@ int smi230_gyro_remove(struct device *dev)
 	return err;
 }
 
+int smi230_gyro_shutdown(struct device *dev)
+{
+	int ret = 0;
+	mutex_lock(&interrupt_handling_lock);
+	p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_DEEP_SUSPEND;
+	ret = smi230_gyro_set_power_mode(p_smi230_dev);
+	mutex_unlock(&interrupt_handling_lock);
+	return ret;
+}
+
 int smi230_gyro_probe(struct device *dev, struct smi230_dev *smi230_dev)
 {
 	int err = 0;
@@ -735,6 +807,10 @@ int smi230_gyro_probe(struct device *dev, struct smi230_dev *smi230_dev)
 		return -EINVAL;
 
 	p_smi230_dev = smi230_dev;
+
+	p_smi230_dev->gyro_sus_etr = SMI230_GYRO_SUSPEND;
+
+	p_smi230_dev->gyro_frez_etr = SMI230_GYRO_DEEP_SUSPEND;
 
 	client_data = kzalloc(sizeof(struct smi230_client_data), GFP_KERNEL);
 	if (NULL == client_data) {
@@ -909,4 +985,52 @@ exit_free_client_data:
 		kfree(client_data);
 exit_directly:
 	return err;
+}
+
+int smi230_gyro_suspend(struct device *dev)
+{
+	int ret = 0;
+	mutex_lock(&interrupt_handling_lock);
+	if (p_smi230_dev->gyro_sus_etr == SMI230_GYRO_SUSPEND) {
+		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_SUSPEND;
+	} else if (p_smi230_dev->gyro_sus_etr == SMI230_GYRO_DEEP_SUSPEND) {
+		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_DEEP_SUSPEND;
+	}
+	ret = smi230_gyro_set_power_mode(p_smi230_dev);
+	mutex_unlock(&interrupt_handling_lock);
+	return ret;
+}
+
+int smi230_gyro_resume(struct device *dev)
+{
+	int ret = 0;
+	mutex_lock(&interrupt_handling_lock);
+	p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
+	ret = smi230_gyro_set_power_mode(p_smi230_dev);
+	mutex_unlock(&interrupt_handling_lock);
+	return ret;
+}
+
+int smi230_gyro_freeze(struct device *dev)
+{
+	int ret = 0;
+	mutex_lock(&interrupt_handling_lock);
+	if (p_smi230_dev->gyro_frez_etr == SMI230_GYRO_SUSPEND) {
+		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_SUSPEND;
+	} else if (p_smi230_dev->gyro_frez_etr == SMI230_GYRO_DEEP_SUSPEND) {
+		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_DEEP_SUSPEND;
+	}
+	ret = smi230_gyro_set_power_mode(p_smi230_dev);
+	mutex_unlock(&interrupt_handling_lock);
+	return ret;
+}
+
+int smi230_gyro_restore(struct device *dev)
+{
+	int ret = 0;
+	mutex_lock(&interrupt_handling_lock);
+	p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
+	ret = smi230_gyro_set_power_mode(p_smi230_dev);
+	mutex_unlock(&interrupt_handling_lock);
+	return ret;
 }
