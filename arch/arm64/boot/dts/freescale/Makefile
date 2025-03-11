@@ -213,7 +213,8 @@ imx8mp-tqma8mpql-mba8mpxl-lvds-g133han01-dtbs += imx8mp-tqma8mpql-mba8mpxl.dtb i
 dtb-$(CONFIG_DISABLED) += imx8mp-tqma8mpql-mba8mpxl-lvds-g133han01.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm.dtb imx8mp-frdm-os08a20.dtb imx8mp-frdm-dual-os08a20.dtb \
-			  imx8mp-frdm-boe-wxga-lvds0-panel.dtb imx8mp-frdm-boe-wxga-lvds1-panel.dtb
+			  imx8mp-frdm-boe-wxga-lvds0-panel.dtb imx8mp-frdm-boe-wxga-lvds1-panel.dtb \
+			  imx8mp-frdm-ap1302.dtb
 
 imx8mp-evk-revb4-dtbs := imx8mp-evk.dtb imx8mp-evk-revb4.dtbo
 imx8mp-evk-revb4-rm67191-dtbs := imx8mp-evk-rm67191.dtb imx8mp-evk-revb4.dtbo
