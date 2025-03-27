@@ -36,6 +36,8 @@
 
 static struct msm_bus_scale_pdata *emac_bus_scale_vec;
 
+#define ETHQOS_SYSFS_DEV_ATTR_PERMS 0644
+
 #define PHY_LOOPBACK_1000 0x4140
 #define PHY_LOOPBACK_100 0x6100
 #define PHY_LOOPBACK_10 0x4100
@@ -1313,6 +1315,7 @@ static const struct of_device_id qcom_ethqos_match[] = {
 	{}
 };
 
+#ifdef CONFIG_DEBUG_FS
 static ssize_t read_phy_reg_dump(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
@@ -1445,20 +1448,31 @@ static ssize_t read_rgmii_reg_dump(struct file *file,
 	kfree(buf);
 	return ret_cnt;
 }
+#endif
 
-static ssize_t read_phy_off(struct file *file,
-			    char __user *user_buf,
-			    size_t count, loff_t *ppos)
+static ssize_t read_phy_off(struct device *dev,
+				    struct device_attribute *attr,
+				    char *user_buf)
 {
 	unsigned int len = 0, buf_len = 2000;
 	char *buf;
-	ssize_t ret_cnt;
-	struct qcom_ethqos *ethqos = file->private_data;
+	struct stmmac_priv *priv;
+	struct qcom_ethqos *ethqos;
+	struct net_device *netdev = to_net_dev(dev);
 
-	if (!ethqos) {
-		ETHQOSERR("NULL Pointer\n");
+	if (!netdev) {
+		ETHQOSERR("netdev is NULL\n");
 		return -EINVAL;
 	}
+
+	priv = netdev_priv(netdev);
+	ethqos = priv->plat->bsp_priv;
+
+	if (!ethqos) {
+		ETHQOSERR("ethqos is NULL\n");
+		return -EINVAL;
+	}
+
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -1492,37 +1506,41 @@ static ssize_t read_phy_off(struct file *file,
 		len = buf_len;
 	}
 
-	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	memcpy(user_buf, buf, len);
+
 	kfree(buf);
-	return ret_cnt;
+	return len;
 }
 
-static ssize_t phy_off_config(
-	struct file *file, const char __user *user_buffer,
-	size_t count, loff_t *position)
+static ssize_t phy_off_config(struct device *dev,
+					struct device_attribute *attr,
+					const char *user_buffer, size_t count)
 {
-	char *in_buf;
-	int buf_len = 2000;
+	char *in_buf = kstrdup(user_buffer, GFP_KERNEL);
 	unsigned long ret;
 	int config = 0;
-	struct qcom_ethqos *ethqos = file->private_data;
-	struct platform_device *pdev = ethqos->pdev;
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+	struct stmmac_priv *priv;
+	struct qcom_ethqos *ethqos;
+	struct net_device *netdev = to_net_dev(dev);
 	struct plat_stmmacenet_data *plat;
 
-	plat = priv->plat;
-	in_buf = kzalloc(buf_len, GFP_KERNEL);
-	if (!in_buf)
-		return -ENOMEM;
-
-	ret = copy_from_user(in_buf, user_buffer, buf_len);
-	if (ret) {
-		ETHQOSERR("unable to copy from user\n");
-		return -EFAULT;
+	if (!netdev) {
+		ETHQOSERR("netdev is NULL\n");
+		return -EINVAL;
 	}
 
+	priv = netdev_priv(netdev);
+	ethqos = priv->plat->bsp_priv;
+
+	if (!ethqos) {
+		ETHQOSERR("ethqos is NULL\n");
+		return -EINVAL;
+	}
+
+	plat = priv->plat;
+
 	ret = sscanf(in_buf, "%d", &config);
+
 	if (ret != 1) {
 		ETHQOSERR("Error in reading option from user");
 		return -EINVAL;
@@ -1559,7 +1577,7 @@ static ssize_t phy_off_config(
 		if (priv->phydev) {
 			if (qcom_ethqos_is_phy_link_up(ethqos)) {
 				ETHQOSINFO("Post Link down before PHY off\n");
-				netif_carrier_off(dev);
+				netif_carrier_off(netdev);
 				phy_mac_interrupt(priv->phydev, LINK_DOWN);
 			}
 		}
@@ -1592,6 +1610,8 @@ static ssize_t phy_off_config(
 	kfree(in_buf);
 	return count;
 }
+
+DEVICE_ATTR(phy_off, ETHQOS_SYSFS_DEV_ATTR_PERMS, read_phy_off, phy_off_config);
 
 static void ethqos_rgmii_io_macro_loopback(struct qcom_ethqos *ethqos, int mode)
 {
@@ -1768,31 +1788,32 @@ static void setup_config_registers(struct qcom_ethqos *ethqos,
 	ETHQOSERR("End\n");
 }
 
-static ssize_t loopback_handling_config(
-	struct file *file, const char __user *user_buffer,
-	size_t count, loff_t *position)
+static ssize_t loopback_handling_config(struct device *dev,
+					struct device_attribute *attr,
+					const char *user_buf, size_t count)
 {
-	char *in_buf;
-	int buf_len = 2000;
+	char *in_buf = kstrdup(user_buf, GFP_KERNEL);
 	unsigned long ret;
-	int config = 0;
-	struct qcom_ethqos *ethqos = file->private_data;
-	struct platform_device *pdev = ethqos->pdev;
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(dev);
-	int speed = 0;
+	int config = 0, speed = 0;
+	struct stmmac_priv *priv;
+	struct qcom_ethqos *ethqos;
+	struct net_device *netdev = to_net_dev(dev);
 
-	in_buf = kzalloc(buf_len, GFP_KERNEL);
-	if (!in_buf)
-		return -ENOMEM;
+	if (!netdev) {
+		ETHQOSERR("netdev is NULL\n");
+		return -EINVAL;
+	}
 
-	ret = copy_from_user(in_buf, user_buffer, buf_len);
-	if (ret) {
-		ETHQOSERR("unable to copy from user\n");
-		return -EFAULT;
+	priv = netdev_priv(netdev);
+	ethqos = priv->plat->bsp_priv;
+
+	if (!ethqos) {
+		ETHQOSERR("ethqos is NULL\n");
+		return -EINVAL;
 	}
 
 	ret = sscanf(in_buf, "%d %d", &config,  &speed);
+
 	if (config > DISABLE_LOOPBACK && ret != 2) {
 		ETHQOSERR("Speed is also needed while enabling loopback\n");
 		return -EINVAL;
@@ -1906,17 +1927,23 @@ static ssize_t loopback_handling_config(
 	return count;
 }
 
-static ssize_t read_loopback_config(struct file *file,
-				    char __user *user_buf,
-				    size_t count, loff_t *ppos)
+static ssize_t read_loopback_config(struct device *dev,
+				    struct device_attribute *attr,
+				    char *user_buf)
 {
 	unsigned int len = 0, buf_len = 2000;
-	struct qcom_ethqos *ethqos = file->private_data;
 	char *buf;
-	ssize_t ret_cnt;
-	struct platform_device *pdev = ethqos->pdev;
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(dev);
+	struct stmmac_priv *priv;
+	struct qcom_ethqos *ethqos;
+	struct net_device *netdev = to_net_dev(dev);
+
+	if (!netdev) {
+		ETHQOSERR("netdev is NULL\n");
+		return -EINVAL;
+	}
+
+	priv = netdev_priv(netdev);
+	ethqos = priv->plat->bsp_priv;
 
 	if (!ethqos) {
 		ETHQOSERR("NULL Pointer\n");
@@ -1944,10 +1971,12 @@ static ssize_t read_loopback_config(struct file *file,
 	if (len > buf_len)
 		len = buf_len;
 
-	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	memcpy(user_buf, buf, len);
 	kfree(buf);
-	return ret_cnt;
+	return len;
 }
+
+DEVICE_ATTR(loopback_enable_mode, ETHQOS_SYSFS_DEV_ATTR_PERMS , read_loopback_config,  loopback_handling_config);
 
 inline void *qcom_ethqos_get_priv(struct qcom_ethqos *ethqos)
 {
@@ -2169,6 +2198,7 @@ static int dwmac_qcom_handle_mac_err(void *pdata, int type, int chan)
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static const struct file_operations fops_phy_reg_dump = {
 	.read = read_phy_reg_dump,
 	.open = simple_open,
@@ -2260,6 +2290,7 @@ static ssize_t read_mac_recovery_enable(struct file *filp, char __user *usr_buf,
 	kfree(buf);
 	return ret_cnt;
 }
+#endif
 
 static ssize_t ethqos_mac_recovery_enable(struct file *file,
 					  const char __user *user_buf,
@@ -2286,6 +2317,7 @@ static ssize_t ethqos_mac_recovery_enable(struct file *file,
 	return count;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static ssize_t ethqos_test_mac_recovery(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -2314,25 +2346,9 @@ static ssize_t ethqos_test_mac_recovery(struct file *file,
 	return count;
 }
 
-static const struct file_operations fops_phy_off = {
-	.read = read_phy_off,
-	.write = phy_off_config,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
 static const struct file_operations fops_mac_rec = {
 	.read = read_mac_recovery_enable,
 	.write = ethqos_test_mac_recovery,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static const struct file_operations fops_loopback_config = {
-	.read = read_loopback_config,
-	.write = loopback_handling_config,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -2350,8 +2366,6 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 	static struct dentry *phy_reg_dump;
 	static struct dentry *rgmii_reg_dump;
 	static struct dentry *ipc_stmmac_log_low;
-	static struct dentry *phy_off;
-	static struct dentry *loopback_enable_mode;
 	static struct dentry *mac_rec;
 	struct stmmac_priv *priv;
 
@@ -2393,25 +2407,6 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 		goto fail;
 	}
 
-	if (!priv->plat->mac2mac_en) {
-		phy_off = debugfs_create_file("phy_off", 0400,
-					      ethqos->debugfs_dir, ethqos,
-					      &fops_phy_off);
-		if (!phy_off || IS_ERR(phy_off)) {
-			ETHQOSERR("Can't create phy_off %x\n", phy_off);
-			goto fail;
-		}
-	}
-
-	loopback_enable_mode = debugfs_create_file("loopback_enable_mode", 0400,
-						   ethqos->debugfs_dir, ethqos,
-						   &fops_loopback_config);
-	if (!loopback_enable_mode || IS_ERR(loopback_enable_mode)) {
-		ETHQOSERR("Can't create loopback_enable_mode %d\n",
-			  (int)loopback_enable_mode);
-		goto fail;
-	}
-
 	mac_rec = debugfs_create_file("test_mac_recovery", 0400,
 				      ethqos->debugfs_dir, ethqos,
 				      &fops_mac_rec);
@@ -2424,6 +2419,79 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 fail:
 	debugfs_remove_recursive(ethqos->debugfs_dir);
 	return -ENOMEM;
+}
+#endif
+
+static int ethqos_create_sysfs(struct qcom_ethqos        *ethqos)
+{
+	int ret;
+	struct net_device *netdev;
+	struct stmmac_priv *priv;
+
+	if (!ethqos) {
+		ETHQOSERR("ethqos is NULL\n");
+		return -EINVAL;
+	}
+
+	netdev = platform_get_drvdata(ethqos->pdev);
+
+	if (!netdev) {
+		ETHQOSERR("netdev is NULL\n");
+		return -EINVAL;
+	}
+
+	priv = qcom_ethqos_get_priv(ethqos);
+
+	if (!priv->plat->mac2mac_en) {
+		ret = sysfs_create_file(&netdev->dev.kobj,
+				&dev_attr_phy_off.attr);
+		if (ret) {
+			ETHQOSERR("unable to create phy_off sysfs node\n");
+			return -ENOMEM;
+		}
+	}
+
+	ret = sysfs_create_file(&netdev->dev.kobj,
+				&dev_attr_loopback_enable_mode.attr);
+	if (ret) {
+		ETHQOSERR("unable to create loopback_enable_mode sysfs node\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+
+}
+
+static int ethqos_remove_sysfs(struct qcom_ethqos        *ethqos)
+{
+	int ret;
+	struct net_device *netdev;
+	struct stmmac_priv *priv;
+
+	if (!ethqos) {
+		ETHQOSERR("ethqos is NULL\n");
+		return -EINVAL;
+	}
+
+	netdev = platform_get_drvdata(ethqos->pdev);
+
+	if (!netdev) {
+		ETHQOSERR("netdev is NULL\n");
+		return -EINVAL;
+	}
+
+	priv = qcom_ethqos_get_priv(ethqos);
+
+	if (!priv->plat->mac2mac_en) {
+		sysfs_remove_file(&netdev->dev.kobj,
+				&dev_attr_phy_off.attr);
+	}
+
+	sysfs_remove_file(&netdev->dev.kobj,
+				&dev_attr_loopback_enable_mode.attr);
+
+	return 0;
+
 }
 
 static void ethqos_emac_mem_base(struct qcom_ethqos *ethqos)
@@ -3763,6 +3831,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 	place_marker("M - Ethernet probe start");
 #endif
+#ifdef CONFIG_IPC_LOGGING
 
 	ipc_stmmac_log_ctxt = ipc_log_context_create(IPCLOG_STATE_PAGES,
 						     "emac", 0);
@@ -3770,6 +3839,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		ETHQOSERR("Error creating logging context for emac\n");
 	else
 		ETHQOSDBG("IPC logging has been enabled for emac\n");
+#endif
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
 		return ret;
@@ -4032,8 +4102,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	}
 	ethqos_emac_mem_base(ethqos);
 	pethqos = ethqos;
+#ifdef CONFIG_DEBUG_FS
 	ethqos_create_debugfs(ethqos);
-
+#endif
+	ethqos_create_sysfs(ethqos);
 	qcom_ethqos_read_iomacro_por_values(ethqos);
 
 	ndev = dev_get_drvdata(&ethqos->pdev->dev);
@@ -4158,6 +4230,7 @@ static int qcom_ethqos_remove(struct platform_device *pdev)
 	if (phy_intr_en)
 		cancel_work_sync(&ethqos->emac_phy_work);
 
+	ethqos_remove_sysfs(ethqos);
 	stmmac_emb_smmu_exit();
 	ethqos_disable_regulators(ethqos);
 
