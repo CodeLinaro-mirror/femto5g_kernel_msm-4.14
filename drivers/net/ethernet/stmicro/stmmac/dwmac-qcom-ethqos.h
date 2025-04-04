@@ -550,7 +550,9 @@ struct qcom_ethqos {
 	struct class *emac_rec_class;
 	unsigned long avb_class_a_intr_cnt;
 	unsigned long avb_class_b_intr_cnt;
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dir;
+#endif
 	bool skip_mdio_vote;
 
 	/* saving state for Wake-on-LAN */

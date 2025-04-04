@@ -1922,7 +1922,7 @@ static ssize_t suspend_resume_ipa_offload(struct device *dev,
 
 	return count;
 }
-
+#ifdef CONFIG_DEBUG_FS
 static ssize_t select_ntn_dma_stats(struct file *file,
 				    const char __user *user_buf,
 				    size_t count, loff_t *ppos)
@@ -2490,6 +2490,7 @@ fail_alloc_emac_ipa_cdev:
 alloc_emac_ipa_chrdev_region_fail:
 	return ret;
 }
+#endif
 
 static DEVICE_ATTR(suspend_ipa_offload, IPA_SYSFS_DEV_ATTR_PERMS,
 		   read_ipa_offload_status,
@@ -3173,7 +3174,7 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos,
 		ETHQOSINFO("Invalid type for IPA Offload Resume %d\n", type);
 		break;
 	}
-
+#ifdef CONFIG_DEBUG_FS
 	if (!eth_ipa_ctx.ipa_debugfs_exists) {
 		if (!ethqos_ipa_create_debugfs(eth_ipa_ctx.ethqos)) {
 			ETHQOSERR("eMAC Debugfs created\n");
@@ -3182,6 +3183,7 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos,
 			ETHQOSERR("eMAC Debugfs failed\n");
 		}
 	}
+#endif
 	return ret;
 }
 
@@ -3207,13 +3209,14 @@ static int ethqos_disable_ipa_offload(struct qcom_ethqos *ethqos)
 			}
 		}
 	}
-
+#ifdef CONFIG_DEBUG_FS
 	if (eth_ipa_ctx.ipa_debugfs_exists) {
 		if (ethqos_ipa_cleanup_debugfs(ethqos))
 			ETHQOSERR("Unable to delete IPA debugfs\n");
 		else
 			eth_ipa_ctx.ipa_debugfs_exists = false;
 	}
+#endif
 
 	if (eth_ipa_ctx.ipa_sysfs_exists) {
 		if (ethqos_ipa_cleanup_sysfs(ethqos))
@@ -3283,6 +3286,7 @@ static int ethqos_enable_ipa_offload(struct qcom_ethqos *ethqos)
 		}
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	if (!eth_ipa_ctx.ipa_debugfs_exists) {
 		if (!ethqos_ipa_create_debugfs(ethqos)) {
 			ETHQOSERR("eMAC Debugfs created\n");
@@ -3291,7 +3295,7 @@ static int ethqos_enable_ipa_offload(struct qcom_ethqos *ethqos)
 			ETHQOSERR("eMAC Debugfs failed\n");
 		}
 	}
-
+#endif
 	if (!eth_ipa_ctx.ipa_sysfs_exists) {
 		if (!ethqos_ipa_create_sysfs(ethqos)) {
 			ETHQOSERR("eMAC Sysfs created\n");
@@ -3550,6 +3554,7 @@ void ethqos_ipa_offload_event_handler(void *data,
 			ethqos_enable_ipa_offload(eth_ipa_ctx.ethqos);
 
 		if (eth_ipa_ctx.emac_dev_reset) {
+#ifdef CONFIG_DEBUG_FS
 			if(!eth_ipa_ctx.ipa_debugfs_exists){
 			if (!ethqos_ipa_create_debugfs(eth_ipa_ctx.ethqos)) {
 				ETHQOSERR("eMAC Debugfs created\n");
@@ -3558,6 +3563,7 @@ void ethqos_ipa_offload_event_handler(void *data,
 				ETHQOSERR("eMAC Debugfs failed\n");
 			}
 		}
+#endif
 			if(!eth_ipa_ctx.ipa_sysfs_exists){
 				if (!ethqos_ipa_create_sysfs(eth_ipa_ctx.ethqos)) {
 					ETHQOSERR("eMAC Sysfs created\n");
