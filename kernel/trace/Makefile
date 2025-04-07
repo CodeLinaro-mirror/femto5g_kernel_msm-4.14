@@ -78,4 +78,7 @@ obj-$(CONFIG_IPC_LOGGING) += ipc_logging.o
 ifdef CONFIG_DEBUG_FS
 obj-$(CONFIG_IPC_LOGGING) += ipc_logging_debug.o
 endif
+ifdef CONFIG_IPC_LOGGING_PROCFS
+obj-$(CONFIG_IPC_LOGGING) += ipc_logging_proc.o
+endif
 libftrace-y := ftrace.o
