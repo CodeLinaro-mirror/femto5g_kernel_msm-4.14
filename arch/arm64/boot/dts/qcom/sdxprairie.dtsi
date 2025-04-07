@@ -1,4 +1,5 @@
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -638,6 +639,7 @@
 			qcom,ipa-q6-smem-size = <36864>;
 			qcom,smmu-fast-map;
 			qcom,geometry-mapping = <0x0 0xF0000000>;
+                        qcom,iova-wlan-end = <0x80000000>;
 		};
 
 		ipa_smmu_wlan: ipa_smmu_wlan {
