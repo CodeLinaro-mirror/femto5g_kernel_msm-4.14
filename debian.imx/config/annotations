@@ -1670,7 +1670,7 @@ CONFIG_FSL_DPA_CHECKING                         policy<{'arm64': '-', 'armhf': '
 CONFIG_FSL_DPA_PIRQ_FAST                        policy<{'arm64': '-', 'armhf': '-'}>
 CONFIG_FSL_DPA_PIRQ_SLOW                        policy<{'arm64': '-', 'armhf': '-'}>
 CONFIG_FSL_DPA_PORTAL_SHARE                     policy<{'arm64': '-', 'armhf': '-'}>
-CONFIG_FSL_EDMA                                 policy<{'arm64': 'y', 'armhf': 'y'}>
+CONFIG_FSL_EDMA                                 policy<{'arm64': 'n', 'armhf': 'n'}>
 CONFIG_FSL_EDMA_V3                              policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_FSL_ENETC                                policy<{'arm64': 'm', 'armhf': 'n'}>
 CONFIG_FSL_ENETC4                               policy<{'arm64': 'm'}>
@@ -2806,7 +2806,7 @@ CONFIG_PCI_KEYSTONE                             policy<{'arm64': '-'}>
 CONFIG_PCI_KEYSTONE_EP                          policy<{'arm64': '-'}>
 CONFIG_PCI_KEYSTONE_HOST                        policy<{'arm64': '-'}>
 CONFIG_PCI_MVEBU                                policy<{'armhf': '-'}>
-CONFIG_PCI_NXP_RPMSG                            policy<{'arm64': 'm', 'armhf': 'n'}>
+CONFIG_PCI_NXP_RPMSG                            policy<{'arm64': 'n', 'armhf': 'n'}>
 CONFIG_PCI_RCAR_GEN2                            policy<{'armhf': '-'}>
 CONFIG_PCI_TEGRA                                policy<{'arm64': '-', 'armhf': '-'}>
 CONFIG_PCI_XGENE                                policy<{'arm64': 'n', 'armhf': '-'}>
