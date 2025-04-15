@@ -21,8 +21,8 @@
 		compatible = "gpio-leds";
 
 		status {
-			label = "blue:status";
-			gpios = <&pcal6416 15 GPIO_ACTIVE_HIGH>;
+			label = "green:status";
+			gpios = <&pcal6416 14 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
