@@ -16,7 +16,7 @@
 #include "imx8mp-frdm.dts"
 
 &i2c2 {
-	/delete-node/ov5640_mipi@3c;
+	/delete-node/ap1302_mipi@3c;
 
 	os08a20_0: os08a20_mipi@36 {
 		compatible = "ovti,os08a20_mipi";
@@ -47,8 +47,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
-
-	/delete-node/ov5640_mipi@3c;
 
 	os08a20_1: os08a20_mipi@36 {
 		compatible = "ovti,os08a20_mipi";
@@ -103,11 +101,14 @@
 	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>;
 	assigned-clock-rates = <266000000>;
 
+	/delete-node/port;
 	port {
-		endpoint {
+		mipi_csi0_ep: endpoint {
 			remote-endpoint = <&os08a20_mipi_0_ep>;
 			data-lanes = <4>;
 			csis-hs-settle = <16>;
+			csis-clk-settle = <2>;
+			csis-wclk;
 		};
 	};
 };
@@ -121,6 +122,8 @@
 			remote-endpoint = <&os08a20_mipi_1_ep>;
 			data-lanes = <4>;
 			csis-hs-settle = <16>;
+			csis-clk-settle = <2>;
+			csis-wclk;
 		};
 	};
 };

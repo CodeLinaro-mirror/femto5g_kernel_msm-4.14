@@ -18,7 +18,7 @@
 #include "imx8mp-frdm.dts"
 
 &i2c2 {
-	/delete-node/ov5640_mipi@3c;
+	/delete-node/ap1302_mipi@3c;
 
 	os08a20_0: os08a20_mipi@36 {
 		compatible = "ovti,os08a20_mipi";
@@ -44,11 +44,6 @@
 	};
 };
 
-&i2c3 {
-	/delete-node/ov5640_mipi@3c;
-
-};
-
 &cameradev {
 	status = "okay";
 };
@@ -57,10 +52,6 @@
 	cap_device {
 		status = "disabled";
 	};
-};
-
-&isi_1 {
-	status = "disabled";
 };
 
 &isp_0 {
@@ -74,17 +65,14 @@
 &mipi_csi_0 {
 	status = "okay";
 
+	/delete-node/port;
 	port {
-		endpoint {
+		mipi_csi0_ep: endpoint {
 			remote-endpoint = <&os08a20_mipi_0_ep>;
 			data-lanes = <4>;
 			csis-hs-settle = <16>;
+			csis-clk-settle = <2>;
+			csis-wclk;
 		};
 	};
-};
-
-&mipi_csi_1 {
-	/delete-property/ #address-cells;
-	/delete-property/ #size-cells;
-	/delete-node/port@1;
 };
