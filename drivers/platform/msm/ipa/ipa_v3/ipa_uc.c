@@ -75,7 +75,7 @@ enum ipa3_cpu_2_hw_commands {
 	IPA_CPU_2_HW_CMD_REMOTE_IPA_INFO           =
 		FEATURE_ENUM_VAL(IPA_HW_FEATURE_COMMON, 11),
 	IPA_CPU_2_HW_CMD_TTL_DECR_CACHE_VLAN_IDS   =
-		FEATURE_ENUM_VAL(IPA_HW_FEATURE_COMMON, 21),
+		FEATURE_ENUM_VAL(IPA_HW_FEATURE_COMMON, 24),
 };
 
 /**
@@ -811,9 +811,20 @@ int ipa3_uc_interface_init(void)
 	mutex_init(&ipa3_ctx->uc_ctx.uc_lock);
 	spin_lock_init(&ipa3_ctx->uc_ctx.uc_spinlock);
 
-	phys_addr = ipa3_ctx->ipa_wrapper_base +
-		ipa3_ctx->ctrl->ipa_reg_base_ofst +
-		ipahal_get_reg_n_ofst(IPA_SW_AREA_RAM_DIRECT_ACCESS_n, 0);
+	if(ipa3_ctx->ipa_hw_type == IPA_HW_v4_5)
+	{
+		phys_addr = ipa3_ctx->ipa_wrapper_base +
+			ipa3_ctx->ctrl->ipa_reg_base_ofst +
+			ipahal_get_reg_n_ofst(IPA_SW_AREA_RAM_DIRECT_ACCESS_n, 0) +
+			IPA_MEM_PART(uc_ofst);;
+	}
+	else
+	{
+		phys_addr = ipa3_ctx->ipa_wrapper_base +
+			ipa3_ctx->ctrl->ipa_reg_base_ofst +
+			ipahal_get_reg_n_ofst(IPA_SW_AREA_RAM_DIRECT_ACCESS_n, 0);
+	}
+
 	ipa3_ctx->uc_ctx.uc_sram_mmio = ioremap(phys_addr,
 					       IPA_RAM_UC_SMEM_SIZE);
 	if (!ipa3_ctx->uc_ctx.uc_sram_mmio) {
