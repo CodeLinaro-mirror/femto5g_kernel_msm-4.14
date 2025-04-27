@@ -7,10 +7,12 @@
 
 &mipi_dsi {
 	status = "okay";
-	panel@0{
-		compatible = "waveshare,7inch";
-		reg = <0>;
-		status = "okay";
+
+	port@1 {
+		dsim_to_waveshare: endpoint {
+			remote-endpoint = <&waveshare_from_dsim>;
+			attach-bridge;
+		};
 	};
 };
 
@@ -19,6 +21,12 @@
 		compatible = "waveshare,7.0inch-c-panel";
 		reg = <0x45>;
 		status = "okay";
+
+		port {
+			waveshare_from_dsim: endpoint{
+				remote-endpoint = <&dsim_to_waveshare>;
+			};
+		};
 	};
 
 	touchscreen@14{
@@ -27,8 +35,4 @@
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <600>;
 	};
-};
-
-&lcdif3 {
-	status = "disabled";
 };
