@@ -41,8 +41,8 @@ struct boot_marker {
 	spinlock_t slock;
 };
 
-static struct dentry *dent_bkpi, *dent_bkpi_status, *dent_mpm_timer;
 static struct boot_marker boot_marker_list;
+static struct kobject *bootkpi_obj;
 
 /*
  * Caller is expected to hold the list spinlock.
@@ -204,69 +204,79 @@ void measure_wake_up_time(void)
 }
 EXPORT_SYMBOL(measure_wake_up_time);
 
-static ssize_t bootkpi_reader(struct file *fp, char __user *user_buffer,
-		size_t count, loff_t *position)
+static ssize_t bootkpi_reader(struct file *fp, struct kobject *obj,
+		struct bin_attribute *bin_attr, char *user_buffer, loff_t off,
+		size_t count)
 {
-	int rc = 0;
-	char *buf;
-	int temp = 0;
 	struct boot_marker *marker;
+	u64 ts_whole_num, ts_precision;
+	static char *buf;
+	static int temp;
+	int ret = 0;
 	unsigned long flags;
 
-	buf = kmalloc(BOOTKPI_BUF_SIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (!buf) {
+		buf = kmalloc(BOOTKPI_BUF_SIZE, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+	}
 
-	spin_lock_irqsave(&boot_marker_list.slock, flags);
-	list_for_each_entry(marker, &boot_marker_list.list, list) {
-		WARN_ON((BOOTKPI_BUF_SIZE - temp) <= 0);
+	if (!temp) {
+		spin_lock_irqsave(&boot_marker_list.slock, flags);
+		list_for_each_entry(marker, &boot_marker_list.list, list) {
+			WARN_ON((BOOTKPI_BUF_SIZE - temp) <= 0);
+
 		temp += scnprintf(buf + temp, BOOTKPI_BUF_SIZE - temp,
 				"%-41s:%llu.%03llu seconds\n",
 				marker->marker_name,
 				marker->timer_value/TIMER_KHZ,
 				(((marker->timer_value % TIMER_KHZ)
 				  * 1000) / TIMER_KHZ));
+
+
+
+		}
+
+		spin_unlock_irqrestore(&boot_marker_list.slock, flags);
 	}
-	spin_unlock_irqrestore(&boot_marker_list.slock, flags);
-	rc = simple_read_from_buffer(user_buffer, count, position, buf, temp);
-	kfree(buf);
-	return rc;
+
+	if (temp - off > count)
+		ret = scnprintf(user_buffer, count, "%s", buf + off);
+	else
+		ret = scnprintf(user_buffer, temp + 1 - off, "%s", buf + off);
+
+	if (ret == 0) {
+		kfree(buf);
+		buf = NULL;
+		temp = 0;
+	}
+	return ret;
 }
 
-static ssize_t bootkpi_writer(struct file *fp, const char __user *user_buffer,
-		size_t count, loff_t *position)
+
+static ssize_t bootkpi_writer(struct file *fp, struct kobject *obj,
+		struct bin_attribute *bin_attr, char *user_buffer, loff_t off,
+		size_t count)
 {
 	int rc = 0;
 	char buf[MAX_STRING_LEN];
 
-	if (count > MAX_STRING_LEN)
+	if (count >= MAX_STRING_LEN)
 		return -EINVAL;
-	rc = simple_write_to_buffer(buf,
-			sizeof(buf) - 1, position, user_buffer, count);
+
+	rc = scnprintf(buf, sizeof(buf) - 1, "%s", user_buffer);
 	if (rc < 0)
 		return rc;
+
 	buf[rc] = '\0';
 	place_marker(buf);
 	return rc;
 }
 
-static int bootkpi_open(struct inode *inode, struct file *file)
+static ssize_t mpm_timer_read(struct kobject *obj, struct kobj_attribute *attr,
+		char *user_buffer)
 {
-	return 0;
-}
-
-static const struct file_operations fops_bkpi = {
-	.owner = THIS_MODULE,
-	.open  = bootkpi_open,
-	.read  = bootkpi_reader,
-	.write = bootkpi_writer,
-};
-
-static ssize_t mpm_timer_read(struct file *fp, char __user *user_buffer,
-		size_t count, loff_t *position)
-{
-	unsigned long long int timer_value;
-	int rc = 0;
+	unsigned long long timer_value;
 	char buf[100];
 	int temp = 0;
 
@@ -276,14 +286,7 @@ static ssize_t mpm_timer_read(struct file *fp, char __user *user_buffer,
 			timer_value/TIMER_KHZ,
 			(((timer_value % TIMER_KHZ) * 1000) / TIMER_KHZ));
 
-	rc = simple_read_from_buffer(user_buffer, count, position, buf, temp);
-
-	return rc;
-}
-
-static int mpm_timer_open(struct inode *inode, struct file *file)
-{
-	return 0;
+	return scnprintf(user_buffer, temp + 1, "%s\n", buf);
 }
 
 static int mpm_timer_mmap(struct file *file, struct vm_area_struct *vma)
@@ -297,40 +300,49 @@ static int mpm_timer_mmap(struct file *file, struct vm_area_struct *vma)
 	return vm_iomap_memory(vma, addr, PAGE_SIZE);
 }
 
-static const struct file_operations fops_mpm_timer = {
-	.owner = THIS_MODULE,
-	.open  = mpm_timer_open,
-	.read  = mpm_timer_read,
-	.mmap = mpm_timer_mmap,
-};
+static struct bin_attribute kpi_values_attribute =
+	__BIN_ATTR(kpi_values, 0666, bootkpi_reader, bootkpi_writer, 0);
+
+static struct kobj_attribute mpm_timer_attribute =
+	__ATTR(mpm_timer, 0444, mpm_timer_read, NULL);
+
+static int bootkpi_sysfs_init(void)
+{
+	int ret;
+	bootkpi_obj = kobject_create_and_add("boot_kpi", kernel_kobj);
+	if (!bootkpi_obj) {
+		pr_err("boot_marker: Could not create kobject\n");
+		ret = -ENOMEM;
+		goto kobj_err;
+	}
+
+	ret = sysfs_create_file(bootkpi_obj, &mpm_timer_attribute.attr);
+	if (ret) {
+		pr_err("boot_marker: Could not create sysfs file\n");
+		goto err;
+	}
+
+	ret = sysfs_create_bin_file(bootkpi_obj, &kpi_values_attribute);
+	if (ret) {
+		pr_err("boot_marker: Could not create sysfs bin file\n");
+		sysfs_remove_file(bootkpi_obj, &mpm_timer_attribute.attr);
+	}
+
+	return 0;
+
+	err:
+		kobject_del(bootkpi_obj);
+	kobj_err:
+		return ret;
+}
 
 static int __init init_bootkpi(void)
 {
-	dent_bkpi = debugfs_create_dir("bootkpi", NULL);
-	if (IS_ERR_OR_NULL(dent_bkpi))
-		return -ENODEV;
+	int ret = 0;
+	ret = bootkpi_sysfs_init();
 
-	dent_bkpi_status = debugfs_create_file_unsafe("kpi_values",
-			0666, dent_bkpi, NULL, &fops_bkpi);
-	if (IS_ERR_OR_NULL(dent_bkpi_status)) {
-		debugfs_remove(dent_bkpi);
-		dent_bkpi = NULL;
-		pr_err("boot_marker: Could not create 'kpi_values' debugfs file\n");
-		return -ENODEV;
-	}
-
-	dent_mpm_timer = debugfs_create_file("mpm_timer",
-			0444, dent_bkpi, NULL, &fops_mpm_timer);
-	if (IS_ERR_OR_NULL(dent_mpm_timer)) {
-		debugfs_remove(dent_bkpi_status);
-		dent_bkpi_status = NULL;
-		debugfs_remove(dent_bkpi);
-		dent_bkpi = NULL;
-		pr_err("boot_marker: Could not create 'mpm_timer' debugfs file\n");
-		return -ENODEV;
-	}
-
-	debugfs_create_dir("bootloader_log", dent_bkpi);
+	if (ret)
+		return ret;
 
 	INIT_LIST_HEAD(&boot_marker_list.list);
 	spin_lock_init(&boot_marker_list.slock);
@@ -341,7 +353,9 @@ subsys_initcall(init_bootkpi);
 
 static void __exit exit_bootkpi(void)
 {
-	debugfs_remove_recursive(dent_bkpi);
+	sysfs_remove_file(bootkpi_obj, &mpm_timer_attribute.attr);
+	sysfs_remove_bin_file(bootkpi_obj, &kpi_values_attribute);
+	kobject_del(bootkpi_obj);
 	boot_marker_cleanup();
 	boot_stats_exit();
 }
