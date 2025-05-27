@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2025, Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -538,7 +539,9 @@ struct qcom_ethqos {
 	struct class *emac_rec_class;
 	unsigned long avb_class_a_intr_cnt;
 	unsigned long avb_class_b_intr_cnt;
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dir;
+#endif
 
 	/* saving state for Wake-on-LAN */
 	int wolopts;
