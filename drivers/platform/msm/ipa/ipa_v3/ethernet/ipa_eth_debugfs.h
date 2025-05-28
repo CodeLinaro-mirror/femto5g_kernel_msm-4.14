@@ -1,4 +1,5 @@
 /* Copyright (c) 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#ifdef CONFIG_DEBUG_FS
 #ifndef _IPA_ETH_DEBUGFS_H_
 #define _IPA_ETH_DEBUGFS_H_
 
@@ -25,3 +26,4 @@ int ipa_eth_debugfs_init(void);
 void ipa_eth_debugfs_cleanup(void);
 
 #endif /* _IPA_ETH_DEBUGFS_H_ */
+#endif

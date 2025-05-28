@@ -1,4 +1,5 @@
 /* Copyright (c) 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -221,16 +222,21 @@ int ipa_eth_offload_register_driver(struct ipa_eth_offload_driver *od)
 	mutex_lock(&ipa_eth_offload_drivers_lock);
 	list_add(&od->driver_list, &ipa_eth_offload_drivers);
 	mutex_unlock(&ipa_eth_offload_drivers_lock);
-
+#ifndef CONFIG_DEBUG_FS
+	(void) ipa_eth_sysfs_add_offload_driver(od);
+#else
 	(void) ipa_eth_debugfs_add_offload_driver(od);
-
+#endif
 	return 0;
 }
 
 void ipa_eth_offload_unregister_driver(struct ipa_eth_offload_driver *od)
 {
+#ifndef CONFIG_DEBUG_FS
+	ipa_eth_sysfs_remove_offload_driver(od);
+#else
 	ipa_eth_debugfs_remove_offload_driver(od);
-
+#endif
 	mutex_lock(&ipa_eth_offload_drivers_lock);
 	list_del(&od->driver_list);
 	mutex_unlock(&ipa_eth_offload_drivers_lock);

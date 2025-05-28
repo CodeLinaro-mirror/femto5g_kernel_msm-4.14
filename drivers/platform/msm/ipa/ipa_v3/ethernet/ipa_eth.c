@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -860,9 +861,11 @@ int ipa_eth_register_device(struct ipa_eth_device *eth_dev)
 	rc = ipa_eth_offload_pair_device(eth_dev);
 	if (rc)
 		ipa_eth_dev_log(eth_dev, "Failed to pair device. Deferring.");
-
+#ifndef CONFIG_DEBUG_FS
+	ipa_eth_sysfs_add_device(eth_dev);
+#else
 	ipa_eth_debugfs_add_device(eth_dev);
-
+#endif
 	return 0;
 }
 
@@ -913,8 +916,11 @@ void ipa_eth_unregister_device(struct ipa_eth_device *eth_dev)
 	/* Remove debugfs node to prevent any new 'start_timer' to be
 	 * be started.
 	 */
+#ifndef CONFIG_DEBUG_FS
+	ipa_eth_sysfs_remove_device(eth_dev);
+#else
 	ipa_eth_debugfs_remove_device(eth_dev);
-
+#endif
 	del_timer_sync(&eth_dev->start_timer);
 
 	/* Unpair the device before removing from devices list so that
@@ -1074,13 +1080,19 @@ int ipa_eth_init(void)
 		ipa_eth_err("Failed to initialize bus");
 		goto err_bus;
 	}
-
+#ifndef CONFIG_DEBUG_FS
+	rc = ipa_eth_sysfs_init();
+	if (rc) {
+		ipa_eth_err("Failed to initialize sysfs");
+		goto err_dbgfs;
+	}
+#else
 	rc = ipa_eth_debugfs_init();
 	if (rc) {
 		ipa_eth_err("Failed to initialize debugfs");
 		goto err_dbgfs;
 	}
-
+#endif
 	rc = ipa_eth_register_ready_cb(&eth_api_rdy);
 	if (rc) {
 		ipa_eth_err("Failed to register ready cb with IPA driver");
@@ -1096,7 +1108,11 @@ int ipa_eth_init(void)
 	return 0;
 
 err_reg_rdy:
+#ifndef CONFIG_DEBUG_FS
+	ipa_eth_sysfs_cleanup();
+#else
 	ipa_eth_debugfs_cleanup();
+#endif
 err_dbgfs:
 	ipa_eth_bus_modexit();
 err_bus:
@@ -1118,8 +1134,11 @@ void ipa_eth_exit(void)
 	clear_bit(IPA_ETH_ST_READY, &ipa_eth_state);
 
 	ipa_eth_unregister_ready_cb(&eth_api_rdy);
-
+#ifndef CONFIG_DEBUG_FS
+	ipa_eth_sysfs_cleanup();
+#else
 	ipa_eth_debugfs_cleanup();
+#endif
 
 	/* Wait for all offload paths to deinit. Although the chances for any
 	 * such path to exist is quite low when IPA is a platform device, we

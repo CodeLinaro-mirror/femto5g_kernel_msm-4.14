@@ -1,4 +1,5 @@
 /* Copyright (c) 2018 - 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,8 +10,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
+#endif
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/if_ether.h>
@@ -32,7 +34,7 @@
 #endif
 
 #define IPA_GSB_DRV_NAME "ipa_gsb"
-
+#define IPA_GSB_MAX_MSG_LEN 512
 #define MAX_SUPPORTED_IFACE 5
 
 #define IPA_GSB_DBG(fmt, args...) \
@@ -63,8 +65,8 @@
 			IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
-#define IPA_GSB_MAX_MSG_LEN 512
 
+static char dbg_buff[IPA_GSB_MAX_MSG_LEN];
 #ifdef CONFIG_DEBUG_FS
 static char dbg_buff[IPA_GSB_MAX_MSG_LEN];
 static struct dentry *dent;
@@ -240,13 +242,70 @@ static void ipa_gsb_debugfs_destroy(void)
 	debugfs_remove_recursive(dent);
 }
 #else
-static void ipa_gsb_debugfs_init(void)
+
+static ssize_t gsb_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
+	int i, nbytes = 0;
+	struct ipa_gsb_iface_info *iface = NULL;
+	struct stats iface_stats;
+
+	for (i = 0; i < MAX_SUPPORTED_IFACE; i++) {
+		iface = ipa_gsb_ctx->iface[i];
+		if (iface != NULL) {
+			iface_stats = iface->iface_stats;
+			nbytes += scnprintf(&dbg_buff[nbytes],
+				IPA_GSB_MAX_MSG_LEN - nbytes,
+				"netdev: %s\n",
+				iface->netdev_name);
+
+			nbytes += scnprintf(&dbg_buff[nbytes],
+				IPA_GSB_MAX_MSG_LEN - nbytes,
+				"UL packets: %lld\n",
+				iface_stats.num_ul_packets);
+
+			nbytes += scnprintf(&dbg_buff[nbytes],
+				IPA_GSB_MAX_MSG_LEN - nbytes,
+				"DL packets: %lld\n",
+				iface_stats.num_dl_packets);
+
+			nbytes += scnprintf(&dbg_buff[nbytes],
+				IPA_GSB_MAX_MSG_LEN - nbytes,
+				"packets with insufficient headroom: %lld\n",
+				iface_stats.num_insufficient_headroom_packets);
+		}
+	}
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
 }
 
-static void ipa_gsb_debugfs_destroy(void)
+static DEVICE_ATTR_RO(gsb_stats);
+
+static struct attribute *ipa_gsb_attrs[] = {
+	&dev_attr_gsb_stats.attr,
+	NULL
+};
+
+const struct attribute_group ipa_gsb_attr_group = {
+	.name		= "ipa_gsb",
+	.attrs		= ipa_gsb_attrs,
+};
+
+static int ipa_gsb_sysfs_init()
 {
+	int ret = -1;
+
+	ret = sysfs_create_group(kernel_kobj, &ipa_gsb_attr_group);
+	if (ret != 0) {
+		pr_err("Fail to create IPA-GSB syfs attribute\n");
+	}
+	return ret;
 }
+
+static void ipa_gsb_sysfs_destroy()
+{
+	sysfs_remove_group(kernel_kobj, &ipa_gsb_attr_group);
+}
+
 #endif
 
 static int ipa_gsb_driver_init(struct odu_bridge_params *params)
@@ -268,8 +327,11 @@ static int ipa_gsb_driver_init(struct odu_bridge_params *params)
 		mutex_init(&ipa_gsb_ctx->iface_lock[i]);
 		spin_lock_init(&ipa_gsb_ctx->iface_spinlock[i]);
 	}
+#ifdef CONFIG_DEBUG_FS
 	ipa_gsb_debugfs_init();
-
+#else
+	ipa_gsb_sysfs_init();
+#endif
 	return 0;
 }
 
@@ -650,7 +712,11 @@ int ipa_bridge_cleanup(u32 hdl)
 	IPA_GSB_DBG("num_iface %d\n", ipa_gsb_ctx->num_iface);
 	if (ipa_gsb_ctx->num_iface == 0) {
 		ipa_gsb_deregister_pm();
+#ifdef CONFIG_DEBUG_FS
 		ipa_gsb_debugfs_destroy();
+#else
+		ipa_gsb_sysfs_destroy();
+#endif
 		ipc_log_context_destroy(ipa_gsb_ctx->logbuf);
 		ipc_log_context_destroy(ipa_gsb_ctx->logbuf_low);
 		mutex_unlock(&ipa_gsb_ctx->lock);

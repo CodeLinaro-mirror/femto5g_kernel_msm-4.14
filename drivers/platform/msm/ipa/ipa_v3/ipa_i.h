@@ -1,5 +1,5 @@
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,6 +56,7 @@
 
 #define MTU_BYTE 1500
 
+#define IPA_MAX_MSG_LEN 4096
 #define IPA_EP_NOT_ALLOCATED (-1)
 #define IPA3_MAX_NUM_PIPES 31
 #define IPA_SYS_DESC_FIFO_SZ 0x800
@@ -2928,11 +2929,23 @@ int ipa3_generate_hw_rule(enum ipa_ip_type ip,
 int ipa3_init_hw(void);
 struct ipa3_rt_tbl *__ipa3_find_rt_tbl(enum ipa_ip_type ip, const char *name);
 int ipa3_set_single_ndp_per_mbim(bool enable);
+#ifndef CONFIG_DEBUG_FS
+int ipa_sysfs_init(void);
+void  ipa_sysfs_deinit(void);
+int ipa_sysfs_init_stats(void);
+void ipa_sysfs_deinit_stats(void);
+int ipa3_wigig_init_sysfs_i(void);
+void ipa3_wigig_fini_sysfs_i(void);
+#else
 void ipa3_debugfs_pre_init(void);
 void ipa3_debugfs_post_init(void);
 void ipa3_debugfs_remove(void);
+int ipa_debugfs_init_stats(struct dentry *parent);
 void ipa3_eth_debugfs_init(void);
+void ipa3_eth_debugfs_add(struct ipa_eth_client *client);
 void ipa3_eth_debugfs_add_node(struct ipa_eth_client *client);
+struct dentry *ipa_debugfs_get_root(void);
+#endif
 
 void ipa3_dump_buff_internal(void *base, dma_addr_t phy_base, u32 size);
 
@@ -3121,8 +3134,6 @@ int ipa_hw_stats_init(void);
 
 int ipa_init_flt_rt_stats(void);
 
-int ipa_debugfs_init_stats(struct dentry *parent);
-
 int ipa_init_quota_stats(u32 pipe_bitmask);
 
 int ipa_get_quota_stats(struct ipa_quota_stats_all *out);
@@ -3213,7 +3224,6 @@ int ipa3_smmu_map_ctg(u64 iova, u32 size, bool map, phys_addr_t pa,
 void ipa3_reset_freeze_vote(void);
 int ipa3_ntn_init(void);
 int ipa3_get_ntn_stats(struct Ipa3HwStatsNTNInfoData_t *stats);
-struct dentry *ipa_debugfs_get_root(void);
 bool ipa3_is_msm_device(void);
 void ipa3_read_mailbox_17(enum uc_state state);
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,7 +14,9 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
+#endif
 #include <linux/ipa.h>
 #include <linux/ipa_usb.h>
 #include <linux/rndis_ipa.h>
@@ -70,6 +73,7 @@
 			IPA_USB_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
+static char dbg_buff[IPA_USB_MAX_MSG_LEN];
 enum ipa_usb_direction {
 	IPA_USB_DIR_UL,
 	IPA_USB_DIR_DL,
@@ -242,6 +246,10 @@ struct ipa3_usb_status_dbg_info {
 	const char *dpl_cons_state;
 };
 
+#ifndef CONFIG_DEBUG_FS
+static int ipa_usb_sysfs_init(void);
+static void ipa_usb_sysfs_destroy(void);
+#endif
 static void ipa3_usb_wq_notify_remote_wakeup(struct work_struct *work);
 static void ipa3_usb_wq_dpl_notify_remote_wakeup(struct work_struct *work);
 static DECLARE_WORK(ipa3_usb_notify_remote_wakeup_work,
@@ -2180,9 +2188,6 @@ connect_ul_fail:
 	return result;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static char dbg_buff[IPA_USB_MAX_MSG_LEN];
-
 static char *ipa3_usb_cons_state_to_string(enum ipa3_usb_cons_state state)
 {
 	switch (state) {
@@ -2272,6 +2277,7 @@ bail:
 	return res;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static ssize_t ipa3_read_usb_state_info(struct file *file, char __user *ubuf,
 		size_t count, loff_t *ppos)
 {
@@ -2380,9 +2386,92 @@ static void ipa_usb_debugfs_remove(void)
 
 	debugfs_remove_recursive(ipa3_usb_ctx->dent);
 }
-#else /* CONFIG_DEBUG_FS */
-static void ipa_usb_debugfs_init(void){}
-static void ipa_usb_debugfs_remove(void){}
+#else /* !CONFIG_DEBUG_FS */
+static ssize_t usb_state_info_show(struct device *dev,
+			struct device_attribute *attr,
+			char *ubuf)
+{
+	struct ipa3_usb_status_dbg_info status;
+	int result;
+	int nbytes;
+	int cnt = 0;
+	int i;
+
+	result = ipa3_usb_get_status_dbg_info(&status);
+	if (result) {
+		nbytes = scnprintf(dbg_buff, IPA_USB_MAX_MSG_LEN,
+				"Fail to read IPA USB status\n");
+		cnt += nbytes;
+	} else {
+		nbytes = scnprintf(dbg_buff, IPA_USB_MAX_MSG_LEN,
+			"Tethering Data State: %s\n"
+			"DPL State: %s\n"
+			"Protocols in Initialized State: ",
+			status.teth_state,
+			status.dpl_state);
+		cnt += nbytes;
+
+		for (i = 0 ; i < status.num_init_prot ; i++) {
+			nbytes = scnprintf(dbg_buff + cnt,
+					IPA_USB_MAX_MSG_LEN - cnt,
+					"%s ", status.inited_prots[i]);
+			cnt += nbytes;
+		}
+		nbytes = scnprintf(dbg_buff + cnt, IPA_USB_MAX_MSG_LEN - cnt,
+				status.num_init_prot ? "\n" : "None\n");
+		cnt += nbytes;
+
+		nbytes = scnprintf(dbg_buff + cnt, IPA_USB_MAX_MSG_LEN - cnt,
+				"Protocols in Connected State: ");
+		cnt += nbytes;
+		if (status.teth_connected_prot) {
+			nbytes = scnprintf(dbg_buff + cnt,
+				IPA_USB_MAX_MSG_LEN - cnt,
+				"%s ", status.teth_connected_prot);
+			cnt += nbytes;
+		}
+		if (status.dpl_connected_prot) {
+			nbytes = scnprintf(dbg_buff + cnt,
+				IPA_USB_MAX_MSG_LEN - cnt,
+				"%s ", status.dpl_connected_prot);
+			cnt += nbytes;
+		}
+		nbytes = scnprintf(dbg_buff + cnt, IPA_USB_MAX_MSG_LEN - cnt,
+				(status.teth_connected_prot ||
+				status.dpl_connected_prot) ? "\n" : "None\n");
+		cnt += nbytes;
+	}
+
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
+}
+
+static DEVICE_ATTR_RO(usb_state_info);
+
+static struct attribute *ipa_usb_attrs[] = {
+	&dev_attr_usb_state_info.attr,
+	NULL
+};
+
+const struct attribute_group ipa_usb_attr_group = {
+	.name		= "ipa_usb",
+	.attrs		= ipa_usb_attrs,
+};
+
+static int ipa_usb_sysfs_init(void)
+{
+	int ret = -1;
+
+	ret = sysfs_create_group(kernel_kobj, &ipa_usb_attr_group);
+	if (ret != 0) {
+		pr_err("Fail to create IPA-USB sysfs attribute\n");
+	}
+	return ret;
+}
+static void ipa_usb_sysfs_destroy(void)
+{
+	sysfs_remove_group(kernel_kobj, &ipa_usb_attr_group);
+}
 #endif /* CONFIG_DEBUG_FS */
 
 int ipa_usb_xdci_connect(struct ipa_usb_xdci_chan_params *ul_chan_params,
@@ -3249,8 +3338,11 @@ static int __init ipa3_usb_init(void)
 		res = -EFAULT;
 		goto ipa_usb_workqueue_fail;
 	}
-
+#ifdef CONFIG_DEBUG_FS
 	ipa_usb_debugfs_init();
+#else
+	ipa_usb_sysfs_init();
+#endif
 
 	pr_info("exit: IPA_USB init success!\n");
 
@@ -3273,8 +3365,11 @@ static void ipa3_usb_exit(void)
 	 * For IPA_USB_DIAG/DPL config there will not be any UL config.
 	 */
 	ipa3_deregister_client_callback(IPA_CLIENT_USB_PROD);
-
+#ifdef CONFIG_DEBUG_FS
 	ipa_usb_debugfs_remove();
+#else
+	ipa_usb_sysfs_destroy();
+#endif
 	kfree(ipa3_usb_ctx);
 }
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 
 #include "ipa_eth_debugfs.h"
@@ -312,3 +313,4 @@ void ipa_eth_debugfs_cleanup(void)
 {
 	debugfs_remove_recursive(ipa_eth_debugfs);
 }
+#endif

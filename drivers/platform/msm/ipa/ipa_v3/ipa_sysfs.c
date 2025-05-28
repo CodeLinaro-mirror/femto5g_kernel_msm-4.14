@@ -11,9 +11,7 @@
  * GNU General Public License for more details.
  */
 
-#ifdef CONFIG_DEBUG_FS
-
-#include <linux/debugfs.h>
+#ifndef CONFIG_DEBUG_FS
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include "ipa_i.h"
@@ -35,13 +33,6 @@
 #define IPA_READ_WRITE_MODE 0664
 #define IPA_WRITE_ONLY_MODE 0220
 
-struct ipa3_debugfs_file {
-	const char *name;
-	umode_t mode;
-	void *data;
-	const struct file_operations fops;
-};
-
 static const char * const ipa_eth_clients_strings[] = {
 	__stringify(AQC107),
 	__stringify(AQC113),
@@ -49,6 +40,7 @@ static const char * const ipa_eth_clients_strings[] = {
 	__stringify(RTK8125B),
 	__stringify(NTN),
 	__stringify(EMAC),
+
 };
 
 const char *ipa3_event_name[] = {
@@ -122,19 +114,14 @@ const char *ipa3_hdr_proc_type_name[] = {
 	__stringify(IPA_HDR_PROC_L2TP_UDP_HEADER_ADD),
 	__stringify(IPA_HDR_PROC_L2TP_UDP_HEADER_REMOVE),
 	__stringify(IPA_HDR_PROC_SET_DSCP),
-};
 
-static struct dentry *dent;
-static struct dentry *dent_eth;
+};
 static char dbg_buff[IPA_MAX_MSG_LEN + 1];
 static char *active_clients_buf;
-
 static s8 ep_reg_idx;
 static void *ipa_ipc_low_buff;
 
-
-static ssize_t ipa3_read_gen_reg(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t gen_reg_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	struct ipahal_reg_shared_mem_size smem_sz;
@@ -145,44 +132,40 @@ static ssize_t ipa3_read_gen_reg(struct file *file, char __user *ubuf,
 
 	ipahal_read_reg_fields(IPA_SHARED_MEM_SIZE, &smem_sz);
 	nbytes = scnprintf(dbg_buff, IPA_MAX_MSG_LEN,
-			"IPA_VERSION=0x%x\n"
-			"IPA_COMP_HW_VERSION=0x%x\n"
-			"IPA_ROUTE=0x%x\n"
-			"IPA_SHARED_MEM_RESTRICTED=0x%x\n"
-			"IPA_SHARED_MEM_SIZE=0x%x\n"
-			"IPA_QTIME_TIMESTAMP_CFG=0x%x\n"
-			"IPA_TIMERS_PULSE_GRAN_CFG=0x%x\n"
-			"IPA_TIMERS_XO_CLK_DIV_CFG=0x%x\n",
-			ipahal_read_reg(IPA_VERSION),
-			ipahal_read_reg(IPA_COMP_HW_VERSION),
-			ipahal_read_reg(IPA_ROUTE),
-			smem_sz.shared_mem_baddr,
-			smem_sz.shared_mem_sz,
-			ipahal_read_reg(IPA_QTIME_TIMESTAMP_CFG),
-			ipahal_read_reg(IPA_TIMERS_PULSE_GRAN_CFG),
+		"IPA_VERSION=0x%x\n"
+		"IPA_COMP_HW_VERSION=0x%x\n"
+		"IPA_ROUTE=0x%x\n"
+		"IPA_SHARED_MEM_RESTRICTED=0x%x\n"
+		"IPA_SHARED_MEM_SIZE=0x%x\n"
+		"IPA_QTIME_TIMESTAMP_CFG=0x%x\n"
+		"IPA_TIMERS_PULSE_GRAN_CFG=0x%x\n"
+		"IPA_TIMERS_XO_CLK_DIV_CFG=0x%x\n",
+		ipahal_read_reg(IPA_VERSION),
+		ipahal_read_reg(IPA_COMP_HW_VERSION),
+		ipahal_read_reg(IPA_ROUTE),
+		smem_sz.shared_mem_baddr,
+		smem_sz.shared_mem_sz,
+		ipahal_read_reg(IPA_QTIME_TIMESTAMP_CFG),
+		ipahal_read_reg(IPA_TIMERS_PULSE_GRAN_CFG),
 			ipahal_read_reg(IPA_TIMERS_XO_CLK_DIV_CFG));
 
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, nbytes);
 }
-
-static ssize_t ipa3_write_ep_holb(struct file *file,
-		const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t holb_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
 	struct ipa_ep_cfg_holb holb;
 	u32 en;
 	u32 tmr_val;
 	u32 ep_idx;
-	unsigned long missing;
 	char *sptr, *token;
 
-	if (sizeof(dbg_buff) < count + 1)
+	if (count >= sizeof(dbg_buff))
 		return -EFAULT;
 
-	missing = copy_from_user(dbg_buff, buf, min(sizeof(dbg_buff), count));
-	if (missing)
-		return -EFAULT;
+	memcpy(dbg_buff, ubuf, count);
 
 	dbg_buff[count] = '\0';
 
@@ -213,29 +196,19 @@ static ssize_t ipa3_write_ep_holb(struct file *file,
 
 	return count;
 }
-
-static ssize_t ipa3_write_ep_reg(struct file *file, const char __user *buf,
-		size_t count, loff_t *ppos)
+static ssize_t ep_reg_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
-	unsigned long missing;
-	s8 option = 0;
+	s8 option;
+	int ret;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, buf, min(sizeof(dbg_buff), count));
-	if (missing)
-		return -EFAULT;
-
-	dbg_buff[count] = '\0';
-	if (kstrtos8(dbg_buff, 0, &option))
-		return -EFAULT;
+	ret = kstrtos8(ubuf, 0, &option);
+	if(ret != 0)
+		return ret;
 
 	if (option >= ipa3_ctx->ipa_num_pipes) {
 		IPAERR("bad pipe specified %u\n", option);
 		return count;
 	}
-
 	ep_reg_idx = option;
 
 	return count;
@@ -308,17 +281,13 @@ int _ipa_read_ep_reg_v4_0(char *buf, int max_len, int pipe)
 		pipe, ipahal_read_reg_n(IPA_ENDP_INIT_CFG_n, pipe));
 }
 
-static ssize_t ipa3_read_ep_reg(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t ep_reg_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int i;
 	int start_idx;
 	int end_idx;
 	int size = 0;
-	int ret;
-	loff_t pos;
-
 	/* negative ep_reg_idx means all registers */
 	if (ep_reg_idx < 0) {
 		start_idx = 0;
@@ -327,47 +296,29 @@ static ssize_t ipa3_read_ep_reg(struct file *file, char __user *ubuf,
 		start_idx = ep_reg_idx;
 		end_idx = start_idx + 1;
 	}
-	pos = *ppos;
+
 	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
 	for (i = start_idx; i < end_idx; i++) {
 
 		nbytes = ipa3_ctx->ctrl->ipa3_read_ep_reg(dbg_buff,
 				IPA_MAX_MSG_LEN, i);
+		memcpy(ubuf, dbg_buff, nbytes);
 
-		*ppos = pos;
-		ret = simple_read_from_buffer(ubuf, count, ppos, dbg_buff,
-						  nbytes);
-		if (ret < 0) {
-			IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
-			return ret;
-		}
-
-		size += ret;
+		size += nbytes;
 		ubuf += nbytes;
-		count -= nbytes;
 	}
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
-
-	*ppos = pos + size;
 	return size;
 }
 
-static ssize_t ipa3_write_keep_awake(struct file *file, const char __user *buf,
-	size_t count, loff_t *ppos)
+static ssize_t keep_awake_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
-	unsigned long missing;
 	s8 option = 0;
+	int ret;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, buf, min(sizeof(dbg_buff), count));
-	if (missing)
-		return -EFAULT;
-
-	dbg_buff[count] = '\0';
-	if (kstrtos8(dbg_buff, 0, &option))
-		return -EFAULT;
+	ret = kstrtos8(ubuf, 0, &option);
+	if(ret != 0)
+		return ret;
 
 	if (option == 0) {
 		if (ipa_pm_remove_dummy_clients()) {
@@ -384,8 +335,7 @@ static ssize_t ipa3_write_keep_awake(struct file *file, const char __user *buf,
 	return count;
 }
 
-static ssize_t ipa3_read_keep_awake(struct file *file, char __user *ubuf,
-	size_t count, loff_t *ppos)
+static ssize_t keep_awake_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 
@@ -398,11 +348,11 @@ static ssize_t ipa3_read_keep_awake(struct file *file, char __user *ubuf,
 				"IPA APPS power state is OFF\n");
 	mutex_unlock(&ipa3_ctx->ipa3_active_clients.mutex);
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, nbytes);
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
 }
 
-static ssize_t ipa3_read_hdr(struct file *file, char __user *ubuf, size_t count,
-		loff_t *ppos)
+static ssize_t hdr_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes = 0;
 	int i = 0;
@@ -465,7 +415,7 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 	int i;
 
 	if (attrib->attrib_mask & IPA_FLT_IS_PURE_ACK)
-		pr_err("is_pure_ack ");
+		pr_cont("is_pure_ack ");
 
 	if (attrib->attrib_mask & IPA_FLT_TOS)
 		pr_cont("tos:%d ", attrib->u.v4.tos);
@@ -478,30 +428,30 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 		pr_cont("ttl:%d ", attrib->ttl_value);
 
 	if (attrib->attrib_mask & IPA_FLT_PROTOCOL)
-		pr_err("protocol:%d ", attrib->u.v4.protocol);
+		pr_cont("protocol:%d ", attrib->u.v4.protocol);
 
 	if (attrib->attrib_mask & IPA_FLT_SRC_ADDR) {
 		if (ip == IPA_IP_v4) {
 			addr[0] = htonl(attrib->u.v4.src_addr);
 			mask[0] = htonl(attrib->u.v4.src_addr_mask);
-			pr_err(
-					"src_addr:%pI4 src_addr_mask:%pI4 ",
-					addr + 0, mask + 0);
+			pr_cont(
+				"src_addr:%pI4 src_addr_mask:%pI4 ",
+				addr + 0, mask + 0);
 		} else if (ip == IPA_IP_v6) {
 			for (i = 0; i < 4; i++) {
 				addr[i] = htonl(attrib->u.v6.src_addr[i]);
 				mask[i] = htonl(attrib->u.v6.src_addr_mask[i]);
 			}
-			pr_err(
-					   "src_addr:%pI6 src_addr_mask:%pI6 ",
-					   addr + 0, mask + 0);
+			pr_cont(
+			   "src_addr:%pI6 src_addr_mask:%pI6 ",
+			   addr + 0, mask + 0);
 		}
 	}
 	if (attrib->attrib_mask & IPA_FLT_DST_ADDR) {
 		if (ip == IPA_IP_v4) {
 			addr[0] = htonl(attrib->u.v4.dst_addr);
 			mask[0] = htonl(attrib->u.v4.dst_addr_mask);
-			pr_err(
+			pr_cont(
 					   "dst_addr:%pI4 dst_addr_mask:%pI4 ",
 					   addr + 0, mask + 0);
 		} else if (ip == IPA_IP_v6) {
@@ -509,61 +459,61 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 				addr[i] = htonl(attrib->u.v6.dst_addr[i]);
 				mask[i] = htonl(attrib->u.v6.dst_addr_mask[i]);
 			}
-			pr_err(
-					   "dst_addr:%pI6 dst_addr_mask:%pI6 ",
-					   addr + 0, mask + 0);
+			pr_cont(
+			   "dst_addr:%pI6 dst_addr_mask:%pI6 ",
+			   addr + 0, mask + 0);
 		}
 	}
 	if (attrib->attrib_mask & IPA_FLT_SRC_PORT_RANGE) {
-		pr_err("src_port_range:%u %u ",
+		pr_cont("src_port_range:%u %u ",
 				   attrib->src_port_lo,
-				 attrib->src_port_hi);
+			     attrib->src_port_hi);
 	}
 	if (attrib->attrib_mask & IPA_FLT_DST_PORT_RANGE) {
-		pr_err("dst_port_range:%u %u ",
-				   attrib->dst_port_lo,
-				 attrib->dst_port_hi);
+		pr_cont("dst_port_range:%u %u ",
+			attrib->dst_port_lo,
+			attrib->dst_port_hi);
 	}
 	if (attrib->attrib_mask & IPA_FLT_TYPE)
-		pr_err("type:%d ", attrib->type);
+		pr_cont("type:%d ", attrib->type);
 
 	if (attrib->attrib_mask & IPA_FLT_CODE)
-		pr_err("code:%d ", attrib->code);
+		pr_cont("code:%d ", attrib->code);
 
 	if (attrib->attrib_mask & IPA_FLT_SPI)
-		pr_err("spi:%x ", attrib->spi);
+		pr_cont("spi:%x ", attrib->spi);
 
 	if (attrib->attrib_mask & IPA_FLT_SRC_PORT)
-		pr_err("src_port:%u ", attrib->src_port);
+		pr_cont("src_port:%u ", attrib->src_port);
 
 	if (attrib->attrib_mask & IPA_FLT_DST_PORT)
-		pr_err("dst_port:%u ", attrib->dst_port);
+		pr_cont("dst_port:%u ", attrib->dst_port);
 
 	if (attrib->attrib_mask & IPA_FLT_TC)
-		pr_err("tc:%d ", attrib->u.v6.tc);
+		pr_cont("tc:%d ", attrib->u.v6.tc);
 
 	if (attrib->attrib_mask & IPA_FLT_FLOW_LABEL)
-		pr_err("flow_label:%x ", attrib->u.v6.flow_label);
+		pr_cont("flow_label:%x ", attrib->u.v6.flow_label);
 
 	if (attrib->attrib_mask & IPA_FLT_NEXT_HDR)
-		pr_err("next_hdr:%d ", attrib->u.v6.next_hdr);
+		pr_cont("next_hdr:%d ", attrib->u.v6.next_hdr);
 
 	if (attrib->ext_attrib_mask & IPA_FLT_EXT_NEXT_HDR)
 		pr_err("next_hdr:%d ", attrib->u.v6.next_hdr);
 
 	if (attrib->attrib_mask & IPA_FLT_META_DATA) {
-		pr_err(
-				   "metadata:%x metadata_mask:%x ",
-				   attrib->meta_data, attrib->meta_data_mask);
+		pr_cont(
+			"metadata:%x metadata_mask:%x ",
+			attrib->meta_data, attrib->meta_data_mask);
 	}
 
 	if (attrib->attrib_mask & IPA_FLT_FRAGMENT)
-		pr_err("frg ");
+		pr_cont("frg ");
 
 	if ((attrib->attrib_mask & IPA_FLT_MAC_SRC_ADDR_ETHER_II) ||
 		(attrib->attrib_mask & IPA_FLT_MAC_SRC_ADDR_802_3) ||
 		(attrib->attrib_mask & IPA_FLT_MAC_SRC_ADDR_802_1Q)) {
-		pr_err("src_mac_addr:%pM ", attrib->src_mac_addr);
+		pr_cont("src_mac_addr:%pM ", attrib->src_mac_addr);
 	}
 
 	if ((attrib->attrib_mask & IPA_FLT_MAC_DST_ADDR_ETHER_II) ||
@@ -571,7 +521,7 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 		(attrib->attrib_mask & IPA_FLT_MAC_DST_ADDR_L2TP) ||
 		(attrib->attrib_mask & IPA_FLT_MAC_DST_ADDR_802_1Q) ||
 		(attrib->attrib_mask & IPA_FLT_L2TP_UDP_INNER_MAC_DST_ADDR)) {
-		pr_err("dst_mac_addr:%pM ", attrib->dst_mac_addr);
+		pr_cont("dst_mac_addr:%pM ", attrib->dst_mac_addr);
 	}
 
 	if (attrib->ext_attrib_mask & IPA_FLT_EXT_MTU)
@@ -579,25 +529,25 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 
 	if (attrib->attrib_mask & IPA_FLT_MAC_ETHER_TYPE ||
 		attrib->ext_attrib_mask & IPA_FLT_EXT_L2TP_UDP_INNER_ETHER_TYPE)
-		pr_err("ether_type:%x ", attrib->ether_type);
+		pr_cont("ether_type:%x ", attrib->ether_type);
 
 	if (attrib->attrib_mask & IPA_FLT_VLAN_ID)
-		pr_err("vlan_id:%x ", attrib->vlan_id);
+		pr_cont("vlan_id:%x ", attrib->vlan_id);
 
 	if (attrib->attrib_mask & IPA_FLT_TCP_SYN)
-		pr_err("tcp syn ");
+		pr_cont("tcp syn ");
 
 	if (attrib->attrib_mask & IPA_FLT_TCP_SYN_L2TP ||
 		attrib->ext_attrib_mask & IPA_FLT_EXT_L2TP_UDP_TCP_SYN)
-		pr_err("tcp syn l2tp ");
+		pr_cont("tcp syn l2tp ");
 
 	if (attrib->attrib_mask & IPA_FLT_L2TP_INNER_IP_TYPE)
-		pr_err("l2tp inner ip type: %d ", attrib->type);
+		pr_cont("l2tp inner ip type: %d ", attrib->type);
 
 	if (attrib->attrib_mask & IPA_FLT_L2TP_INNER_IPV4_DST_ADDR) {
 		addr[0] = htonl(attrib->u.v4.dst_addr);
 		mask[0] = htonl(attrib->u.v4.dst_addr_mask);
-		pr_err("dst_addr:%pI4 dst_addr_mask:%pI4 ", addr, mask);
+		pr_cont("dst_addr:%pI4 dst_addr_mask:%pI4 ", addr, mask);
 	}
 
 	pr_err("\n");
@@ -649,10 +599,10 @@ static int ipa3_attrib_dump_eq(struct ipa_ipfltri_rule_eq *attrib)
 
 	for (i = 0; i < attrib->num_offset_meq_32; i++)
 		pr_err(
-			   "(ofst_meq32: ofst:%u mask:0x%x val:0x%x) ",
-			   attrib->offset_meq_32[i].offset,
-			   attrib->offset_meq_32[i].mask,
-			   attrib->offset_meq_32[i].value);
+		   "(ofst_meq32: ofst:%u mask:0x%x val:0x%x) ",
+		   attrib->offset_meq_32[i].offset,
+		   attrib->offset_meq_32[i].mask,
+		   attrib->offset_meq_32[i].value);
 
 	if (attrib->num_ihl_offset_meq_32 > IPA_IPFLTR_NUM_IHL_MEQ_32_EQNS) {
 		IPAERR_RL("num_ihl_offset_meq_32  Max %d passed value %d\n",
@@ -684,10 +634,10 @@ static int ipa3_attrib_dump_eq(struct ipa_ipfltri_rule_eq *attrib)
 
 	for (i = 0; i < attrib->num_ihl_offset_range_16; i++)
 		pr_err(
-			   "(ihl_ofst_range16: ofst:%u lo:%u hi:%u) ",
-			   attrib->ihl_offset_range_16[i].offset,
-			   attrib->ihl_offset_range_16[i].range_low,
-			   attrib->ihl_offset_range_16[i].range_high);
+		   "(ihl_ofst_range16: ofst:%u lo:%u hi:%u) ",
+		   attrib->ihl_offset_range_16[i].offset,
+		   attrib->ihl_offset_range_16[i].range_low,
+		   attrib->ihl_offset_range_16[i].range_high);
 
 	if (attrib->ihl_offset_eq_32_present)
 		pr_err(
@@ -711,20 +661,12 @@ static int ipa3_attrib_dump_eq(struct ipa_ipfltri_rule_eq *attrib)
 	return 0;
 }
 
-static int ipa3_open_dbg(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static ssize_t ipa3_read_rt(struct file *file, char __user *ubuf, size_t count,
-		loff_t *ppos)
+static ssize_t __rt_show(enum ipa_ip_type ip)
 {
 	int i = 0;
 	struct ipa3_rt_tbl *tbl;
 	struct ipa3_rt_entry *entry;
 	struct ipa3_rt_tbl_set *set;
-	enum ipa_ip_type ip = (enum ipa_ip_type)file->private_data;
 	u32 ofst;
 	u32 ofst_words;
 
@@ -808,19 +750,27 @@ static ssize_t ipa3_read_rt(struct file *file, char __user *ubuf, size_t count,
 					entry->rule.retain_hdr);
 			}
 
+			pr_err("\n");
 			ipa3_attrib_dump(&entry->rule.attrib, ip);
 			i++;
 		}
 	}
+	pr_err("==== Routing Tables End ====\n");
 	mutex_unlock(&ipa3_ctx->lock);
 
 	return 0;
 }
-
-static ssize_t ipa3_read_rt_hw(struct file *file, char __user *ubuf,
-	size_t count, loff_t *ppos)
+static ssize_t ip4_rt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
-	enum ipa_ip_type ip = (enum ipa_ip_type)file->private_data;
+	return __rt_show((enum ipa_ip_type)IPA_IP_v4);
+}
+static ssize_t ip6_rt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __rt_show((enum ipa_ip_type)IPA_IP_v6);
+}
+
+static ssize_t __rt_hw_show(enum ipa_ip_type ip)
+{
 	int tbls_num;
 	int rules_num;
 	int tbl;
@@ -877,7 +827,7 @@ static ssize_t ipa3_read_rt_hw(struct file *file, char __user *ubuf,
 					rules[rl].hdr_ofst,
 					rules[rl].eq_attrib.rule_eq_bitmap);
 
-			pr_err("rule_id:%u cnt_id:%hhu prio:%u retain_hdr:%u ",
+			pr_err("rule_id:%u cnt_id:%hhu prio:%u retain_hdr:%u\n",
 				rules[rl].id, rules[rl].cnt_idx,
 				rules[rl].priority, rules[rl].retain_hdr);
 			res = ipa3_attrib_dump_eq(&rules[rl].eq_attrib);
@@ -912,7 +862,7 @@ static ssize_t ipa3_read_rt_hw(struct file *file, char __user *ubuf,
 					rules[rl].hdr_ofst,
 					rules[rl].eq_attrib.rule_eq_bitmap);
 
-			pr_err("rule_id:%u cnt_id:%hhu prio:%u retain_hdr:%u ",
+			pr_err("rule_id:%u cnt_id:%hhu prio:%u retain_hdr:%u\n",
 				rules[rl].id, rules[rl].cnt_idx,
 				rules[rl].priority, rules[rl].retain_hdr);
 			res = ipa3_attrib_dump_eq(&rules[rl].eq_attrib);
@@ -931,14 +881,109 @@ bail:
 	return res;
 }
 
-static ssize_t ipa3_read_proc_ctx(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t ip4_rt_hw_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __rt_hw_show((enum ipa_ip_type)IPA_IP_v4);
+}
+static ssize_t ip6_rt_hw_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __rt_hw_show((enum ipa_ip_type)IPA_IP_v6);
+}
+
+static ssize_t clock_scaling_bw_threshold_nominal_mbps_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+        if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+        scnprintf(ubuf, sizeof(uint32_t),"%d", ipa3_ctx->ctrl->clock_scaling_bw_threshold_nominal);
+        return sizeof(uint32_t);
+}
+
+static ssize_t clock_scaling_bw_threshold_nominal_mbps_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	int ret = 0;
+        if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+        ret = kstrtou32(ubuf, 0, &ipa3_ctx->ctrl->clock_scaling_bw_threshold_nominal);
+        if(!ret)
+                return count;
+
+        return sizeof(uint32_t);
+}
+
+
+
+static ssize_t clock_scaling_bw_threshold_turbo_mbps_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	int ret = 0;
+        if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+
+        ret = kstrtou32(ubuf, 0, &ipa3_ctx->ctrl->clock_scaling_bw_threshold_turbo);
+        if(!ret)
+                return count;
+
+        return sizeof(uint32_t);
+}
+
+static ssize_t clock_scaling_bw_threshold_turbo_mbps_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+
+        scnprintf(ubuf, sizeof(uint32_t),"%d", ipa3_ctx->ctrl->clock_scaling_bw_threshold_turbo);
+        return sizeof(uint32_t);
+}
+static ssize_t clk_rate_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+        if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+
+        scnprintf(ubuf, sizeof(uint32_t),"%d", ipa3_ctx->curr_ipa_clk_rate);
+        return sizeof(uint32_t);
+}
+static ssize_t enable_clock_scaling_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+        scnprintf(ubuf, sizeof(uint32_t),"%d", ipa3_ctx->enable_clock_scaling);
+        return sizeof(uint32_t);
+}
+
+static ssize_t enable_clock_scaling_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+        int ret = -1;
+        if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+
+        ret = kstrtou32(ubuf, 0, &ipa3_ctx->enable_clock_scaling);
+        if(!ret)
+                return count;
+
+        return ret;
+}
+
+static ssize_t hw_type_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+        if(ipa3_ctx == NULL) {
+                return -EINVAL;
+        }
+
+        scnprintf(ubuf, sizeof(uint32_t),"%d", ipa3_ctx->ipa_hw_type);
+        return sizeof(uint32_t);
+}
+
+static ssize_t proc_ctx_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes = 0;
 	struct ipa3_hdr_proc_ctx_tbl *tbl;
 	struct ipa3_hdr_proc_ctx_entry *entry;
 	u32 ofst_words;
-
+	int res = 0;
+	memset(dbg_buff, '\0', sizeof(dbg_buff));
 	tbl = &ipa3_ctx->hdr_proc_ctx_tbl;
 
 	mutex_lock(&ipa3_ctx->lock);
@@ -976,19 +1021,17 @@ static ssize_t ipa3_read_proc_ctx(struct file *file, char __user *ubuf,
 				entry->hdr->offset_entry->offset >> 2);
 		}
 	}
-	mutex_unlock(&ipa3_ctx->lock);
+		mutex_unlock(&ipa3_ctx->lock);
+		pr_err("%s", dbg_buff);
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, nbytes);
+	return nbytes;
 }
-
-static ssize_t ipa3_read_flt(struct file *file, char __user *ubuf, size_t count,
-		loff_t *ppos)
+static ssize_t __flt_show(enum ipa_ip_type ip)
 {
 	int i;
 	int j;
 	struct ipa3_flt_tbl *tbl;
 	struct ipa3_flt_entry *entry;
-	enum ipa_ip_type ip = (enum ipa_ip_type)file->private_data;
 	struct ipa3_rt_tbl *rt_tbl;
 	u32 rt_tbl_idx;
 	u32 bitmap;
@@ -1047,24 +1090,31 @@ static ssize_t ipa3_read_flt(struct file *file, char __user *ubuf, size_t count,
 		}
 	}
 bail:
+	pr_err("==== Filtering Tables End ====\n");
 	mutex_unlock(&ipa3_ctx->lock);
 
 	return res;
 }
+static ssize_t ip4_flt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __flt_show((enum ipa_ip_type)IPA_IP_v4);
+}
+static ssize_t ip6_flt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __flt_show((enum ipa_ip_type)IPA_IP_v6);
+}
 
-static ssize_t ipa3_read_flt_hw(struct file *file, char __user *ubuf,
-	size_t count, loff_t *ppos)
+static ssize_t __hw_flttbl_show(enum ipa_ip_type ip)
 {
 	int pipe;
 	int rl;
 	int rules_num;
 	struct ipahal_flt_rule_entry *rules;
-	enum ipa_ip_type ip = (enum ipa_ip_type)file->private_data;
 	u32 rt_tbl_idx;
 	u32 bitmap;
 	int res = 0;
 
-	IPADBG("Tring to parse %d H/W filtering tables - IP=%d\n",
+	IPADBG("Trying to parse %d H/W filtering tables - IP=%d\n",
 		ipa3_ctx->ep_flt_num, ip);
 
 	rules = kzalloc(sizeof(*rules) * IPA_DBG_MAX_RULE_IN_TBL, GFP_KERNEL);
@@ -1096,7 +1146,7 @@ static ssize_t ipa3_read_flt_hw(struct file *file, char __user *ubuf,
 				pipe, rl, rules[rl].rule.action, rt_tbl_idx);
 			pr_err("attrib_mask:%08x retain_hdr:%d ",
 				bitmap, rules[rl].rule.retain_hdr);
-			pr_err("rule_id:%u cnt_id:%hhu prio:%u ",
+			pr_err("rule_id:%u cnt_id:%hhu prio:%u\n",
 				rules[rl].id, rules[rl].cnt_idx,
 				rules[rl].priority);
 			if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_0)
@@ -1128,7 +1178,7 @@ static ssize_t ipa3_read_flt_hw(struct file *file, char __user *ubuf,
 				pipe, rl, rules[rl].rule.action, rt_tbl_idx);
 			pr_err("attrib_mask:%08x retain_hdr:%d ",
 				bitmap, rules[rl].rule.retain_hdr);
-			pr_err("rule_id:%u cnt_id:%hhu prio:%u ",
+			pr_err("rule_id:%u cnt_id:%hhu prio:%u\n",
 				rules[rl].id, rules[rl].cnt_idx,
 				rules[rl].priority);
 			if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_0)
@@ -1150,9 +1200,17 @@ bail:
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 	return res;
 }
+static ssize_t ip4_flt_hw_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __hw_flttbl_show((enum ipa_ip_type)IPA_IP_v4);
+}
 
-static ssize_t ipa3_read_stats(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t ip6_flt_hw_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __hw_flttbl_show((enum ipa_ip_type)IPA_IP_v6);
+}
+
+static ssize_t stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int i;
@@ -1210,11 +1268,11 @@ static ssize_t ipa3_read_stats(struct file *file, char __user *ubuf,
 		cnt += nbytes;
 	}
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_odlstats(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t odlstats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
@@ -1231,11 +1289,10 @@ static ssize_t ipa3_read_odlstats(struct file *file, char __user *ubuf,
 
 	cnt += nbytes;
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
-
-static ssize_t ipa3_read_page_recycle_stats(struct file *file,
-		char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t page_recycle_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
@@ -1252,10 +1309,11 @@ static ssize_t ipa3_read_page_recycle_stats(struct file *file,
 
 	cnt += nbytes;
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+        return cnt;
 }
-static ssize_t ipa3_read_wstats(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+
+static ssize_t wstats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 
 #define HEAD_FRMT_STR "%25s\n"
@@ -1414,11 +1472,11 @@ nxt_clnt_cons:
 		"Total Tx Pkts Freed:", ipa3_ctx->wc_memb.total_tx_pkts_freed);
 	cnt += nbytes;
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_ntn(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t ntn_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 #define TX_STATS(x, y) \
 	stats.tx_ch_stats[x].y
@@ -1503,11 +1561,11 @@ static ssize_t ipa3_read_ntn(struct file *file, char __user *ubuf,
 		cnt += nbytes;
 	}
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_wdi(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t wdi_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct IpaHwStatsWDIInfoData_t stats;
 	int nbytes;
@@ -1608,31 +1666,24 @@ static ssize_t ipa3_read_wdi(struct file *file, char __user *ubuf,
 		cnt += nbytes;
 	}
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_write_dbg_cnt(struct file *file, const char __user *buf,
-		size_t count, loff_t *ppos)
+static ssize_t dbg_cnt_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
-	unsigned long missing;
 	u32 option = 0;
 	struct ipahal_reg_debug_cnt_ctrl dbg_cnt_ctrl;
+	int ret;
 
 	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_0) {
 		IPAERR("IPA_DEBUG_CNT_CTRL is not supported in IPA 4.0\n");
 		return -EPERM;
 	}
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, buf, min(sizeof(dbg_buff), count));
-	if (missing)
-		return -EFAULT;
-
-	dbg_buff[count] = '\0';
-	if (kstrtou32(dbg_buff, 0, &option))
-		return -EFAULT;
+	ret = kstrtou32(ubuf, 0, &option);
+	if(ret != 0)
+		return ret;
 
 	memset(&dbg_cnt_ctrl, 0, sizeof(dbg_cnt_ctrl));
 	dbg_cnt_ctrl.type = DBG_CNT_TYPE_GENERAL;
@@ -1652,8 +1703,7 @@ static ssize_t ipa3_write_dbg_cnt(struct file *file, const char __user *buf,
 	return count;
 }
 
-static ssize_t ipa3_read_dbg_cnt(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t dbg_cnt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	u32 regval;
@@ -1670,11 +1720,11 @@ static ssize_t ipa3_read_dbg_cnt(struct file *file, char __user *ubuf,
 			"IPA_DEBUG_CNT_REG_0=0x%x\n", regval);
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, nbytes);
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
 }
 
-static ssize_t ipa3_read_msg(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t msg_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
@@ -1688,8 +1738,8 @@ static ssize_t ipa3_read_msg(struct file *file, char __user *ubuf,
 				ipa3_ctx->stats.msg_r[i]);
 		cnt += nbytes;
 	}
-
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
 static void ipa3_read_table(
@@ -1722,9 +1772,7 @@ static void ipa3_read_table(
 			ipahal_nat_type_str(nat_type));
 		goto bail;
 	}
-
 	buff = kzalloc(buff_size, GFP_KERNEL);
-
 	if (!buff) {
 		IPAERR("Out of memory\n");
 		goto bail;
@@ -1885,7 +1933,6 @@ static void ipa3_start_read_memory_device(
 
 	IPADBG("Out\n");
 }
-
 static void ipa3_finish_read_memory_device(
 	struct ipa3_nat_ipv6ct_common_mem *dev,
 	u32 num_ddr_entries,
@@ -1994,14 +2041,10 @@ bail:
 	IPADBG("Out\n");
 }
 
-static ssize_t ipa3_read_nat4(
-	struct file *file,
-	char __user *ubuf,
-	size_t count,
-	loff_t *ppos)
+static ssize_t ip4_nat_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
-	struct ipa3_nat_ipv6ct_common_mem *dev = &ipa3_ctx->nat_mem.dev;
-	struct ipa3_nat_mem *nm_ptr = (struct ipa3_nat_mem *) dev;
+	struct ipa3_nat_ipv6ct_common_mem *ndev = &ipa3_ctx->nat_mem.dev;
+	struct ipa3_nat_mem *nm_ptr = (struct ipa3_nat_mem *) ndev;
 	struct ipa3_nat_mem_loc_data *mld_ptr = NULL;
 
 	u32  rule_id = 0;
@@ -2018,16 +2061,16 @@ static ssize_t ipa3_read_nat4(
 
 	bool any_table_active = (nm_ptr->ddr_in_use || nm_ptr->sram_in_use);
 
-	pr_err("IPA3 NAT stats\n");
+	pr_err("==== NAT Tables Start ====\n");
 
-	if (!dev->is_dev_init) {
+	if (!ndev->is_dev_init) {
 		pr_err("NAT hasn't been initialized or not supported\n");
 		goto ret;
 	}
 
-	mutex_lock(&dev->lock);
+	mutex_lock(&ndev->lock);
 
-	if (!dev->is_hw_init || !any_table_active) {
+	if (!ndev->is_hw_init || !any_table_active) {
 		pr_err("NAT H/W and/or S/W not initialized\n");
 		goto bail;
 	}
@@ -2045,7 +2088,7 @@ static ssize_t ipa3_read_nat4(
 	}
 
 	ipa3_start_read_memory_device(
-		dev,
+		ndev,
 		IPAHAL_NAT_IPV4,
 		&num_ddr_ents,
 		&num_sram_ents);
@@ -2095,7 +2138,7 @@ static ssize_t ipa3_read_nat4(
 	}
 
 	ipa3_finish_read_memory_device(
-		dev,
+		ndev,
 		num_ddr_ents,
 		num_sram_ents);
 
@@ -2105,7 +2148,8 @@ static ssize_t ipa3_read_nat4(
 	}
 
 bail:
-	mutex_unlock(&dev->lock);
+	pr_err("==== NAT Tables End ====\n");
+	mutex_unlock(&ndev->lock);
 
 ret:
 	IPADBG("Out\n");
@@ -2113,13 +2157,9 @@ ret:
 	return 0;
 }
 
-static ssize_t ipa3_read_ipv6ct(
-	struct file *file,
-	char __user *ubuf,
-	size_t count,
-	loff_t *ppos)
+static ssize_t ipv6ct_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
-	struct ipa3_nat_ipv6ct_common_mem *dev = &ipa3_ctx->ipv6ct_mem.dev;
+	struct ipa3_nat_ipv6ct_common_mem *ndev = &ipa3_ctx->ipv6ct_mem.dev;
 
 	u32 num_ddr_ents, num_sram_ents;
 
@@ -2129,30 +2169,30 @@ static ssize_t ipa3_read_ipv6ct(
 
 	pr_err("\n");
 
-	if (!dev->is_dev_init) {
+	if (!ndev->is_dev_init) {
 		pr_err("IPv6 Conntrack not initialized or not supported\n");
 		goto bail;
 	}
 
-	if (!dev->is_hw_init) {
+	if (!ndev->is_hw_init) {
 		pr_err("IPv6 connection tracking H/W hasn't been initialized\n");
 		goto bail;
 	}
 
-	mutex_lock(&dev->lock);
+	mutex_lock(&ndev->lock);
 
 	ipa3_start_read_memory_device(
-		dev,
+		ndev,
 		IPAHAL_NAT_IPV6CT,
 		&num_ddr_ents,
 		&num_sram_ents);
 
 	ipa3_finish_read_memory_device(
-		dev,
+		ndev,
 		num_ddr_ents,
 		num_sram_ents);
 
-	mutex_unlock(&dev->lock);
+	mutex_unlock(&ndev->lock);
 
 bail:
 	IPADBG("Out\n");
@@ -2160,8 +2200,7 @@ bail:
 	return 0;
 }
 
-static ssize_t ipa3_rm_read_stats(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t rm_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int result, cnt = 0;
 
@@ -2180,11 +2219,11 @@ static ssize_t ipa3_rm_read_stats(struct file *file, char __user *ubuf,
 	}
 	cnt += result;
 ret:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_pm_read_stats(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t pm_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int result, cnt = 0;
 
@@ -2202,11 +2241,13 @@ static ssize_t ipa3_pm_read_stats(struct file *file, char __user *ubuf,
 	}
 	cnt += result;
 ret:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_pm_ex_read_stats(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+
+
+static ssize_t pm_ex_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int result, cnt = 0;
 
@@ -2224,11 +2265,11 @@ static ssize_t ipa3_pm_ex_read_stats(struct file *file, char __user *ubuf,
 	}
 	cnt += result;
 ret:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_ipahal_regs(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t ipa_dump_regs_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
 	ipahal_print_all_regs(true);
@@ -2237,8 +2278,7 @@ static ssize_t ipa3_read_ipahal_regs(struct file *file, char __user *ubuf,
 	return 0;
 }
 
-static ssize_t ipa3_read_wdi_gsi_stats(struct file *file,
-		char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t wdi_gsi_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct ipa_uc_dbg_ring_stats stats;
 	int nbytes;
@@ -2284,11 +2324,11 @@ static ssize_t ipa3_read_wdi_gsi_stats(struct file *file,
 		cnt += nbytes;
 	}
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_wdi3_gsi_stats(struct file *file,
-		char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t wdi3_gsi_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct ipa_uc_dbg_ring_stats stats;
 	int nbytes;
@@ -2346,11 +2386,11 @@ static ssize_t ipa3_read_wdi3_gsi_stats(struct file *file,
 	}
 
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_11ad_gsi_stats(struct file *file,
-		char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t ad_gsi_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
@@ -2365,11 +2405,11 @@ static ssize_t ipa3_read_11ad_gsi_stats(struct file *file,
 	}
 	return 0;
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_aqc_gsi_stats(struct file *file,
-		char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t aqc_gsi_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct ipa_uc_dbg_ring_stats stats;
 	int nbytes;
@@ -2414,11 +2454,11 @@ static ssize_t ipa3_read_aqc_gsi_stats(struct file *file,
 		cnt += nbytes;
 	}
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_mhip_gsi_stats(struct file *file,
-	char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t mhip_gsi_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct ipa_uc_dbg_ring_stats stats;
 	int nbytes;
@@ -2488,11 +2528,11 @@ static ssize_t ipa3_read_mhip_gsi_stats(struct file *file,
 	}
 
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_usb_gsi_stats(struct file *file,
-	char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t usb_gsi_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct ipa_uc_dbg_ring_stats stats;
 	int nbytes;
@@ -2538,14 +2578,11 @@ static ssize_t ipa3_read_usb_gsi_stats(struct file *file,
 	}
 
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_read_app_clk_vote(
-	struct file *file,
-	char __user *ubuf,
-	size_t count,
-	loff_t *ppos)
+static ssize_t app_clk_vote_cnt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int cnt =
 		scnprintf(
@@ -2554,7 +2591,8 @@ static ssize_t ipa3_read_app_clk_vote(
 			"%u\n",
 			ipa3_ctx->app_clock_vote.cnt);
 
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
 static void ipa_dump_status(struct ipahal_pkt_status *status)
@@ -2590,8 +2628,7 @@ static void ipa_dump_status(struct ipahal_pkt_status *status)
 	IPA_DUMP_STATUS_FIELD(frag_rule);
 }
 
-static ssize_t ipa_status_stats_read(struct file *file, char __user *ubuf,
-		size_t count, loff_t *ppos)
+static ssize_t status_stats_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	struct ipa3_status_stats *stats;
 	int i, j;
@@ -2614,13 +2651,11 @@ static ssize_t ipa_status_stats_read(struct file *file, char __user *ubuf,
 				IPA_MAX_STATUS_STAT_NUM;
 		}
 	}
-
 	kfree(stats);
 	return 0;
 }
 
-static ssize_t ipa3_print_active_clients_log(struct file *file,
-		char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t active_clients_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int cnt;
 	int table_size;
@@ -2637,22 +2672,19 @@ static ssize_t ipa3_print_active_clients_log(struct file *file,
 			+ cnt, IPA_MAX_MSG_LEN);
 	mutex_unlock(&ipa3_ctx->ipa3_active_clients.mutex);
 
-	return simple_read_from_buffer(ubuf, count, ppos,
+	memcpy(ubuf,
 			active_clients_buf, cnt + table_size);
+	return (cnt + table_size);
 }
 
-static ssize_t ipa3_clear_active_clients_log(struct file *file,
-		const char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t active_clients_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
 	unsigned long missing;
 		s8 option = 0;
 
 	if (sizeof(dbg_buff) < count + 1)
 		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
-	if (missing)
-		return -EFAULT;
+	memcpy(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
 
 	dbg_buff[count] = '\0';
 	if (kstrtos8(dbg_buff, 0, &option))
@@ -2663,22 +2695,14 @@ static ssize_t ipa3_clear_active_clients_log(struct file *file,
 	return count;
 }
 
-static ssize_t ipa3_enable_ipc_low(struct file *file,
-	const char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t enable_low_prio_print_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
-	unsigned long missing;
 	s8 option = 0;
+	int ret;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	missing = copy_from_user(dbg_buff, ubuf, min(sizeof(dbg_buff), count));
-	if (missing)
-		return -EFAULT;
-
-	dbg_buff[count] = '\0';
-	if (kstrtos8(dbg_buff, 0, &option))
-		return -EFAULT;
+	ret = kstrtos8(ubuf, 0, &option);
+	if(ret != 0)
+		return ret;
 
 	mutex_lock(&ipa3_ctx->lock);
 	if (option) {
@@ -2698,8 +2722,7 @@ static ssize_t ipa3_enable_ipc_low(struct file *file,
 	return count;
 }
 
-static ssize_t ipa3_read_uc_act_tbl(struct file *file,
-	char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t uc_act_tbl_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
@@ -2722,10 +2745,7 @@ static ssize_t ipa3_read_uc_act_tbl(struct file *file,
 		return -ENOENT;
 	}
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
-
-	dbg_buff[count] = '\0';
+	dbg_buff[cnt] = '\0';
 
 	mutex_lock(&ipa3_ctx->act_tbl_lock);
 
@@ -2813,295 +2833,11 @@ static ssize_t ipa3_read_uc_act_tbl(struct file *file,
 	}
 	mutex_unlock(&ipa3_ctx->act_tbl_lock);
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
-
+	memcpy(ubuf, dbg_buff, cnt);
+        return cnt;
 }
 
-static const struct ipa3_debugfs_file debugfs_files[] = {
-	{
-		"gen_reg", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_gen_reg
-		}
-	}, {
-		"active_clients", IPA_READ_WRITE_MODE, NULL, {
-			.read = ipa3_print_active_clients_log,
-			.write = ipa3_clear_active_clients_log
-		}
-	}, {
-		"ep_reg", IPA_READ_WRITE_MODE, NULL, {
-			.read = ipa3_read_ep_reg,
-			.write = ipa3_write_ep_reg,
-		}
-	}, {
-		"keep_awake", IPA_READ_WRITE_MODE, NULL, {
-			.read = ipa3_read_keep_awake,
-			.write = ipa3_write_keep_awake,
-		}
-	}, {
-		"holb", IPA_WRITE_ONLY_MODE, NULL, {
-			.write = ipa3_write_ep_holb,
-		}
-	}, {
-		"hdr", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_hdr,
-		}
-	}, {
-		"proc_ctx", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_proc_ctx,
-		}
-	}, {
-		"ip4_rt", IPA_READ_ONLY_MODE, (void *)IPA_IP_v4, {
-			.read = ipa3_read_rt,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip4_rt_hw", IPA_READ_ONLY_MODE, (void *)IPA_IP_v4, {
-			.read = ipa3_read_rt_hw,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip6_rt", IPA_READ_ONLY_MODE, (void *)IPA_IP_v6, {
-			.read = ipa3_read_rt,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip6_rt_hw", IPA_READ_ONLY_MODE, (void *)IPA_IP_v6, {
-			.read = ipa3_read_rt_hw,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip4_flt", IPA_READ_ONLY_MODE, (void *)IPA_IP_v4, {
-			.read = ipa3_read_flt,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip4_flt_hw", IPA_READ_ONLY_MODE, (void *)IPA_IP_v4, {
-			.read = ipa3_read_flt_hw,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip6_flt", IPA_READ_ONLY_MODE, (void *)IPA_IP_v6, {
-			.read = ipa3_read_flt,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"ip6_flt_hw", IPA_READ_ONLY_MODE, (void *)IPA_IP_v6, {
-			.read = ipa3_read_flt_hw,
-			.open = ipa3_open_dbg,
-		}
-	}, {
-		"stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_stats,
-		}
-	}, {
-		"wstats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_wstats,
-		}
-	}, {
-		"odlstats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_odlstats,
-		}
-	}, {
-		"page_recycle_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_page_recycle_stats,
-		}
-	}, {
-		"wdi", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_wdi,
-		}
-	}, {
-		"ntn", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_ntn,
-		}
-	}, {
-		"dbg_cnt", IPA_READ_WRITE_MODE, NULL, {
-			.read = ipa3_read_dbg_cnt,
-			.write = ipa3_write_dbg_cnt,
-		}
-	}, {
-		"msg", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_msg,
-		}
-	}, {
-		"ip4_nat", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_nat4,
-		}
-	}, {
-		"ipv6ct", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_ipv6ct,
-		}
-	}, {
-		"rm_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_rm_read_stats,
-		}
-	}, {
-		"pm_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_pm_read_stats,
-		}
-	}, {
-		"pm_ex_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_pm_ex_read_stats,
-		}
-	}, {
-		"status_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa_status_stats_read,
-		}
-	}, {
-		"enable_low_prio_print", IPA_WRITE_ONLY_MODE, NULL, {
-			.write = ipa3_enable_ipc_low,
-		}
-	}, {
-		"ipa_dump_regs", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_ipahal_regs,
-		}
-	}, {
-		"wdi_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_wdi_gsi_stats,
-		}
-	}, {
-		"wdi3_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_wdi3_gsi_stats,
-		}
-	}, {
-		"11ad_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_11ad_gsi_stats,
-		}
-	}, {
-		"aqc_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_aqc_gsi_stats,
-		}
-	}, {
-		"mhip_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_mhip_gsi_stats,
-		}
-	}, {
-		"usb_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_usb_gsi_stats,
-		}
-	}, {
-		"app_clk_vote_cnt", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_app_clk_vote,
-		}
-	}, {
-		"uc_act_table", IPA_READ_ONLY_MODE, NULL, {
-			.read = ipa3_read_uc_act_tbl,
-		}
-	}
-};
-
-void ipa3_debugfs_pre_init(void)
-{
-	dent = debugfs_create_dir("ipa", NULL);
-	if (IS_ERR_OR_NULL(dent)) {
-		IPAERR("fail to create folder in debug_fs.\n");
-		dent = NULL;
-	}
-}
-
-void ipa3_debugfs_post_init(void)
-{
-	const size_t debugfs_files_num =
-		sizeof(debugfs_files) / sizeof(struct ipa3_debugfs_file);
-	size_t i;
-	struct dentry *file;
-
-	if (IS_ERR_OR_NULL(dent)) {
-		IPAERR("debugs root not created\n");
-		return;
-	}
-
-	file = debugfs_create_u32("hw_type", IPA_READ_ONLY_MODE,
-		dent, &ipa3_ctx->ipa_hw_type);
-	if (!file) {
-		IPAERR("could not create hw_type file\n");
-		goto fail;
-	}
-
-
-	for (i = 0; i < debugfs_files_num; ++i) {
-		const struct ipa3_debugfs_file *curr = &debugfs_files[i];
-
-		file = debugfs_create_file(curr->name, curr->mode, dent,
-			curr->data, &curr->fops);
-		if (!file || IS_ERR(file)) {
-			IPAERR("fail to create file for debug_fs %s\n",
-				curr->name);
-			goto fail;
-		}
-	}
-
-	active_clients_buf = NULL;
-	active_clients_buf = kzalloc(IPA_DBG_ACTIVE_CLIENT_BUF_SIZE,
-			GFP_KERNEL);
-	if (active_clients_buf == NULL)
-		goto fail;
-
-	file = debugfs_create_u32("enable_clock_scaling", IPA_READ_WRITE_MODE,
-		dent, &ipa3_ctx->enable_clock_scaling);
-	if (!file) {
-		IPAERR("could not create enable_clock_scaling file\n");
-		goto fail;
-	}
-
-	file = debugfs_create_u32("enable_napi_chain", IPA_READ_WRITE_MODE,
-		dent, &ipa3_ctx->enable_napi_chain);
-	if (!file) {
-		IPAERR("could not create enable_napi_chain file\n");
-		goto fail;
-	}
-
-	file = debugfs_create_u32("clock_scaling_bw_threshold_nominal_mbps",
-		IPA_READ_WRITE_MODE, dent,
-		&ipa3_ctx->ctrl->clock_scaling_bw_threshold_nominal);
-	if (!file) {
-		IPAERR("could not create bw_threshold_nominal_mbps\n");
-		goto fail;
-	}
-
-	file = debugfs_create_u32("clock_scaling_bw_threshold_turbo_mbps",
-			IPA_READ_WRITE_MODE, dent,
-			&ipa3_ctx->ctrl->clock_scaling_bw_threshold_turbo);
-	if (!file) {
-		IPAERR("could not create bw_threshold_turbo_mbps\n");
-		goto fail;
-	}
-
-	file = debugfs_create_u32("clk_rate", IPA_READ_ONLY_MODE,
-		dent, &ipa3_ctx->curr_ipa_clk_rate);
-	if (!file) {
-		IPAERR("could not create clk_rate file\n");
-		goto fail;
-	}
-
-	ipa_debugfs_init_stats(dent);
-
-	return;
-
-fail:
-	debugfs_remove_recursive(dent);
-}
-
-void ipa3_debugfs_remove(void)
-{
-	if (dent == NULL) {
-		IPAERR("Debugfs:folder was not created.\n");
-		return;
-	}
-	if (active_clients_buf != NULL) {
-		kfree(active_clients_buf);
-		active_clients_buf = NULL;
-	}
-	debugfs_remove_recursive(dent);
-}
-
-struct dentry *ipa_debugfs_get_root(void)
-{
-	return dent;
-}
-EXPORT_SYMBOL(ipa_debugfs_get_root);
-
-static ssize_t ipa3_eth_read_status(struct file *file,
-	char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t eth_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
@@ -3141,44 +2877,14 @@ static ssize_t ipa3_eth_read_status(struct file *file,
 		}
 	}
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static const struct file_operations fops_ipa_eth_status = {
-	.read = ipa3_eth_read_status,
-};
-
-void ipa3_eth_debugfs_init(void)
-{
-	struct dentry *file;
-
-	if (IS_ERR_OR_NULL(dent)) {
-		IPAERR("debugs root not created\n");
-		return;
-	}
-	dent_eth = debugfs_create_dir("eth", dent);
-	if (IS_ERR(dent)) {
-		IPAERR("fail to create folder in debug_fs.\n");
-		return;
-	}
-	file = debugfs_create_file("status", IPA_READ_ONLY_MODE,
-		dent_eth, NULL, &fops_ipa_eth_status);
-	if (!file) {
-		IPAERR("could not create status\n");
-		goto fail;
-	}
-	return;
-
-fail:
-	debugfs_remove_recursive(dent_eth);
-}
-
-static ssize_t ipa3_eth_read_perf_status(struct file *file,
-	char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t __eth_perf_status_show(enum ipa_eth_client_type type, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
-	struct ipa_eth_client *client;
 	struct ipa_uc_dbg_ring_stats stats;
 	int tx_ep, rx_ep;
 	int ret;
@@ -3191,13 +2897,13 @@ static ssize_t ipa3_eth_read_perf_status(struct file *file,
 		cnt += nbytes;
 		goto done;
 	}
-	client = (struct ipa_eth_client *)file->private_data;
-	switch (client->client_type) {
+
+	switch (type) {
 	case IPA_ETH_CLIENT_AQC107:
 	case IPA_ETH_CLIENT_AQC113:
-		ret = ipa3_get_aqc_gsi_stats(&stats);
-		tx_ep = IPA_CLIENT_AQC_ETHERNET_CONS;
-		rx_ep = IPA_CLIENT_AQC_ETHERNET_PROD;
+			ret = ipa3_get_aqc_gsi_stats(&stats);
+			tx_ep = IPA_CLIENT_AQC_ETHERNET_CONS;
+			rx_ep = IPA_CLIENT_AQC_ETHERNET_PROD;
 		if (!ret) {
 			nbytes = scnprintf(dbg_buff, IPA_MAX_MSG_LEN,
 			"%s_ringFull=%u\n"
@@ -3308,7 +3014,7 @@ static ssize_t ipa3_eth_read_perf_status(struct file *file,
 			cnt += nbytes;
 		} else {
 			nbytes = scnprintf(dbg_buff, IPA_MAX_MSG_LEN,
-				"Fail to read AQC GSI stats\n");
+				"Fail to read RTK GSI stats\n");
 			cnt += nbytes;
 		}
 		break;
@@ -3317,18 +3023,31 @@ static ssize_t ipa3_eth_read_perf_status(struct file *file,
 	}
 
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
 
-static ssize_t ipa3_eth_read_err_status(struct file *file,
-	char __user *ubuf, size_t count, loff_t *ppos)
+static ssize_t aqc_perf_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_perf_status_show(IPA_ETH_CLIENT_AQC107, ubuf);
+}
+
+static ssize_t ntn_perf_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_perf_status_show(IPA_ETH_CLIENT_NTN, ubuf);
+}
+
+static ssize_t __eth_err_status_show(enum ipa_eth_client_type type, uint8_t inst_id, char *ubuf)
 {
 	int nbytes;
 	int cnt = 0;
-	struct ipa_eth_client *client;
 	int tx_ep, rx_ep;
 	struct ipa3_eth_error_stats tx_stats;
 	struct ipa3_eth_error_stats rx_stats;
+
+
+	memset(&tx_stats, 0, sizeof(struct ipa3_eth_error_stats));
+	memset(&rx_stats, 0, sizeof(struct ipa3_eth_error_stats));
 
 	if (ipa3_ctx->ipa_hw_type < IPA_HW_v4_5
 		&& (ipa3_ctx->ipa_hw_type != IPA_HW_v4_1
@@ -3338,10 +3057,10 @@ static ssize_t ipa3_eth_read_err_status(struct file *file,
 		cnt += nbytes;
 		goto done;
 	}
-	client = (struct ipa_eth_client *)file->private_data;
+
 	tx_ep = -1;
 	rx_ep = -1;
-	switch (client->client_type) {
+	switch (type) {
 	case IPA_ETH_CLIENT_AQC107:
 	case IPA_ETH_CLIENT_AQC113:
 		tx_ep = IPA_CLIENT_AQC_ETHERNET_CONS;
@@ -3389,57 +3108,189 @@ static ssize_t ipa3_eth_read_err_status(struct file *file,
 		rx_stats.err & 0xff);
 	cnt += nbytes;
 done:
-	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+	memcpy(ubuf, dbg_buff, cnt);
+	return cnt;
 }
-
-static const struct file_operations fops_ipa_eth_stats = {
-	.read = ipa3_eth_read_perf_status,
-	.open = ipa3_open_dbg,
-};
-static const struct file_operations fops_ipa_eth_client_status = {
-	.read = ipa3_eth_read_err_status,
-	.open = ipa3_open_dbg,
-};
-void ipa3_eth_debugfs_add_node(struct ipa_eth_client *client)
+static ssize_t aqc_0_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
-	struct dentry *file;
-	int type, inst_id;
-	char name[IPA_RESOURCE_NAME_MAX];
-
-	if (IS_ERR_OR_NULL(dent_eth)) {
-		IPAERR("debugs eth root not created\n");
-		return;
-	}
-
-	if (client == NULL) {
-		IPAERR_RL("invalid input\n");
-		return;
-	}
-
-	type = client->client_type;
-	if (type >= IPA_ETH_CLIENT_MAX) {
-		IPAERR("eth client type is not correct");
-		goto fail;
-	}
-	inst_id = client->inst_id;
-	snprintf(name, IPA_RESOURCE_NAME_MAX,
-		"%s_%d_stats", ipa_eth_clients_strings[type], inst_id);
-	file = debugfs_create_file(name, IPA_READ_ONLY_MODE,
-		dent_eth, (void *)client, &fops_ipa_eth_stats);
-	if (!file) {
-		IPAERR("could not create hw_type file\n");
-		return;
-	}
-	snprintf(name, IPA_RESOURCE_NAME_MAX,
-		"%s_%d_status", ipa_eth_clients_strings[type], inst_id);
-	file = debugfs_create_file(name, IPA_READ_ONLY_MODE,
-		dent_eth, (void *)client, &fops_ipa_eth_client_status);
-	if (!file) {
-		IPAERR("could not create hw_type file\n");
-		goto fail;
-	}
-	return;
-fail:
-	debugfs_remove_recursive(dent_eth);
+	return __eth_err_status_show(IPA_ETH_CLIENT_AQC107, 0, ubuf);
 }
+
+static ssize_t aqc_1_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_AQC107, 1, ubuf);
+}
+
+static ssize_t rtk_0_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_RTK8111K, 0, ubuf);
+}
+
+static ssize_t rtk_1_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_RTK8111K, 1, ubuf);
+}
+
+static ssize_t ntn_0_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_NTN, 0, ubuf);
+}
+
+static ssize_t ntn_1_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_NTN, 1, ubuf);
+}
+
+
+static ssize_t emac_0_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_EMAC, 0, ubuf);
+}
+
+static ssize_t emac_1_err_status_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	return __eth_err_status_show(IPA_ETH_CLIENT_EMAC, 1, ubuf);
+}
+
+static DEVICE_ATTR_RO(gen_reg);
+static DEVICE_ATTR_RO(hdr);
+static DEVICE_ATTR_RO(proc_ctx);
+static DEVICE_ATTR_RO(ip4_rt);
+static DEVICE_ATTR_RO(ip4_rt_hw);
+static DEVICE_ATTR_RO(ip6_rt);
+static DEVICE_ATTR_RO(ip6_rt_hw);
+static DEVICE_ATTR_RO(ip4_flt);
+static DEVICE_ATTR_RO(ip4_flt_hw);
+static DEVICE_ATTR_RO(ip6_flt);
+static DEVICE_ATTR_RO(ip6_flt_hw);
+static DEVICE_ATTR_RO(stats);
+static DEVICE_ATTR_RO(wstats);
+static DEVICE_ATTR_RO(odlstats);
+static DEVICE_ATTR_RO(wdi);
+static DEVICE_ATTR_RO(ntn);
+static DEVICE_ATTR_RO(msg);
+static DEVICE_ATTR_RO(ip4_nat);
+static DEVICE_ATTR_RO(ipv6ct);
+static DEVICE_ATTR_RO(page_recycle_stats);
+static DEVICE_ATTR_RO(rm_stats);
+static DEVICE_ATTR_RO(pm_stats);
+static DEVICE_ATTR_RO(pm_ex_stats);
+static DEVICE_ATTR_RO(status_stats);
+static DEVICE_ATTR_RO(uc_act_tbl);
+static DEVICE_ATTR_RO(ipa_dump_regs);
+static DEVICE_ATTR_RO(wdi_gsi_stats);
+static DEVICE_ATTR_RO(wdi3_gsi_stats);
+static DEVICE_ATTR_RO(ad_gsi_stats);
+static DEVICE_ATTR_RO(aqc_gsi_stats);
+static DEVICE_ATTR_RO(mhip_gsi_stats);
+static DEVICE_ATTR_RO(usb_gsi_stats);
+static DEVICE_ATTR_RO(app_clk_vote_cnt);
+static DEVICE_ATTR_RO(clk_rate);
+static DEVICE_ATTR_RO(eth_status);
+static DEVICE_ATTR_RO(aqc_perf_status);
+static DEVICE_ATTR_RO(ntn_perf_status);
+static DEVICE_ATTR_RO(aqc_0_err_status);
+static DEVICE_ATTR_RO(aqc_1_err_status);
+static DEVICE_ATTR_RO(rtk_0_err_status);
+static DEVICE_ATTR_RO(rtk_1_err_status);
+static DEVICE_ATTR_RO(ntn_0_err_status);
+static DEVICE_ATTR_RO(ntn_1_err_status);
+static DEVICE_ATTR_RO(emac_0_err_status);
+static DEVICE_ATTR_RO(emac_1_err_status);
+
+/* Write only sysfs attributes */
+
+static DEVICE_ATTR_WO(holb);
+static DEVICE_ATTR_WO(enable_low_prio_print);
+
+/* RW sysfs attributes */
+static DEVICE_ATTR_RW(active_clients);
+static DEVICE_ATTR_RW(ep_reg);
+static DEVICE_ATTR_RW(keep_awake);
+static DEVICE_ATTR_RW(dbg_cnt);
+static DEVICE_ATTR_RW(enable_clock_scaling);
+static DEVICE_ATTR_RW(clock_scaling_bw_threshold_nominal_mbps);
+static DEVICE_ATTR_RW(clock_scaling_bw_threshold_turbo_mbps);
+
+static struct attribute *ipa_attrs[] = {
+	&dev_attr_gen_reg.attr,
+	&dev_attr_active_clients.attr,
+	&dev_attr_ep_reg.attr,
+	&dev_attr_keep_awake.attr,
+	&dev_attr_holb.attr,
+	&dev_attr_enable_clock_scaling.attr,
+	&dev_attr_clock_scaling_bw_threshold_nominal_mbps.attr,
+	&dev_attr_clock_scaling_bw_threshold_turbo_mbps.attr,
+	&dev_attr_clk_rate.attr,
+	&dev_attr_hdr.attr,
+        &dev_attr_page_recycle_stats.attr,
+	&dev_attr_proc_ctx.attr,
+	&dev_attr_ip4_rt.attr,
+	&dev_attr_ip4_rt_hw.attr,
+	&dev_attr_ip6_rt.attr,
+	&dev_attr_ip6_rt_hw.attr,
+	&dev_attr_ip4_flt.attr,
+	&dev_attr_ip4_flt_hw.attr,
+	&dev_attr_ip6_flt.attr,
+	&dev_attr_ip6_flt_hw.attr,
+	&dev_attr_stats.attr,
+	&dev_attr_wstats.attr,
+	&dev_attr_odlstats.attr,
+	&dev_attr_wdi.attr,
+	&dev_attr_ntn.attr,
+	&dev_attr_dbg_cnt.attr,
+	&dev_attr_msg.attr,
+	&dev_attr_ip4_nat.attr,
+	&dev_attr_ipv6ct.attr,
+	&dev_attr_rm_stats.attr,
+	&dev_attr_pm_stats.attr,
+        &dev_attr_uc_act_tbl.attr,
+	&dev_attr_pm_ex_stats.attr,
+	&dev_attr_status_stats.attr,
+	&dev_attr_enable_low_prio_print.attr,
+	&dev_attr_ipa_dump_regs.attr,
+	&dev_attr_wdi_gsi_stats.attr,
+	&dev_attr_wdi3_gsi_stats.attr,
+	&dev_attr_ad_gsi_stats.attr,
+	&dev_attr_aqc_gsi_stats.attr,
+	&dev_attr_mhip_gsi_stats.attr,
+	&dev_attr_usb_gsi_stats.attr,
+	&dev_attr_app_clk_vote_cnt.attr,
+	&dev_attr_eth_status.attr,
+	&dev_attr_aqc_perf_status.attr,
+	&dev_attr_ntn_perf_status.attr,
+	&dev_attr_aqc_0_err_status.attr,
+	&dev_attr_aqc_1_err_status.attr,
+	&dev_attr_rtk_0_err_status.attr,
+	&dev_attr_rtk_1_err_status.attr,
+	&dev_attr_ntn_0_err_status.attr,
+	&dev_attr_ntn_1_err_status.attr,
+	&dev_attr_emac_0_err_status.attr,
+	&dev_attr_emac_1_err_status.attr,
+	NULL
+};
+
+const struct attribute_group ipa_attr_group = {
+	.name		= "ipa",
+	.attrs		= ipa_attrs,
+};
+
+int ipa_sysfs_init(void)
+{
+	int ret = -1;
+	/* Create sysfs file in /sys/kernel/ipa */
+	ret = sysfs_create_group(kernel_kobj, &ipa_attr_group);
+	if (ret != 0) {
+		pr_err("Fail to create IPA syfs attribute\n");
+	}
+	ret = ipa_sysfs_init_stats();
+	return ret;
+}
+
+void ipa_sysfs_deinit(void)
+{
+		sysfs_remove_group(kernel_kobj, &ipa_attr_group);
+		ipa_sysfs_deinit_stats();
+}
+
 #endif

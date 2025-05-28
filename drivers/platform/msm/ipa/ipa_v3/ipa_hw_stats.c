@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,7 +11,9 @@
  * GNU General Public License for more details.
  */
 
+#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
+#endif
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include "ipa_i.h"
@@ -21,6 +24,7 @@
 	((ipa3_get_ep_mapping(client) >= 0 && \
 		ipa3_get_ep_mapping(client) < IPA_STATS_MAX_PIPE_BIT) ? \
 		(1 << ipa3_get_ep_mapping(client)) : 0)
+static char dbg_buff[IPA_MAX_MSG_LEN];
 
 int ipa_hw_stats_init(void)
 {
@@ -1624,12 +1628,502 @@ int ipa_reset_all_drop_stats(void)
 	return 0;
 }
 
-
 #ifndef CONFIG_DEBUG_FS
-int ipa_debugfs_init_stats(struct dentry *parent) { return 0; }
-#else
-#define IPA_MAX_MSG_LEN 4096
-static char dbg_buff[IPA_MAX_MSG_LEN];
+static ssize_t quota_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	s8 client = 0;
+	int ret;
+
+	mutex_lock(&ipa3_ctx->lock);
+
+	ret = kstrtos8(ubuf, 0, &client);
+	if (ret != 0)
+	{
+                ret = -EFAULT;
+                goto bail;
+	}
+
+
+       // ubuf[count] = '\0';
+        if (client == -1)
+                ipa_reset_all_quota_stats();
+        else
+                ipa_reset_quota_stats(client);
+
+        ret = count;
+bail:
+        mutex_unlock(&ipa3_ctx->lock);
+        return ret;
+}
+
+static ssize_t quota_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	int nbytes = 0;
+	struct ipa_quota_stats_all *out;
+	int i;
+	int res;
+
+        out = kzalloc(sizeof(*out), GFP_KERNEL);
+        if (!out)
+                return -ENOMEM;
+
+        mutex_lock(&ipa3_ctx->lock);
+        res = ipa_get_quota_stats(out);
+        if (res) {
+                mutex_unlock(&ipa3_ctx->lock);
+                kfree(out);
+                return res;
+        }
+        for (i = 0; i < IPA_CLIENT_MAX; i++) {
+                int ep_idx = ipa3_get_ep_mapping(i);
+
+                if (ep_idx == -1)
+                        continue;
+
+                if (IPA_CLIENT_IS_TEST(i))
+                        continue;
+
+                if (!(ipa3_ctx->hw_stats.quota.init.enabled_bitmask &
+                        (1 << ep_idx)))
+                        continue;
+
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "%s:\n",
+                        ipa_clients_strings[i]);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_ipv4_bytes=%llu\n",
+                        out->client[i].num_ipv4_bytes);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_ipv6_bytes=%llu\n",
+                        out->client[i].num_ipv6_bytes);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_ipv4_pkts=%u\n",
+                        out->client[i].num_ipv4_pkts);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_ipv6_pkts=%u\n",
+                        out->client[i].num_ipv6_pkts);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "\n");
+
+        }
+        mutex_unlock(&ipa3_ctx->lock);
+        kfree(out);
+
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
+}
+
+static ssize_t tethering_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	s8 client = 0;
+	int ret;
+
+	mutex_lock(&ipa3_ctx->lock);
+
+	ret = kstrtos8(ubuf, 0, &client);
+	if (ret != 0)
+	{
+		mutex_unlock(&ipa3_ctx->lock);
+		return ret;
+	}
+	//ubuf[count] = '\0';
+
+	if (client == -1)
+		ipa_reset_all_teth_stats();
+	else
+		ipa_reset_all_cons_teth_stats(client);
+
+	ret = count;
+bail:
+	mutex_unlock(&ipa3_ctx->lock);
+	return count;
+}
+
+static ssize_t tethering_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	int nbytes = 0;
+	struct ipa_quota_stats_all *out;
+	int i, j;
+	int res;
+
+	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	mutex_lock(&ipa3_ctx->lock);
+	for (i = 0; i < IPA_CLIENT_MAX; i++) {
+		int ep_idx = ipa3_get_ep_mapping(i);
+
+		if (ep_idx == -1)
+			continue;
+
+		if (!IPA_CLIENT_IS_PROD(i))
+			continue;
+
+		if (IPA_CLIENT_IS_TEST(i))
+			continue;
+
+		if (!(ipa3_ctx->hw_stats.teth.init.prod_bitmask &
+			(1 << ep_idx)))
+			continue;
+
+		res = ipa_get_teth_stats();
+		if (res) {
+			mutex_unlock(&ipa3_ctx->lock);
+			kfree(out);
+			return res;
+		}
+
+		for (j = 0; j < IPA_CLIENT_MAX; j++) {
+			int cons_idx = ipa3_get_ep_mapping(j);
+
+			if (cons_idx == -1)
+				continue;
+
+			if (IPA_CLIENT_IS_TEST(j))
+				continue;
+
+			if (!(ipa3_ctx->hw_stats.teth.init.cons_bitmask[ep_idx]
+				& (1 << cons_idx)))
+				continue;
+
+			nbytes += scnprintf(dbg_buff + nbytes,
+				IPA_MAX_MSG_LEN - nbytes,
+				"%s->%s:\n",
+				ipa_clients_strings[i],
+				ipa_clients_strings[j]);
+			nbytes += scnprintf(dbg_buff + nbytes,
+				IPA_MAX_MSG_LEN - nbytes,
+				"num_ipv4_bytes=%llu\n",
+				out->client[j].num_ipv4_bytes);
+			nbytes += scnprintf(dbg_buff + nbytes,
+				IPA_MAX_MSG_LEN - nbytes,
+				"num_ipv6_bytes=%llu\n",
+				out->client[j].num_ipv6_bytes);
+			nbytes += scnprintf(dbg_buff + nbytes,
+				IPA_MAX_MSG_LEN - nbytes,
+				"num_ipv4_pkts=%u\n",
+				out->client[j].num_ipv4_pkts);
+			nbytes += scnprintf(dbg_buff + nbytes,
+				IPA_MAX_MSG_LEN - nbytes,
+				"num_ipv6_pkts=%u\n",
+				out->client[j].num_ipv6_pkts);
+			nbytes += scnprintf(dbg_buff + nbytes,
+				IPA_MAX_MSG_LEN - nbytes,
+				"\n");
+		}
+	}
+
+	mutex_unlock(&ipa3_ctx->lock);
+	kfree(out);
+
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
+}
+
+static ssize_t flt_rt_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	struct ipa_ioc_flt_rt_query *query;
+	int pyld_size = 0;
+	int ret;
+
+	query = kzalloc(sizeof(struct ipa_ioc_flt_rt_query),
+		GFP_KERNEL);
+	if (!query)
+		return -ENOMEM;
+	query->stats_size = sizeof(struct ipa_flt_rt_stats);
+	pyld_size = IPA_MAX_FLT_RT_CNT_INDEX *
+		sizeof(struct ipa_flt_rt_stats);
+	query->stats = (uint64_t)kzalloc(pyld_size, GFP_KERNEL);
+	if (!query->stats) {
+		kfree(query);
+		return -ENOMEM;
+	}
+
+	mutex_lock(&ipa3_ctx->lock);
+	if (count >= sizeof(dbg_buff)) {
+		ret = -EFAULT;
+		goto bail;
+	}
+
+	memcpy(dbg_buff, ubuf, count);
+
+	dbg_buff[count] = '\0';
+	if (strcmp(dbg_buff, "reset\n") == 0) {
+		query->reset = 1;
+		query->start_id = 1;
+		query->end_id = IPA_MAX_FLT_RT_CNT_INDEX;
+		ipa_get_flt_rt_stats(query);
+	} else {
+		IPAERR("unsupport flt_rt command\n");
+	}
+
+	ret = count;
+bail:
+	kfree((void *)(uintptr_t)(query->stats));
+	kfree(query);
+	mutex_unlock(&ipa3_ctx->lock);
+	return ret;
+}
+
+static ssize_t flt_rt_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	int nbytes = 0;
+	int i;
+	int res;
+	int pyld_size = 0;
+	struct ipa_ioc_flt_rt_query *query;
+
+	query = kzalloc(sizeof(struct ipa_ioc_flt_rt_query),
+		GFP_KERNEL);
+	if (!query)
+		return -ENOMEM;
+        query->start_id = 1;
+        query->end_id = IPA_MAX_FLT_RT_CNT_INDEX;
+        query->reset = true;
+        query->stats_size = sizeof(struct ipa_flt_rt_stats);
+        pyld_size = IPA_MAX_FLT_RT_CNT_INDEX *
+                sizeof(struct ipa_flt_rt_stats);
+        query->stats = (uint64_t)kzalloc(pyld_size, GFP_KERNEL);
+        if (!query->stats) {
+                IPAERR("no mem\n");
+                kfree(query);
+                return -ENOMEM;
+        }
+        mutex_lock(&ipa3_ctx->lock);
+        res = ipa_get_flt_rt_stats(query);
+        if (res) {
+                mutex_unlock(&ipa3_ctx->lock);
+                kfree((void *)(uintptr_t)(query->stats));
+                kfree(query);
+                return res;
+        }
+        for (i = 0; i < IPA_MAX_FLT_RT_CNT_INDEX; i++) {
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "cnt_id: %d\n", i + 1);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_pkts: %d\n",
+                        ((struct ipa_flt_rt_stats *)
+                        query->stats)[i].num_pkts);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_pkts_hash: %d\n",
+                        ((struct ipa_flt_rt_stats *)
+                        query->stats)[i].num_pkts_hash);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "num_bytes: %lld\n",
+                        ((struct ipa_flt_rt_stats *)
+                        query->stats)[i].num_bytes);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "\n");
+        }
+        mutex_unlock(&ipa3_ctx->lock);
+        kfree((void *)(uintptr_t)(query->stats));
+        kfree(query);
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
+}
+
+static ssize_t drop_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	s8 client = 0;
+	int ret;
+
+	mutex_lock(&ipa3_ctx->lock);
+
+	ret = kstrtos8(ubuf, 0, &client);
+	if (ret != 0)
+	{
+		mutex_unlock(&ipa3_ctx->lock);
+		return ret;
+	}
+
+       // ubuf[count] = '\0';
+
+	if (client == -1)
+		ipa_reset_all_drop_stats();
+	else
+		ipa_reset_drop_stats(client);
+
+	mutex_unlock(&ipa3_ctx->lock);
+	return count;
+}
+
+static ssize_t drop_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	int nbytes = 0;
+	struct ipa_drop_stats_all *out;
+	int i;
+	int res;
+
+       out = kzalloc(sizeof(*out), GFP_KERNEL);
+        if (!out)
+                return -ENOMEM;
+
+        mutex_lock(&ipa3_ctx->lock);
+        res = ipa_get_drop_stats(out);
+        if (res) {
+                mutex_unlock(&ipa3_ctx->lock);
+                kfree(out);
+                return res;
+        }
+
+        for (i = 0; i < IPA_CLIENT_MAX; i++) {
+                int ep_idx = ipa3_get_ep_mapping(i);
+
+                if (ep_idx == -1)
+                        continue;
+
+                if (!IPA_CLIENT_IS_CONS(i))
+                        continue;
+
+                if (IPA_CLIENT_IS_TEST(i))
+                        continue;
+
+                if (!(ipa3_ctx->hw_stats.drop.init.enabled_bitmask &
+                        (1 << ep_idx)))
+                        continue;
+
+
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "%s:\n",
+                        ipa_clients_strings[i]);
+
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "drop_byte_cnt=%u\n",
+                        out->client[i].drop_byte_cnt);
+
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "drop_packet_cnt=%u\n",
+                        out->client[i].drop_packet_cnt);
+                nbytes += scnprintf(dbg_buff + nbytes,
+                        IPA_MAX_MSG_LEN - nbytes,
+                        "\n");
+        }
+        mutex_unlock(&ipa3_ctx->lock);
+        kfree(out);
+
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
+}
+
+static ssize_t enable_drop_stats_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+        unsigned int pipe_num = 0;
+        bool enable_pipe = true;
+        u32 pipe_bitmask = ipa3_ctx->hw_stats.drop.init.enabled_bitmask;
+        char seprator = ',';
+        int i, j;
+        bool is_pipe = false;
+        ssize_t ret;
+
+	mutex_lock(&ipa3_ctx->lock);
+	if (count >= sizeof(dbg_buff)) {
+		ret = -EFAULT;
+		goto bail;
+	}
+
+	memcpy(dbg_buff, ubuf, count);
+	dbg_buff[count] = '\0';
+        IPADBG("data is %s", dbg_buff);
+
+        i = 0;
+        while (dbg_buff[i] != ' ' && i < count)
+                i++;
+        j = i;
+        i++;
+        if (i < count) {
+                if (dbg_buff[i] == '0') {
+                        enable_pipe = false;
+                        IPADBG("Drop stats will be disabled for pipes:");
+                }
+        }
+
+        for (i = 0; i < j; i++) {
+                if (dbg_buff[i] >= '0' && dbg_buff[i] <= '9') {
+                        pipe_num = (pipe_num * 10) + (dbg_buff[i] - '0');
+                        is_pipe = true;
+                }
+                if (dbg_buff[i] == seprator) {
+                        if (pipe_num >= 0 && pipe_num < ipa3_ctx->ipa_num_pipes
+                                && ipa3_get_client_by_pipe(pipe_num) <
+                                IPA_CLIENT_MAX) {
+                                IPADBG("pipe number %u\n", pipe_num);
+                                if (enable_pipe)
+                                        pipe_bitmask = pipe_bitmask |
+                                                        (1 << pipe_num);
+                                else
+                                        pipe_bitmask = pipe_bitmask &
+                                                        (~(1 << pipe_num));
+                        }
+                        pipe_num = 0;
+                        is_pipe = false;
+                }
+        }
+        if (is_pipe && pipe_num >= 0 && pipe_num < ipa3_ctx->ipa_num_pipes &&
+                ipa3_get_client_by_pipe(pipe_num) < IPA_CLIENT_MAX) {
+                IPADBG("pipe number %u\n", pipe_num);
+                if (enable_pipe)
+                        pipe_bitmask = pipe_bitmask | (1 << pipe_num);
+                else
+                        pipe_bitmask = pipe_bitmask & (~(1 << pipe_num));
+        }
+
+        ipa_init_drop_stats(pipe_bitmask);
+        ret = count;
+bail:
+        mutex_unlock(&ipa3_ctx->lock);
+        return ret;
+}
+
+static DEVICE_ATTR_RW(quota);
+static DEVICE_ATTR_RW(tethering);
+static DEVICE_ATTR_RW(flt_rt);
+static DEVICE_ATTR_RW(drop);
+
+static DEVICE_ATTR_WO(enable_drop_stats);
+
+static struct attribute *ipa_stats_attrs[] = {
+	&dev_attr_quota.attr,
+	&dev_attr_tethering.attr,
+	&dev_attr_flt_rt.attr,
+	&dev_attr_drop.attr,
+	&dev_attr_enable_drop_stats.attr,
+	NULL
+};
+
+const struct attribute_group ipa_stats_attr_group = {
+	.name		= "hw_stats",
+	.attrs		= ipa_stats_attrs,
+};
+int ipa_sysfs_init_stats()
+{
+	int ret = -1;
+
+	ret = sysfs_create_group(kernel_kobj, &ipa_stats_attr_group);
+	if (ret != 0) {
+		pr_err("Fail to create IPA syfs attribute\n");
+	}
+	return ret;
+}
+void ipa_sysfs_deinit_stats()
+{
+		sysfs_remove_group(kernel_kobj, &ipa_stats_attr_group);
+}
+#else // CONFIG_DEBUG_FS
 
 static ssize_t ipa_debugfs_reset_quota_stats(struct file *file,
 	const char __user *ubuf, size_t count, loff_t *ppos)
@@ -2160,6 +2654,8 @@ static const struct file_operations ipa3_drop_ops = {
 static const struct file_operations ipa3_enable_drop_ops = {
 	.write = ipa_debugfs_enable_disable_drop_stats,
 };
+
+
 
 int ipa_debugfs_init_stats(struct dentry *parent)
 {

@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
+#include <linux/kernel.h>
 #include <linux/ipc_logging.h>
 
 #include <linux/netdevice.h>
@@ -488,6 +490,7 @@ struct ipa_eth_device {
 	struct device *dev;
 	struct ipa_eth_net_driver *nd;
 	struct ipa_eth_offload_driver *od;
+	struct kobject *sfs;
 
 	struct notifier_block netdevice_nb;
 
@@ -1004,6 +1007,7 @@ struct ipa_eth_offload_driver {
 	struct bus_type *bus;
 
 	struct ipa_eth_offload_ops *ops;
+	struct kobject *kobj;
 
 	struct dentry *debugfs;
 };

@@ -1,5 +1,5 @@
 /* Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -70,6 +70,7 @@ MODULE_PARM_DESC(outstanding_low, "Outstanding low");
 #define IPA_WWAN_DEV_NAME "rmnet_ipa%d"
 #define IPA_UPSTEAM_WLAN_IFACE_NAME "wlan0"
 #define IPA_UPSTEAM_WLAN1_IFACE_NAME "wlan1"
+static char dbg_buff[4096];
 
 #define IPA_WWAN_RX_SOFTIRQ_THRESH 16
 

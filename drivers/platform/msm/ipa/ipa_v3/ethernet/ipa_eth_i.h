@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +21,8 @@
 #include <linux/ipa_eth.h>
 
 #include "ipa_eth_debugfs.h"
+#include "ipa_eth_sysfs.h"
+
 
 #include "../ipa_i.h"
 

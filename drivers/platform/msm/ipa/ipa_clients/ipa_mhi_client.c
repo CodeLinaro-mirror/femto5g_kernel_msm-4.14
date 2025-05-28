@@ -1,4 +1,5 @@
 /* Copyright (c) 2015, 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,7 +10,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
+#endif
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -23,7 +27,7 @@
 #include "../ipa_v3/ipa_i.h"
 
 #define IPA_MHI_DRV_NAME "ipa_mhi_client"
-
+#define IPA_MHI_MAX_MSG_LEN 512
 #define IPA_MHI_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
@@ -285,11 +289,7 @@ fail_dma_enable:
 	dma_free_coherent(pdev, mem.size, mem.base, mem.phys_base);
 	return res;
 }
-
-#ifdef CONFIG_DEBUG_FS
-#define IPA_MHI_MAX_MSG_LEN 512
 static char dbg_buff[IPA_MHI_MAX_MSG_LEN];
-static struct dentry *dent;
 
 static int ipa_mhi_print_channel_info(struct ipa_mhi_channel_ctx *channel,
 	char *buff, int len)
@@ -356,6 +356,9 @@ static int ipa_mhi_print_host_channel_ctx_info(
 
 	return nbytes;
 }
+
+#ifdef CONFIG_DEBUG_FS
+static struct dentry *dent;
 
 static ssize_t ipa_mhi_debugfs_stats(struct file *file,
 	char __user *ubuf,
@@ -518,10 +521,141 @@ static void ipa_mhi_debugfs_init(void)
 fail:
 	debugfs_remove_recursive(dent);
 }
+#else // !CONFIG_DEBUG_FS
+static ssize_t use_ipadma_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	scnprintf(ubuf, sizeof(uint32_t),"%d", ipa_mhi_client_ctx->use_ipadma);
+	return sizeof(uint32_t);
+}
 
-#else
-static void ipa_mhi_debugfs_init(void) {}
-static void ipa_mhi_debugfs_destroy(void) {}
+static ssize_t use_ipadma_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	int ret;
+	ret = kstrtou32(ubuf, 0, &ipa_mhi_client_ctx->use_ipadma);
+	if(!ret)
+		return count;
+	return ret;
+}
+
+static ssize_t mhi_stats_show(struct device *dev,
+			struct device_attribute *attr,
+			char *ubuf)
+{
+	int nbytes = 0;
+	int i;
+	struct ipa_mhi_channel_ctx *channel;
+
+	nbytes += scnprintf(&dbg_buff[nbytes],
+		IPA_MHI_MAX_MSG_LEN - nbytes,
+		"IPA MHI state: %s\n",
+		MHI_STATE_STR(ipa_mhi_client_ctx->state));
+
+	for (i = 0; i < IPA_MHI_MAX_UL_CHANNELS; i++) {
+		channel = &ipa_mhi_client_ctx->ul_channels[i];
+		nbytes += ipa_mhi_print_channel_info(channel,
+			&dbg_buff[nbytes], IPA_MHI_MAX_MSG_LEN - nbytes);
+	}
+
+	for (i = 0; i < IPA_MHI_MAX_DL_CHANNELS; i++) {
+		channel = &ipa_mhi_client_ctx->dl_channels[i];
+		nbytes += ipa_mhi_print_channel_info(channel,
+			&dbg_buff[nbytes], IPA_MHI_MAX_MSG_LEN - nbytes);
+	}
+
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
+}
+
+static ssize_t dump_host_channel_ctx_array_show(struct device *dev,
+			struct device_attribute *attr,
+			char *ubuf)
+{
+	int i, nbytes = 0;
+	struct ipa_mhi_channel_ctx *channel;
+
+	if (ipa_mhi_client_ctx->state == IPA_MHI_STATE_INITIALIZED ||
+	    ipa_mhi_client_ctx->state == IPA_MHI_STATE_READY) {
+		nbytes += scnprintf(&dbg_buff[nbytes],
+		IPA_MHI_MAX_MSG_LEN - nbytes,
+			"Cannot dump host channel context ");
+		nbytes += scnprintf(&dbg_buff[nbytes],
+				IPA_MHI_MAX_MSG_LEN - nbytes,
+				"before IPA MHI was STARTED\n");
+		memcpy(ubuf, dbg_buff, nbytes);
+		return nbytes;
+	}
+	if (ipa_mhi_client_ctx->state == IPA_MHI_STATE_SUSPENDED) {
+		nbytes += scnprintf(&dbg_buff[nbytes],
+			IPA_MHI_MAX_MSG_LEN - nbytes,
+			"IPA MHI is suspended, cannot dump channel ctx array");
+		nbytes += scnprintf(&dbg_buff[nbytes],
+			IPA_MHI_MAX_MSG_LEN - nbytes,
+			" from host -PCIe can be in D3 state\n");
+		memcpy(ubuf, dbg_buff, nbytes);
+		return nbytes;
+	}
+
+	nbytes += scnprintf(&dbg_buff[nbytes],
+			IPA_MHI_MAX_MSG_LEN - nbytes,
+			"channel contex array - dump from host\n");
+	nbytes += scnprintf(&dbg_buff[nbytes],
+			IPA_MHI_MAX_MSG_LEN - nbytes,
+			"***** UL channels *******\n");
+
+	for (i = 0; i < IPA_MHI_MAX_UL_CHANNELS; i++) {
+		channel = &ipa_mhi_client_ctx->ul_channels[i];
+		if (!channel->valid)
+			continue;
+		nbytes += ipa_mhi_print_host_channel_ctx_info(channel,
+			&dbg_buff[nbytes],
+			IPA_MHI_MAX_MSG_LEN - nbytes);
+	}
+
+	nbytes += scnprintf(&dbg_buff[nbytes],
+			IPA_MHI_MAX_MSG_LEN - nbytes,
+			"\n***** DL channels *******\n");
+
+	for (i = 0; i < IPA_MHI_MAX_DL_CHANNELS; i++) {
+		channel = &ipa_mhi_client_ctx->dl_channels[i];
+		if (!channel->valid)
+			continue;
+		nbytes += ipa_mhi_print_host_channel_ctx_info(channel,
+			&dbg_buff[nbytes], IPA_MHI_MAX_MSG_LEN - nbytes);
+	}
+
+	memcpy(ubuf, dbg_buff, nbytes);
+	return nbytes;
+}
+static DEVICE_ATTR_RO(mhi_stats);
+static DEVICE_ATTR_RW(use_ipadma);
+static DEVICE_ATTR_RO(dump_host_channel_ctx_array);
+
+static struct attribute *ipa_mhi_attrs[] = {
+	&dev_attr_mhi_stats.attr,
+	&dev_attr_use_ipadma.attr,
+	&dev_attr_dump_host_channel_ctx_array.attr,
+	NULL
+};
+
+const struct attribute_group ipa_mhi_attr_group = {
+	.name		= "ipa_mhi",
+	.attrs		= ipa_mhi_attrs,
+};
+
+static int ipa_mhi_sysfs_init(void)
+{
+	int ret = -1;
+
+	ret = sysfs_create_group(kernel_kobj, &ipa_mhi_attr_group);
+	if (ret != 0) {
+		pr_err("Fail to create IPA-MHI sysfs attribute\n");
+	}
+	return ret;
+}
+static void ipa_mhi_sysfs_destroy(void)
+{
+	sysfs_remove_group(kernel_kobj, &ipa_mhi_attr_group);
+}
 #endif /* CONFIG_DEBUG_FS */
 
 static union IpaHwMhiDlUlSyncCmdData_t ipa_cached_dl_ul_sync_info;
@@ -2712,7 +2846,11 @@ void ipa_mhi_destroy(void)
 		ipa_mhi_delete_rm_resources();
 
 	ipa_dma_destroy();
+#ifdef CONFIG_DEBUG_FS
 	ipa_mhi_debugfs_destroy();
+#else
+	ipa_mhi_sysfs_destroy();
+#endif
 	destroy_workqueue(ipa_mhi_client_ctx->wq);
 	kfree(ipa_mhi_client_ctx);
 	ipa_mhi_client_ctx = NULL;
@@ -2955,10 +3093,12 @@ int ipa_mhi_init(struct ipa_mhi_init_params *params)
 
 	ipa_register_client_callback(&ipa_mhi_set_lock_unlock, NULL,
 					IPA_CLIENT_MHI_PROD);
-
+#ifdef CONFIG_DEBUG_FS
 	/* Initialize debugfs */
 	ipa_mhi_debugfs_init();
-
+#else
+	ipa_mhi_sysfs_init();
+#endif
 	IPA_MHI_FUNC_EXIT();
 	return 0;
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -178,6 +179,7 @@ struct ecm_ipa_dev {
 	bool is_vlan_mode;
 };
 
+struct ecm_ipa_dev *ecm_ipa_ctx = NULL;
 static int ecm_ipa_open(struct net_device *net);
 static void ecm_ipa_packet_receive_notify
 	(void *priv, enum ipa_dp_evt_type evt, unsigned long data);
@@ -206,8 +208,14 @@ static netdev_tx_t ecm_ipa_start_xmit
 static int ecm_ipa_debugfs_atomic_open(struct inode *inode, struct file *file);
 static ssize_t ecm_ipa_debugfs_atomic_read
 	(struct file *file, char __user *ubuf, size_t count, loff_t *ppos);
+#ifndef CONFIG_DEBUG_FS
+static int ecm_ipa_sysfs_init(void);
+static void ecm_ipa_sysfs_destroy(void);
+#else
 static void ecm_ipa_debugfs_init(struct ecm_ipa_dev *ecm_ipa_ctx);
 static void ecm_ipa_debugfs_destroy(struct ecm_ipa_dev *ecm_ipa_ctx);
+#endif
+
 static int ecm_ipa_ep_registers_cfg(u32 usb_to_ipa_hdl, u32 ipa_to_usb_hdl,
 	bool is_vlan_mode);
 static int ecm_ipa_set_device_ethernet_addr
@@ -227,11 +235,13 @@ static const struct net_device_ops ecm_ipa_netdev_ops = {
 	.ndo_get_stats = ecm_ipa_get_stats,
 };
 
+
+#ifdef CONFIG_DEBUG_FS
 const struct file_operations ecm_ipa_debugfs_atomic_ops = {
 	.open = ecm_ipa_debugfs_atomic_open,
 	.read = ecm_ipa_debugfs_atomic_read,
 };
-
+#endif
 static void ecm_ipa_msg_free_cb(void *buff, u32 len, u32 type)
 {
 	kfree(buff);
@@ -263,7 +273,6 @@ int ecm_ipa_init(struct ecm_ipa_params *params)
 {
 	int result = 0;
 	struct net_device *net;
-	struct ecm_ipa_dev *ecm_ipa_ctx;
 	int ret;
 
 	ECM_IPA_LOG_ENTRY();
@@ -293,6 +302,8 @@ int ecm_ipa_init(struct ecm_ipa_params *params)
 		result = -ENOMEM;
 		goto fail_netdev_priv;
 	}
+
+
 	memset(ecm_ipa_ctx, 0, sizeof(*ecm_ipa_ctx));
 	ECM_IPA_DEBUG("ecm_ipa_ctx (private) = %pK\n", ecm_ipa_ctx);
 
@@ -308,9 +319,11 @@ int ecm_ipa_init(struct ecm_ipa_params *params)
 	if (!params->device_ready_notify)
 		ECM_IPA_DEBUG("device_ready_notify() was not supplied");
 	ecm_ipa_ctx->device_ready_notify = params->device_ready_notify;
-
+#ifdef CONFIG_DEBUG_FS
 	ecm_ipa_debugfs_init(ecm_ipa_ctx);
-
+#else
+	ecm_ipa_sysfs_init();
+#endif
 	result = ecm_ipa_set_device_ethernet_addr
 		(net->dev_addr, params->device_ethaddr);
 	if (result) {
@@ -364,7 +377,11 @@ fail_register_netdev:
 fail_rules_cfg:
 fail_get_vlan_mode:
 fail_set_device_ethernet:
+#ifdef CONFIG_DEBUG_FS
 	ecm_ipa_debugfs_destroy(ecm_ipa_ctx);
+#else
+	ecm_ipa_sysfs_destroy();
+#endif
 fail_netdev_priv:
 	free_netdev(net);
 fail_alloc_etherdev:
@@ -875,9 +892,13 @@ void ecm_ipa_cleanup(void *priv)
 	ECM_IPA_STATE_DEBUG(ecm_ipa_ctx);
 
 	ecm_ipa_rules_destroy(ecm_ipa_ctx);
+#ifdef CONFIG_DEBUG_FS
 	ecm_ipa_debugfs_destroy(ecm_ipa_ctx);
 
 	ECM_IPA_DEBUG("ECM_IPA unregister_netdev started\n");
+#else
+	ecm_ipa_sysfs_destroy();
+#endif
 	unregister_netdev(ecm_ipa_ctx->net);
 	ECM_IPA_DEBUG("ECM_IPA unregister_netdev completed\n");
 	free_netdev(ecm_ipa_ctx->net);
@@ -1361,6 +1382,7 @@ static void ecm_ipa_tx_timeout(struct net_device *net)
 	net->stats.tx_errors++;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int ecm_ipa_debugfs_atomic_open(struct inode *inode, struct file *file)
 {
 	struct ecm_ipa_dev *ecm_ipa_ctx = inode->i_private;
@@ -1384,7 +1406,6 @@ static ssize_t ecm_ipa_debugfs_atomic_read
 	return simple_read_from_buffer(ubuf, count, ppos, atomic_str, nbytes);
 }
 
-#ifdef CONFIG_DEBUG_FS
 
 static void ecm_ipa_debugfs_init(struct ecm_ipa_dev *ecm_ipa_ctx)
 {
@@ -1448,10 +1469,89 @@ static void ecm_ipa_debugfs_destroy(struct ecm_ipa_dev *ecm_ipa_ctx)
 }
 
 #else /* !CONFIG_DEBUG_FS*/
+static ssize_t outstanding_high_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	int ret;
+	ret = kstrtou8(ubuf, 0, &ecm_ipa_ctx->outstanding_high);
+	if(!ret)
+		return count;
+	return ret;
+}
 
-static void ecm_ipa_debugfs_init(struct ecm_ipa_dev *ecm_ipa_ctx) {}
+static ssize_t outstanding_high_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	scnprintf(ubuf, sizeof(uint8_t),"%d", ecm_ipa_ctx->outstanding_high);
+	return sizeof(uint8_t);
+}
 
-static void ecm_ipa_debugfs_destroy(struct ecm_ipa_dev *ecm_ipa_ctx) {}
+static ssize_t outstanding_low_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
+{
+	int ret;
+	ret = kstrtou8(ubuf, 0, &ecm_ipa_ctx->outstanding_low);
+	if(!ret)
+		return count;
+	return ret;
+}
+
+static ssize_t outstanding_low_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	scnprintf(ubuf, sizeof(uint8_t),"%d", ecm_ipa_ctx->outstanding_low);
+	return sizeof(uint8_t);
+}
+
+static ssize_t is_vlan_mode_show(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	scnprintf(ubuf, sizeof(bool),"%d", ecm_ipa_ctx->is_vlan_mode);
+	return sizeof(bool);
+}
+
+static ssize_t outstanding_show
+	(struct device *dev, struct device_attribute *attr, char *ubuf)
+{
+	int nbytes;
+	u8 atomic_str[DEBUGFS_TEMP_BUF_SIZE] = {0};
+	atomic_t *atomic_var = &ecm_ipa_ctx->outstanding_pkts;
+
+	nbytes = scnprintf
+		(atomic_str, sizeof(atomic_str), "%d\n",
+			atomic_read(atomic_var));
+	memcpy(ubuf, atomic_str, nbytes);
+	return nbytes;
+}
+
+static DEVICE_ATTR_RW(outstanding_high);
+static DEVICE_ATTR_RW(outstanding_low);
+static DEVICE_ATTR_RO(outstanding);
+static DEVICE_ATTR_RO(is_vlan_mode);
+
+static struct attribute *ipa_ecm_attrs[] = {
+	&dev_attr_outstanding_high.attr,
+	&dev_attr_outstanding_low.attr,
+	&dev_attr_outstanding.attr,
+	&dev_attr_is_vlan_mode.attr,
+	NULL
+};
+
+const struct attribute_group ipa_ecm_attr_group = {
+	.name		= "ecm_ipa",
+	.attrs		= ipa_ecm_attrs,
+};
+
+static int ecm_ipa_sysfs_init()
+{
+	int ret = -1;
+
+	ret = sysfs_create_group(kernel_kobj, &ipa_ecm_attr_group);
+	if (ret != 0) {
+		pr_err("Fail to create ECM syfs attribute\n");
+	}
+	return ret;
+}
+
+static void ecm_ipa_sysfs_destroy()
+{
+	sysfs_remove_group(kernel_kobj, &ipa_ecm_attr_group);
+}
 
 #endif /* CONFIG_DEBUG_FS */
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -6,7 +7,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
 
@@ -40,11 +41,9 @@
 #define GSI_STTS_REG_BITS 32
 
 #ifndef CONFIG_DEBUG_FS
-void gsi_debugfs_init(void)
-{
-}
+extern int gsi_sysfs_init(void);
+extern void gsi_sysfs_destroy(void);
 #endif
-
 static const struct of_device_id msm_gsi_match[] = {
 	{ .compatible = "qcom,msm_gsi", },
 	{ },
@@ -4606,7 +4605,11 @@ static int msm_gsi_probe(struct platform_device *pdev)
 
 	gsi_ctx->dev = dev;
 	init_completion(&gsi_ctx->gen_ee_cmd_compl);
+#ifdef CONFIG_DEBUG_FS
 	gsi_debugfs_init();
+#else
+	gsi_sysfs_init();
+#endif
 
 	return 0;
 }
@@ -4654,6 +4657,9 @@ arch_initcall(gsi_init);
  */
 static void __exit gsi_exit(void)
 {
+#ifndef CONFIG_DEBUG_FS
+	gsi_sysfs_destroy();
+#endif
 	if (running_emulation && pdev)
 		platform_device_unregister(pdev);
 	platform_driver_unregister(&msm_gsi_driver);
