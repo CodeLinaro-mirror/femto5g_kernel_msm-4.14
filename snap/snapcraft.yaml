@@ -31,6 +31,15 @@ confinement: strict
 
 license: "GPL-2.0 AND GPL-3.0 AND CC-BY-SA-4.0"
 
+package-repositories:
+   - type: apt
+     architectures: [$CRAFT_ARCH_BUILD_FOR]
+     formats: [deb, deb-src]
+     components: [main]
+     suites: [noble, noble-updates, noble-backports]
+     key-id: F6ECB3762474EDA9D21B7022871920D1991BC93C
+     url: http://ports.ubuntu.com/ubuntu-ports
+
 build-packages:
   - bison
   - device-tree-compiler
