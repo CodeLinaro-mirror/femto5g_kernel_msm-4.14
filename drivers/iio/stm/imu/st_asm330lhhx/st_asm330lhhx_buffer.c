@@ -213,7 +213,10 @@ int st_asm330lhhx_update_watermark(struct st_asm330lhhx_sensor *sensor,
 		fifo_watermark = min_t(u16, fifo_watermark, cur_watermark);
 	}
 
-	fifo_watermark = max_t(u16, fifo_watermark, 2);
+	if (hw->resuming)
+		fifo_watermark = watermark;
+	else
+		fifo_watermark = max_t(u16, fifo_watermark, 2);
 
 	mutex_lock(&hw->page_lock);
 	err = regmap_read(hw->regmap, ST_ASM330LHHX_REG_FIFO_CTRL1_ADDR + 1,
@@ -228,6 +231,9 @@ int st_asm330lhhx_update_watermark(struct st_asm330lhhx_sensor *sensor,
 	err = regmap_bulk_write(hw->regmap,
 				ST_ASM330LHHX_REG_FIFO_CTRL1_ADDR,
 				&wdata, sizeof(wdata));
+
+	/* save fifo watermark for suspend/resume */
+	hw->fifo_watermark = fifo_watermark;
 out:
 	mutex_unlock(&hw->page_lock);
 
@@ -298,15 +304,15 @@ static int st_asm330lhhx_enable_irqline(struct st_asm330lhhx_hw *hw,
 	return 0;
 }
 
-static int st_asm330lhhx_read_fifo(struct st_asm330lhhx_hw *hw)
+int st_asm330lhhx_read_fifo(struct st_asm330lhhx_hw *hw, int notify)
 {
 	u8 iio_buf[ALIGN(ST_ASM330LHHX_SAMPLE_SIZE, sizeof(s64)) +
 		   sizeof(s64) + sizeof(s64)];
 	u8 buf[32 * ST_ASM330LHHX_FIFO_SAMPLE_SIZE], tag, *ptr;
+	struct iio_dev *iio_dev, *iio_dev_mlc_fifo_acc;
 	int i, err, word_len, fifo_len, read_len;
 	bool already_updated = false;
 	__le64 hw_timestamp_push;
-	struct iio_dev *iio_dev;
 	__le16 fifo_status;
 	u16 fifo_depth;
 	s16 drdymask;
@@ -342,8 +348,14 @@ static int st_asm330lhhx_read_fifo(struct st_asm330lhhx_hw *hw)
 
 	fifo_len = fifo_depth * ST_ASM330LHHX_FIFO_SAMPLE_SIZE;
 	read_len = 0;
-	ts_irq = hw->ts - hw->delta_ts;
 	delta = div_s64(hw->delta_ts, fifo_depth);
+
+	if (hw->resuming && notify) {
+		/* take approx wake-up timestamp event */
+		hw->ts_offset_resume = iio_get_time_ns(hw->iio_devs[0]);
+		hw->ts_offset_resume -= ((fifo_depth >> hw->resume_sample_in_packet) *
+				         hw->resume_sample_tick_ns);
+	}
 
 	while (read_len < fifo_len) {
 		word_len = min_t(int, fifo_len - read_len, sizeof(buf));
@@ -420,21 +432,29 @@ static int st_asm330lhhx_read_fifo(struct st_asm330lhhx_hw *hw)
 				hw_timestamp_push = hw->tsample;
 #endif /* CONFIG_IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP */
 
-				/* LPF sample discard */
-				if (sensor->discard_samples) {
-					sensor->discard_samples--;
-					continue;
-				}
-
-				/* support decimation for ODR < 12.5 Hz */
-				if (sensor->dec_counter > 0) {
-					sensor->dec_counter--;
+				if (hw->resuming && notify) {
+					iio_dev_mlc_fifo_acc = hw->iio_devs[ST_ASM330LHHX_ID_FIFO_MLC];
+					iio_push_to_buffers_with_timestamp(iio_dev_mlc_fifo_acc,
+								iio_buf,
+								hw->ts_offset_resume);
+					hw->ts_offset_resume += hw->resume_sample_tick_ns;
 				} else {
-					sensor->dec_counter = sensor->decimator;
-					iio_push_to_buffers_with_timestamp(iio_dev,
+					/* LPF sample discard */
+					if (sensor->discard_samples) {
+						sensor->discard_samples--;
+						continue;
+					}
+
+					/* support decimation for ODR < 12.5 Hz */
+					if (sensor->dec_counter > 0) {
+						sensor->dec_counter--;
+					} else {
+						sensor->dec_counter = sensor->decimator;
+						iio_push_to_buffers_with_timestamp(iio_dev,
 								iio_buf,
 								hw->tsample);
-					sensor->last_fifo_timestamp = hw_timestamp_push;
+						sensor->last_fifo_timestamp = hw_timestamp_push;
+					}
 				}
 			}
 		}
@@ -510,7 +530,7 @@ st_asm330lhhx_flush_fifo_during_resume(struct st_asm330lhhx_hw *hw)
 	int count;
 
 	mutex_lock(&hw->fifo_lock);
-	count = st_asm330lhhx_read_fifo(hw);
+	count = st_asm330lhhx_read_fifo(hw, 0);
 	mutex_unlock(&hw->fifo_lock);
 
 	return count;
@@ -537,7 +557,7 @@ ssize_t st_asm330lhhx_flush_fifo(struct device *dev,
 	hw->delta_ts = ts - hw->ts;
 	hw->ts = ts;
 	set_bit(ST_ASM330LHHX_HW_FLUSH, &hw->state);
-	count = st_asm330lhhx_read_fifo(hw);
+	count = st_asm330lhhx_read_fifo(hw, 0);
 	sensor->dec_counter = 0;
 	fts = sensor->last_fifo_timestamp;
 	mutex_unlock(&hw->fifo_lock);
@@ -558,7 +578,7 @@ int st_asm330lhhx_suspend_fifo(struct st_asm330lhhx_hw *hw)
 		return 0;
 
 	mutex_lock(&hw->fifo_lock);
-	st_asm330lhhx_read_fifo(hw);
+	st_asm330lhhx_read_fifo(hw, 0);
 	err = st_asm330lhhx_set_fifo_mode(hw, ST_ASM330LHHX_FIFO_BYPASS);
 	mutex_unlock(&hw->fifo_lock);
 
@@ -684,18 +704,22 @@ static irqreturn_t st_asm330lhhx_handler_irq(int irq, void *private)
 static irqreturn_t st_asm330lhhx_handler_thread(int irq, void *private)
 {
 	struct st_asm330lhhx_hw *hw = (struct st_asm330lhhx_hw *)private;
+	int notify = 0;
+
+	mutex_lock(&hw->handler_lock);
 
 	if (hw->settings->st_mlc_probe)
-		st_asm330lhhx_mlc_check_status(hw);
+		notify = st_asm330lhhx_mlc_check_status(hw);
 
 	mutex_lock(&hw->fifo_lock);
-	st_asm330lhhx_read_fifo(hw);
+	st_asm330lhhx_read_fifo(hw, notify);
 	clear_bit(ST_ASM330LHHX_HW_FLUSH, &hw->state);
 	mutex_unlock(&hw->fifo_lock);
 
 	/* if irq line is the same of FIFO manage it */
 	if (hw->irq_emb == hw->irq)
-		return st_asm330lhhx_event_handler(hw);
+		st_asm330lhhx_event_handler(hw);
+	mutex_unlock(&hw->handler_lock);
 
 	return IRQ_HANDLED;
 }

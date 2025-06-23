@@ -751,6 +751,12 @@ int st_asm330lhhx_event_init(struct st_asm330lhhx_hw *hw)
 	if (err < 0)
 		return err;
 
+	err = regmap_update_bits(hw->regmap, ST_ASM330LHHX_REG_INT_CFG0_ADDR,
+				 ST_ASM330LHHX_LIR_MASK,
+				 FIELD_PREP(ST_ASM330LHHX_LIR_MASK, 1));
+	if (err < 0)
+		return err;
+
 	/* apply HPF on wake-up */
 	err = regmap_update_bits(hw->regmap, ST_ASM330LHHX_REG_INT_CFG0_ADDR,
 				 ST_ASM330LHHX_SLOPE_FDS_MASK,
@@ -758,8 +764,8 @@ int st_asm330lhhx_event_init(struct st_asm330lhhx_hw *hw)
 	if (err < 0)
 		return err;
 
-	/* Set default wake-up thershold to 100 mg */
-	err = st_asm330lhhx_set_wake_up_thershold(hw, 100);
+	/* Set default wake-up thershold to 200 mg */
+	err = st_asm330lhhx_set_wake_up_thershold(hw, 200);
 	if (err < 0)
 		return err;
 

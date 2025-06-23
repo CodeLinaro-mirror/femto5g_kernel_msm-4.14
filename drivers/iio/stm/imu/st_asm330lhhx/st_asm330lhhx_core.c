@@ -978,7 +978,8 @@ st_asm330lhhx_get_odr_from_reg(enum st_asm330lhhx_sensor_id id,
 	int i;
 
 	for (i = 0; i < st_asm330lhhx_odr_table[id].size; i++) {
-		if (reg_val == st_asm330lhhx_odr_table[id].odr_avl[i].val)
+		if ((reg_val == st_asm330lhhx_odr_table[id].odr_avl[i].val) &&
+		    (reg_val == st_asm330lhhx_odr_table[id].odr_avl[i].batch_val))
 			break;
 	}
 
@@ -2619,6 +2620,26 @@ st_asm330lhhx_configure_wake_up(struct st_asm330lhhx_hw *hw)
 		return err;
 #endif /* CONFIG_IIO_ST_ASM330LHHX_STORE_SAMPLE_FIFO_SUSPEND */
 
+	/* latch interrupts and clean immediately the source */
+	err = regmap_update_bits(hw->regmap, ST_ASM330LHHX_REG_INT_CFG0_ADDR,
+			     ST_ASM330LHHX_INT_CLR_ON_READ_MASK,
+			     FIELD_PREP(ST_ASM330LHHX_INT_CLR_ON_READ_MASK, 1));
+	if (err < 0)
+		return err;
+
+	err = regmap_update_bits(hw->regmap, ST_ASM330LHHX_REG_INT_CFG0_ADDR,
+				 ST_ASM330LHHX_LIR_MASK,
+				 FIELD_PREP(ST_ASM330LHHX_LIR_MASK, 1));
+	if (err < 0)
+		return err;
+
+	/* apply HPF on wake-up */
+	err = regmap_update_bits(hw->regmap, ST_ASM330LHHX_REG_INT_CFG0_ADDR,
+				 ST_ASM330LHHX_SLOPE_FDS_MASK,
+				 FIELD_PREP(ST_ASM330LHHX_SLOPE_FDS_MASK, 1));
+	if (err < 0)
+		return err;
+
 	/* set sensors odr to 26 Hz */
 	err = regmap_update_bits(hw->regmap,
 			st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.addr,
@@ -2627,6 +2648,89 @@ st_asm330lhhx_configure_wake_up(struct st_asm330lhhx_hw *hw)
 				st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.mask));
 
 	set_bit(ST_ASM330LHHX_HW_OPERATIONAL, &hw->state);
+
+	return err < 0 ? err : 0;
+}
+
+static int st_asm330lhhx_mlc_fsm_suspend(struct st_asm330lhhx_hw *hw)
+{
+	struct st_asm330lhhx_sensor *sensor_acc;
+	int err = 0;
+	int id_acc;
+
+	/* set low power mode to acc at 12.5 Hz in FIFO */
+	id_acc = ST_ASM330LHHX_ID_ACC;
+	err = st_asm330lhhx_update_bits_locked(hw,
+					st_asm330lhhx_odr_table[id_acc].pm.addr,
+					st_asm330lhhx_odr_table[id_acc].pm.mask,
+					ST_ASM330LHHX_LP_MODE);
+	if (err < 0)
+		return err;
+
+	/* reset and flush FIFO data */
+	err = st_asm330lhhx_set_fifo_mode(hw, ST_ASM330LHHX_FIFO_BYPASS);
+	if (err < 0)
+		return err;
+
+	/* disable FIFO watermark interrupt */
+	err = st_asm330lhhx_write_with_mask_locked(hw,
+		   hw->drdy_reg, ST_ASM330LHHX_REG_INT_FIFO_TH_MASK, 0);
+	if (err < 0)
+		return err;
+
+	hw->resume_sample_tick_ns = 80000000ull;
+	hw->resume_sample_in_packet = 1;
+
+	/* wait 4 ODRs for internal filter settling time */
+	err = st_asm330lhhx_update_odr_fsm(hw, id_acc, id_acc,
+		st_asm330lhhx_odr_table[id_acc].odr_avl[0].val,
+		4 * (1000000 / 12.5));
+	if (err < 0)
+		return err;
+
+	/* enable FIFO batch for acc only at 12.5 Hz */
+	err = st_asm330lhhx_update_bits_locked(hw,
+		hw->odr_table_entry[id_acc].batching_reg.addr,
+		hw->odr_table_entry[id_acc].batching_reg.mask,
+		st_asm330lhhx_odr_table[id_acc].odr_avl[2].batch_val);
+	if (err < 0)
+		return err;
+
+	/* disable FIFO batch for gyro */
+	err = st_asm330lhhx_update_bits_locked(hw,
+		hw->odr_table_entry[ST_ASM330LHHX_ID_GYRO].batching_reg.addr,
+		hw->odr_table_entry[ST_ASM330LHHX_ID_GYRO].batching_reg.mask,
+		0);
+	if (err < 0)
+		return err;
+
+	/* setting state to resuming */
+	hw->resuming = true;
+
+	/* set FIFO watermark to max level */
+	sensor_acc = iio_priv(hw->iio_devs[id_acc]);
+	hw->suspend_fifo_watermark = hw->fifo_watermark;
+	err = st_asm330lhhx_update_watermark(sensor_acc,
+					     ST_ASM330LHHX_MAX_FIFO_DEPTH);
+	if (err < 0)
+		return err;
+
+	/* start acquiring data in FIFO cont. mode */
+	err = st_asm330lhhx_set_fifo_mode(hw, ST_ASM330LHHX_FIFO_CONT);
+	if (err < 0)
+		return err;
+
+	/* enable accel */
+	/* set sensors odr to 12.5 Hz */
+	err = regmap_update_bits(hw->regmap,
+			st_asm330lhhx_odr_table[id_acc].reg.addr,
+			st_asm330lhhx_odr_table[id_acc].reg.mask,
+			ST_ASM330LHHX_SHIFT_VAL(0x01,
+				     st_asm330lhhx_odr_table[id_acc].reg.mask));
+	if (err < 0)
+		return err;
+
+	mutex_lock(&hw->handler_lock);
 
 	return err < 0 ? err : 0;
 }
@@ -2674,7 +2778,17 @@ static int __maybe_unused st_asm330lhhx_suspend(struct device *dev)
 	if (err < 0)
 		return err;
 
-	if (device_may_wakeup(dev) && (hw->wakeup_source == true)) {
+	if (st_asm330lhhx_fsm_running(hw) ||
+	    st_asm330lhhx_mlc_running(hw)) {
+		/*
+		 * if MLC/FSM enabled to detect events configure device to wake-up from
+		 * MLC/FSM
+		 */
+		err = st_asm330lhhx_mlc_fsm_suspend(hw);
+		if (err < 0)
+			return err;
+	} else if (device_may_wakeup(dev) && (hw->wakeup_source == true)) {
+		/* if wakeup source set, configure device for WoM */
 		u32 dummy;
 
 		/* configure wake-up events trigger */
@@ -2714,6 +2828,36 @@ static int __maybe_unused st_asm330lhhx_suspend(struct device *dev)
 	return err < 0 ? err : 0;
 }
 
+static int st_asm330lhhx_mlc_fsm_resume(struct st_asm330lhhx_hw *hw)
+{
+	struct st_asm330lhhx_sensor *sensor_acc;
+	int err, notify;
+
+	notify = st_asm330lhhx_mlc_check_status(hw);
+	if (notify) {
+		st_asm330lhhx_read_fifo(hw, notify);
+	}
+
+	hw->resuming = false;
+
+	/* stop acc */
+	sensor_acc = iio_priv(hw->iio_devs[ST_ASM330LHHX_ID_ACC]);
+	err = st_asm330lhhx_set_odr(sensor_acc, false, 0, 0);
+	if (err < 0)
+		return err;
+
+	hw->hw_timestamp_enabled = true;
+	hw->resume_sample_in_packet = 1;
+
+	/* restore FIFO watermark */
+	err = st_asm330lhhx_update_watermark(sensor_acc,
+					     hw->suspend_fifo_watermark);
+
+	mutex_unlock(&hw->handler_lock);
+
+	return err < 0 ? err : 0;
+}
+
 static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 {
 	struct st_asm330lhhx_hw *hw = dev_get_drvdata(dev);
@@ -2721,7 +2865,11 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 
 	dev_info(dev, "Resuming device\n");
 
-	if (device_may_wakeup(dev) && (hw->wakeup_source == true)) {
+	if (hw->resuming) {
+		err = st_asm330lhhx_mlc_fsm_resume(hw);
+		if (err < 0)
+			return err;
+	} else if (device_may_wakeup(dev) && (hw->wakeup_source == true)) {
 		/* set accel sensor in power down */
 		err = regmap_update_bits(hw->regmap,
 				st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.addr,
@@ -2743,6 +2891,8 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 
 #if defined(CONFIG_IIO_ST_ASM330LHHX_STORE_SAMPLE_FIFO_SUSPEND)
 		/* flush fifo data to user space */
+		st_asm330lhhx_reset_hwts(hw);
+		set_bit(ST_ASM330LHHX_HW_FLUSH, &hw->state);
 		st_asm330lhhx_flush_fifo_during_resume(hw);
 		clear_bit(ST_ASM330LHHX_HW_OPERATIONAL, &hw->state);
 #endif /* CONFIG_IIO_ST_ASM330LHHX_STORE_SAMPLE_FIFO_SUSPEND */
@@ -2763,7 +2913,11 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 		if (!(hw->enable_mask & BIT_ULL(sensor->id)))
 			continue;
 
-		err = st_asm330lhhx_set_odr(sensor, false, sensor->odr, sensor->uodr);
+		if (sensor->id == ST_ASM330LHHX_ID_FIFO_MLC)
+			continue;
+
+		err = st_asm330lhhx_set_odr(sensor, false,
+					    sensor->odr, sensor->uodr);
 		if (err < 0)
 			return err;
 	}
@@ -2791,6 +2945,37 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 
 	return err < 0 ? err : 0;
 }
+
+void st_asm330lhhx_shutdown(struct device *dev)
+{
+	struct st_asm330lhhx_hw *hw = dev_get_drvdata(dev);
+
+	mutex_lock(&hw->fifo_lock);
+	/*
+	 * after reset the irq line can be pulled up by
+	 * hardware, disable it
+	 */
+	disable_irq(hw->irq);
+	mutex_unlock(&hw->fifo_lock);
+
+	/* disable all algos for power consumption reduction */
+	st_asm330lhhx_set_page_access(hw, true,
+				      ST_ASM330LHHX_REG_FUNC_CFG_MASK);
+	regmap_write(hw->regmap, ST_ASM330LHHX_EMB_FUNC_EN_B_ADDR, 0);
+	regmap_write(hw->regmap, ST_ASM330LHHX_FSM_ENABLE_A_ADDR, 0);
+	regmap_write(hw->regmap, ST_ASM330LHHX_FSM_ENABLE_B_ADDR, 0);
+	st_asm330lhhx_set_page_access(hw, false,
+				      ST_ASM330LHHX_REG_FUNC_CFG_MASK);
+
+	/* reset device */
+	regmap_update_bits(hw->regmap, ST_ASM330LHHX_REG_CTRL3_C_ADDR,
+			   ST_ASM330LHHX_REG_SW_RESET_MASK,
+			   FIELD_PREP(ST_ASM330LHHX_REG_SW_RESET_MASK,
+				      1));
+
+	dev_info(dev, "Set all devices in power down\n");
+}
+EXPORT_SYMBOL(st_asm330lhhx_shutdown);
 
 const struct dev_pm_ops st_asm330lhhx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(st_asm330lhhx_suspend, st_asm330lhhx_resume)

@@ -223,6 +223,11 @@
 #define ST_ASM330LHHX_FSM_EN_MASK			BIT(0)
 #define ST_ASM330LHHX_MLC_EN_MASK			BIT(4)
 
+#define ST_ASM330LHHX_PAGE_ADDRESS_ADDR		0x08
+#define ST_ASM330LHHX_PAGE_ADDRESS_MASK		0xFF
+
+#define ST_ASM330LHHX_PAGE_VALUE_ADDR		0x09
+
 #define ST_ASM330LHHX_FSM_INT1_A_ADDR		0x0b
 #define ST_ASM330LHHX_FSM_INT1_B_ADDR		0x0c
 #define ST_ASM330LHHX_MLC_INT1_ADDR			0x0d
@@ -522,6 +527,7 @@ enum st_asm330lhhx_sensor_id {
 	ST_ASM330LHHX_ID_HW = ST_ASM330LHHX_ID_TEMP,
 	ST_ASM330LHHX_ID_EXT0,
 	ST_ASM330LHHX_ID_EXT1,
+	ST_ASM330LHHX_ID_FIFO_MLC,
 	ST_ASM330LHHX_ID_MLC,
 	ST_ASM330LHHX_ID_MLC_0,
 	ST_ASM330LHHX_ID_MLC_1,
@@ -764,6 +770,7 @@ struct st_asm330lhhx_sensor {
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @page_lock: Mutex to prevent concurrent memory page configuration.
  * @fifo_mode: FIFO operating mode supported by the device.
+ * @handler_lock: Lock for irq handler used by suspend/resume functions.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
  * @enable_ev_mask: Enabled event bitmask.
@@ -809,6 +816,13 @@ struct st_asm330lhhx_sensor {
  * @sixD_threshold: 6D threshold in mg.
  * @wakeup_source: Flag for wakeup source.
  * @wakeup_status: Last wake-up status.
+ * @resuming: System resuming flag.
+ * @resume_sample_tick_ns: Timestamp sample tick time in ns during
+ *			   suspend.
+ * @resume_sample_in_packet: Number of samples for each timestamp tag
+ * 			     in FIFO.
+ * @ts_offset_resume: Reference for sample timestamp in FIFO during
+ * 		      resume.
  */
 struct st_asm330lhhx_hw {
 	struct device *dev;
@@ -823,6 +837,7 @@ struct st_asm330lhhx_hw {
 	struct mutex lock;
 	struct mutex fifo_lock;
 	struct mutex page_lock;
+	struct mutex handler_lock;
 
 	enum st_asm330lhhx_fifo_mode fifo_mode;
 	unsigned long state;
@@ -831,6 +846,10 @@ struct st_asm330lhhx_hw {
 	u64 requested_mask;
 	u8 ext_data_len;
 	s64 hw_timestamp_global;
+
+	u16 suspend_fifo_watermark;
+	bool hw_timestamp_enabled;
+	u16 fifo_watermark;
 
 #if defined (CONFIG_IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP)
 	struct workqueue_struct *timesync_workqueue;
@@ -882,6 +901,11 @@ struct st_asm330lhhx_hw {
 
 	bool wakeup_source;
 	u32 wakeup_status;
+
+	bool resuming;
+	u64 resume_sample_tick_ns;
+	u8 resume_sample_in_packet;
+	s64 ts_offset_resume;
 };
 
 /**
@@ -1192,6 +1216,7 @@ int st_asm330lhhx_get_batch_val(struct st_asm330lhhx_sensor *sensor,
 int st_asm330lhhx_update_watermark(struct st_asm330lhhx_sensor *sensor,
 				   u16 watermark);
 int st_asm330lhhx_flush_fifo_during_resume(struct st_asm330lhhx_hw *hw);
+int st_asm330lhhx_read_fifo(struct st_asm330lhhx_hw *hw, int notify);
 ssize_t st_asm330lhhx_flush_fifo(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t size);
@@ -1236,6 +1261,7 @@ int st_asm330lhhx_mlc_probe(struct st_asm330lhhx_hw *hw);
 int st_asm330lhhx_mlc_remove(struct device *dev);
 int st_asm330lhhx_mlc_check_status(struct st_asm330lhhx_hw *hw);
 int st_asm330lhhx_mlc_init_preload(struct st_asm330lhhx_hw *hw);
+void st_asm330lhhx_shutdown(struct device *dev);
 
 /* xl events */
 int st_asm330lhhx_read_event_config(struct iio_dev *iio_dev,
