@@ -2730,6 +2730,7 @@ static int st_asm330lhhx_mlc_fsm_suspend(struct st_asm330lhhx_hw *hw)
 	if (err < 0)
 		return err;
 
+	enable_irq_wake(hw->irq);
 	mutex_lock(&hw->handler_lock);
 
 	return err < 0 ? err : 0;
@@ -2778,51 +2779,53 @@ static int __maybe_unused st_asm330lhhx_suspend(struct device *dev)
 	if (err < 0)
 		return err;
 
-	if (st_asm330lhhx_fsm_running(hw) ||
-	    st_asm330lhhx_mlc_running(hw)) {
-		/*
-		 * if MLC/FSM enabled to detect events configure device to wake-up from
-		 * MLC/FSM
-		 */
-		err = st_asm330lhhx_mlc_fsm_suspend(hw);
-		if (err < 0)
-			return err;
-	} else if (device_may_wakeup(dev) && (hw->wakeup_source == true)) {
-		/* if wakeup source set, configure device for WoM */
-		u32 dummy;
+	if (device_may_wakeup(dev)) {
+		if (st_asm330lhhx_fsm_running(hw) ||
+		    st_asm330lhhx_mlc_running(hw)) {
+			/*
+			 * if MLC/FSM enabled to detect events configure device
+			 * to wake-up from MLC/FSM
+			 */
+			err = st_asm330lhhx_mlc_fsm_suspend(hw);
+			if (err < 0)
+				return err;
+		} else if (hw->wakeup_source == true) {
+			/* if wakeup source set, configure device for WoM */
+			u32 dummy;
 
-		/* configure wake-up events trigger */
-		err = st_asm330lhhx_configure_wake_up(hw);
-		if (err < 0)
-			return err;
+			/* configure wake-up events trigger */
+			err = st_asm330lhhx_configure_wake_up(hw);
+			if (err < 0)
+				return err;
 
-		/* avoid false wake-up events */
-		usleep_range(40000, 41000);
+			/* avoid false wake-up events */
+			usleep_range(40000, 41000);
 
-		/* clean wake-up source */
-		err = regmap_read(hw->regmap,
-				  ST_ASM330LHHX_REG_ALL_INT_SRC_ADDR,
-				  &dummy);
-		if (err < 0)
-			return err;
+			/* clean wake-up source */
+			err = regmap_read(hw->regmap,
+					  ST_ASM330LHHX_REG_ALL_INT_SRC_ADDR,
+					  &dummy);
+			if (err < 0)
+				return err;
 
-		/*
-		 * enable event interrupt
-		 *
-		 * NOTE: be careful, check whether wake-up threshold value is
-		 * greater than 0 before enable the interrupt, the risk is that
-		 * with zero thresholds system will be immediately reawakened
-		 */
-		err = regmap_update_bits(hw->regmap,
-					 ST_ASM330LHHX_REG_INT_CFG1_ADDR,
-					 ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
-					 FIELD_PREP(ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
-						    0x01));
-		if (err < 0)
-			return err;
+			/*
+			* enable event interrupt
+			*
+			* NOTE: be careful, check whether wake-up threshold value is
+			* greater than 0 before enable the interrupt, the risk is that
+			* with zero thresholds system will be immediately reawakened
+			*/
+			err = regmap_update_bits(hw->regmap,
+						 ST_ASM330LHHX_REG_INT_CFG1_ADDR,
+						 ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
+						 FIELD_PREP(ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
+							    0x01));
+			if (err < 0)
+				return err;
 
-		enable_irq_wake(hw->irq_emb);
-		dev_info(dev, "Enabling wake-up\n");
+			enable_irq_wake(hw->irq_emb);
+			dev_info(dev, "Enabling WoM\n");
+		}
 	}
 
 	return err < 0 ? err : 0;
@@ -2865,38 +2868,46 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 
 	dev_info(dev, "Resuming device\n");
 
-	if (hw->resuming) {
-		err = st_asm330lhhx_mlc_fsm_resume(hw);
-		if (err < 0)
-			return err;
-	} else if (device_may_wakeup(dev) && (hw->wakeup_source == true)) {
-		/* set accel sensor in power down */
-		err = regmap_update_bits(hw->regmap,
-				st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.addr,
-				st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.mask,
-				ST_ASM330LHHX_SHIFT_VAL(0x00,
-					st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.mask));
+	if (device_may_wakeup(dev)) {
+		if (st_asm330lhhx_fsm_running(hw) ||
+		    st_asm330lhhx_mlc_running(hw)) {
+		    disable_irq_wake(hw->irq);
 
-		disable_irq_wake(hw->irq_emb);
+			if (hw->resuming) {
+				err = st_asm330lhhx_mlc_fsm_resume(hw);
+				if (err < 0)
+					return err;
+			}
+		} else if (hw->wakeup_source == true) {
+			disable_irq_wake(hw->irq_emb);
 
-		/* clean wake-up source */
-		err = regmap_read(hw->regmap,
-				  ST_ASM330LHHX_REG_WAKE_UP_SRC_ADDR,
-				  &hw->wakeup_status);
-		if (err < 0)
-			return err;
+			/* set accel sensor in power down */
+			err = regmap_update_bits(hw->regmap,
+					st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.addr,
+					st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.mask,
+					ST_ASM330LHHX_SHIFT_VAL(0x00,
+						st_asm330lhhx_odr_table[ST_ASM330LHHX_ID_ACC].reg.mask));
 
-		/* unmask only bits: WU_IA, X_WU, Y_WU and Z_WU */
-		hw->wakeup_status &= ST_ASM330LHHX_WAKE_UP_EVENT_MASK;
+
+			/* clean wake-up source */
+			err = regmap_read(hw->regmap,
+					  ST_ASM330LHHX_REG_WAKE_UP_SRC_ADDR,
+					  &hw->wakeup_status);
+			if (err < 0)
+				return err;
+
+			/* unmask only bits: WU_IA, X_WU, Y_WU and Z_WU */
+			hw->wakeup_status &= ST_ASM330LHHX_WAKE_UP_EVENT_MASK;
 
 #if defined(CONFIG_IIO_ST_ASM330LHHX_STORE_SAMPLE_FIFO_SUSPEND)
-		/* flush fifo data to user space */
-		st_asm330lhhx_reset_hwts(hw);
-		set_bit(ST_ASM330LHHX_HW_FLUSH, &hw->state);
-		st_asm330lhhx_flush_fifo_during_resume(hw);
-		clear_bit(ST_ASM330LHHX_HW_OPERATIONAL, &hw->state);
+			/* flush fifo data to user space */
+			st_asm330lhhx_reset_hwts(hw);
+			set_bit(ST_ASM330LHHX_HW_FLUSH, &hw->state);
+			st_asm330lhhx_flush_fifo_during_resume(hw);
+			clear_bit(ST_ASM330LHHX_HW_OPERATIONAL, &hw->state);
 #endif /* CONFIG_IIO_ST_ASM330LHHX_STORE_SAMPLE_FIFO_SUSPEND */
 
+		}
 	}
 
 	err = st_asm330lhhx_restore_regs(hw);
