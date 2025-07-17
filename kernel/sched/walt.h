@@ -312,7 +312,7 @@ static inline void walt_enable_frequency_aggregation(bool enable)
 }
 
 #else /* CONFIG_SCHED_WALT */
-
+#define trace_sched_load_balance_skip_tasks(...)
 static inline void walt_sched_init_rq(struct rq *rq) { }
 
 static inline void walt_rotate_work_init(void) { }

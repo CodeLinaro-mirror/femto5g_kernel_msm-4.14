@@ -7770,6 +7770,8 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 		 * next cluster if they are higher in capacity. If we are
 		 * not in any kind of boost, we break.
 		 */
+
+#ifdef CONFIG_SCHED_WALT
 		if (!prefer_idle && !boosted &&
 			(target_cpu != -1 || best_idle_cpu != -1) &&
 			(fbt_env->placement_boost == SCHED_BOOST_NONE ||
@@ -7777,6 +7779,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 			(fbt_env->placement_boost == SCHED_BOOST_ON_BIG &&
 				!next_group_higher_cap)))
 			break;
+#endif
 
 		/*
 		 * if we are in prefer_idle and have found an idle cpu,
@@ -11166,7 +11169,9 @@ no_move:
 				busiest->active_balance = 1;
 				busiest->push_cpu = this_cpu;
 				active_balance = 1;
-				mark_reserved(this_cpu);
+#ifdef CONFIG_SCHED_WALT
+					mark_reserved(this_cpu);
+#endif
 			}
 			raw_spin_unlock_irqrestore(&busiest->lock, flags);
 
@@ -13030,9 +13035,10 @@ static void walt_check_for_rotation(struct rq *src_rq)
 	if (dst_rq->curr->sched_class == &fair_sched_class) {
 		get_task_struct(src_rq->curr);
 		get_task_struct(dst_rq->curr);
-
-		mark_reserved(src_cpu);
-		mark_reserved(dst_cpu);
+#ifdef CONFIG_SCHED_WALT
+			mark_reserved(src_cpu);
+			mark_reserved(dst_cpu);
+#endif
 		wr = &per_cpu(walt_rotate_works, src_cpu);
 
 		wr->src_task = src_rq->curr;
@@ -13077,7 +13083,9 @@ void check_for_migration(struct rq *rq, struct task_struct *p)
 					capacity_orig_of(prev_cpu))) {
 			active_balance = kick_active_balance(rq, p, new_cpu);
 			if (active_balance) {
-				mark_reserved(new_cpu);
+#ifdef CONFIG_SCHED_WALT
+					mark_reserved(new_cpu);
+#endif
 				raw_spin_unlock(&migration_lock);
 				stop_one_cpu_nowait(prev_cpu,
 					active_load_balance_cpu_stop, rq,
