@@ -1,5 +1,5 @@
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8690,6 +8690,8 @@ static int ipa_smmu_ap_cb_probe(struct device *dev)
 	phys_addr_t pa;
 	u32 geometry_mapping[2];
 	struct iommu_domain_geometry geometry = {0};
+	u32 geometry_ap_mapping[2];
+	u32 wlan_ap_mapping;
 
 	IPADBG("AP CB probe: sub pdev=%pK\n", dev);
 
@@ -8711,6 +8713,20 @@ static int ipa_smmu_ap_cb_probe(struct device *dev)
 	cb->va_size = iova_ap_mapping[1];
 	cb->va_end = cb->va_start + cb->va_size;
 	IPADBG("AP va_start=0x%x va_sise=0x%x\n", cb->va_start, cb->va_size);
+
+        if (of_property_read_u32_array(
+			dev->of_node, "qcom,geometry-mapping",
+			geometry_ap_mapping, 2) == 0) {
+		cb->geometry_start = geometry_ap_mapping[0];
+		cb->geometry_end  = geometry_ap_mapping[1];
+	}
+
+	IPADBG("AP CB PROBE dev=%pK geometry_start=0x%x geometry_end=0x%x\n",
+		   dev, cb->geometry_start, cb->geometry_end);
+	if (of_property_read_u32(
+			dev->of_node, "qcom,iova-wlan-end",
+			&wlan_ap_mapping) == 0)
+		cb->wlan_va_end = wlan_ap_mapping;
 
 	if (smmu_info.use_64_bit_dma_mask) {
 		if (dma_set_mask(dev, DMA_BIT_MASK(64)) ||
