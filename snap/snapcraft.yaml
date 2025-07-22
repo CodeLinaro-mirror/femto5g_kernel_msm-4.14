@@ -57,7 +57,7 @@ parts:
   # can marginally reduce kernel snap size.
   kernel:
     plugin: kernel
-    kernel-kdefconfig: [ "imx_snappy_defconfig" ]
+    kernel-kconfigflavour: imx
     kernel-image-target:
       arm64: Image
       armhf: zImage
