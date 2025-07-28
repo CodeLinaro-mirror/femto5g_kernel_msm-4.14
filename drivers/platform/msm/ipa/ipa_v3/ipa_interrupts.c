@@ -1,5 +1,7 @@
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -120,7 +122,10 @@ static int ipa3_handle_interrupt(int irq_num, bool isr_context)
 	switch (interrupt_info.interrupt) {
 	case IPA_TX_SUSPEND_IRQ:
 		IPADBG_LOW("processing TX_SUSPEND interrupt\n");
-		ipa3_tx_suspend_interrupt_wa();
+		if(ipa3_ctx->ipa_hw_type == IPA_HW_v3_0)
+		{
+			ipa3_tx_suspend_interrupt_wa();
+		}
 		suspend_data = ipahal_read_reg_n(IPA_SUSPEND_IRQ_INFO_EE_n,
 			ipa_ee);
 		IPADBG_LOW("get interrupt %d\n", suspend_data);
