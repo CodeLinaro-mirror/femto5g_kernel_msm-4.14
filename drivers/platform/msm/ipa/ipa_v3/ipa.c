@@ -4432,7 +4432,7 @@ int _ipa_init_sram_v3(void)
 		ipa3_sram_set_canary(ipa_sram_mmio, IPA_MEM_PART(modem_ofst));
 	}
 	ipa3_sram_set_canary(ipa_sram_mmio,
-		(ipa_get_hw_type() >= IPA_HW_v3_5) ?
+		(ipa_get_hw_type() >= IPA_HW_v3_5 && ipa_get_hw_type() != IPA_HW_v4_5) ?
 			IPA_MEM_PART(uc_descriptor_ram_ofst) :
 			IPA_MEM_PART(end_ofst));
 
