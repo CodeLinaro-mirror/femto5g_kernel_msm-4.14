@@ -61,6 +61,8 @@ struct msm_rpm_master_stats_platform_data {
 	 * driver reads (32 * num_masters) bytes to display
 	 * master stats.
 	 */
+	struct kobject *kobj;
+	struct kobj_attribute ka;
 	s32 num_masters;
 	u32 master_offset;
 	u32 version;
@@ -92,20 +94,6 @@ struct msm_rpm_master_stats_private_data {
 	char buf[RPM_MASTERS_BUF_LEN];
 	struct msm_rpm_master_stats_platform_data *platform_data;
 };
-
-static int msm_rpm_master_stats_file_close(struct inode *inode,
-		struct file *file)
-{
-	struct msm_rpm_master_stats_private_data *private = file->private_data;
-
-	mutex_lock(&msm_rpm_master_stats_mutex);
-	if (private->reg_base)
-		iounmap(private->reg_base);
-	kfree(file->private_data);
-	mutex_unlock(&msm_rpm_master_stats_mutex);
-
-	return 0;
-}
 
 static int msm_rpm_master_copy_stats(
 		struct msm_rpm_master_stats_private_data *prvdata)
@@ -279,6 +267,21 @@ static int msm_rpm_master_copy_stats(
 	return RPM_MASTERS_BUF_LEN - count;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int msm_rpm_master_stats_file_close(struct inode *inode,
+		struct file *file)
+{
+	struct msm_rpm_master_stats_private_data *private = file->private_data;
+
+	mutex_lock(&msm_rpm_master_stats_mutex);
+	if (private->reg_base)
+		iounmap(private->reg_base);
+	kfree(file->private_data);
+	mutex_unlock(&msm_rpm_master_stats_mutex);
+
+	return 0;
+}
+
 static ssize_t msm_rpm_master_stats_file_read(struct file *file,
 				char __user *bufu, size_t count, loff_t *ppos)
 {
@@ -365,6 +368,74 @@ static const struct file_operations msm_rpm_master_stats_fops = {
 	.release  = msm_rpm_master_stats_file_close,
 	.llseek   = no_llseek,
 };
+#else
+static ssize_t stats_file_read(struct kobject *obj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct msm_rpm_master_stats_private_data *prvdata;
+	struct msm_rpm_master_stats_platform_data *pdata;
+	ssize_t ret;
+	char *bufTemp = buf;
+	int copied_length = 0;
+
+	mutex_lock(&msm_rpm_master_stats_mutex);
+
+	pdata = container_of(attr,
+				struct msm_rpm_master_stats_platform_data, ka);
+
+	prvdata = kzalloc(sizeof(struct msm_rpm_master_stats_private_data),
+								GFP_KERNEL);
+	if (!prvdata) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	prvdata->reg_base = ioremap(pdata->phys_addr_base, pdata->phys_size);
+	if (!prvdata->reg_base) {
+		pr_err("%s: ERROR could not ioremap start=%pa, len=%u\n",
+			__func__, &pdata->phys_addr_base,
+			pdata->phys_size);
+		ret = -EBUSY;
+		goto prvdata_free;
+	}
+
+	prvdata->len = 0;
+	prvdata->num_masters = pdata->num_masters;
+	prvdata->master_names = pdata->masters;
+	prvdata->platform_data = pdata;
+
+	do {
+		prvdata->len = msm_rpm_master_copy_stats(prvdata);
+		copied_length += prvdata->len;
+		memcpy(bufTemp, prvdata->buf, prvdata->len);
+		bufTemp += (sizeof(char))*prvdata->len;
+	} while (prvdata->len);
+
+	iounmap(prvdata->reg_base);
+prvdata_free:
+	kfree(prvdata);
+	prvdata = NULL;
+exit:
+	mutex_unlock(&msm_rpm_master_stats_mutex);
+
+	return copied_length;
+}
+
+static int master_stats_create_sysfs(struct platform_device *pdev,
+			struct msm_rpm_master_stats_platform_data *pdata)
+{
+	pdata->kobj = kobject_create_and_add("rpm_master_stats", power_kobj);
+	if (!pdata->kobj)
+		return -ENOMEM;
+
+	sysfs_attr_init(&pdata->ka.attr);
+	pdata->ka.attr.mode = 0444;
+	pdata->ka.attr.name = "stats";
+	pdata->ka.show = stats_file_read;
+
+	return sysfs_create_file(kpdata->obj, &pdata->ka.attr);
+}
+#endif
 
 static struct msm_rpm_master_stats_platform_data
 			*msm_rpm_master_populate_pdata(struct device *dev)
@@ -425,9 +496,12 @@ err:
 
 static  int msm_rpm_master_stats_probe(struct platform_device *pdev)
 {
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *dent;
+#endif
 	struct msm_rpm_master_stats_platform_data *pdata;
 	struct resource *res = NULL;
+	int ret;
 
 	if (!pdev)
 		return -EINVAL;
@@ -454,6 +528,7 @@ static  int msm_rpm_master_stats_probe(struct platform_device *pdev)
 	pdata->phys_addr_base = res->start;
 	pdata->phys_size = resource_size(res);
 
+#ifdef CONFIG_DEBUG_FS
 	dent = debugfs_create_file("rpm_master_stats", 0444, NULL,
 					pdata, &msm_rpm_master_stats_fops);
 
@@ -464,15 +539,32 @@ static  int msm_rpm_master_stats_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, dent);
+#else
+
+	ret = master_stats_create_sysfs(pdev, pdata);
+	if (ret) {
+		pr_err("Failed to create sysfs interface\n");
+		return ret;
+	}
+	platform_set_drvdata(pdev, pdata);
+#endif
 	return 0;
 }
 
 static int msm_rpm_master_stats_remove(struct platform_device *pdev)
 {
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *dent;
 
 	dent = platform_get_drvdata(pdev);
 	debugfs_remove(dent);
+#else
+	struct msm_rpm_master_stats_platform_data *pdata;
+
+	pdata = platform_get_drvdata(pdev);
+	sysfs_remove_file(pdata->ktobj, &pdata->ka.attr);
+	kobject_put(pdata->kobj);
+#endif
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
