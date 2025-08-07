@@ -1172,9 +1172,14 @@ ssize_t st_asm330lhhx_set_fsm_threshold(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t size)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = sscanf(buf, "%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx,%hhx",
 		     &thresholds[0].th1h, &thresholds[0].th1l,
@@ -1195,9 +1200,14 @@ static ssize_t st_asm330lhhx_get_fsm_threshold(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = st_asm330lhhx_read_thresholds(hw);
 
@@ -1216,9 +1226,14 @@ ssize_t st_asm330lhhx_set_towing_jack_min_duration(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t size)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = sscanf(buf, "%hhx,%hhx,%hhx,%hhx,%hhx,%hhx",
 		     &towing_jack_min_duration[0].thh,
@@ -1240,9 +1255,14 @@ ssize_t st_asm330lhhx_get_towing_jack_min_duration(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = st_asm330lhhx_read_towing_jack_min_duration(hw);
 
@@ -1261,9 +1281,14 @@ ssize_t st_asm330lhhx_set_crash_impact_th(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t size)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = sscanf(buf, "%hhx,%hhx,%hhx,%hhx",
 		     &crash_impact_th[0].th1h,
@@ -1283,9 +1308,14 @@ ssize_t st_asm330lhhx_get_crash_impact_th(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = st_asm330lhhx_read_crash_impact_th(hw);
 
@@ -1302,9 +1332,14 @@ ssize_t st_asm330lhhx_set_crash_min_duration(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t size)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = sscanf(buf, "%hhx,%hhx",
 		     &crash_min_duration[0].thh,
@@ -1322,9 +1357,14 @@ ssize_t st_asm330lhhx_get_crash_min_duration(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct st_asm330lhhx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
-	struct st_asm330lhhx_hw *hw = sensor->hw;
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
+
+	if (!sensor)
+		return -EINVAL; // Return an error if sensor is NULL
+
+	struct st_asm330lhhx_hw *hw = sensor->hw;
 
 	ret = st_asm330lhhx_read_crash_min_duration(hw);
 
