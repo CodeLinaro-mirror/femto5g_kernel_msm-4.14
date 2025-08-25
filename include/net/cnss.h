@@ -18,7 +18,6 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/interrupt.h>
 
-#ifdef CONFIG_CNSS
 #define MAX_FIRMWARE_SIZE (1 * 1024 * 1024)
 #define CNSS_MAX_FILE_NAME	20
 #define PINCTRL_SLEEP  0
@@ -185,7 +184,6 @@ extern int cnss_pm_runtime_request(struct device *dev, enum
 		cnss_runtime_request request);
 extern void cnss_set_cc_source(enum cnss_cc_src cc_source);
 extern enum cnss_cc_src cnss_get_cc_source(void);
-#endif
 
 extern void cnss_pm_wake_lock_init(struct wakeup_source *ws, const char *name);
 extern void cnss_pm_wake_lock(struct wakeup_source *ws);

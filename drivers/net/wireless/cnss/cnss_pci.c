@@ -3922,4 +3922,4 @@ module_init(cnss_initialize);
 module_exit(cnss_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION(DEVICE "CNSS Driver");
+MODULE_DESCRIPTION("CNSS Driver");
