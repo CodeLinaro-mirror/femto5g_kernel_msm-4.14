@@ -70,6 +70,7 @@ parts:
   initrd:
     after:
       - firmware
+      - imx-firmware
       - kernel
     plugin: initrd
     initrd-firmware:
@@ -84,6 +85,8 @@ parts:
       # make sure we have all ath10 firmware files
       mkdir -p ${CRAFT_PRIME}/firmware/ath10k/QCA9377/hw1.0
       install -D ${CRAFT_STAGE}/firmware/ath10k/QCA9377/hw1.0/* ${CRAFT_PRIME}/firmware/ath10k/QCA9377/hw1.0
+      # ensure imx-firmware is included
+      cp --recursive --link --force "${CRAFT_STAGE}/firmware/imx"/* "${CRAFT_PRIME}/firmware/imx"
     prime:
       - -initrd.img*
 
@@ -116,6 +119,22 @@ parts:
     stage:
       - firmware/brcm
       - firmware/nxp
+
+  imx-firmware:
+    plugin: nil
+    override-pull: |
+      # latest firmware version can be found in
+      # https://github.com/nxp-imx/meta-imx/ -b <relevant release> in SCR-<release version>.txt
+      firmware_version="8.29-8741a3b"
+      wget https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/firmware-imx-${firmware_version}.bin \
+        -O firmware-imx.bin
+    override-build: |
+      chmod +x "${CRAFT_PART_BUILD}/firmware-imx.bin"
+      "${CRAFT_PART_BUILD}/firmware-imx.bin" --force --auto-accept
+      mkdir -p "${CRAFT_PART_INSTALL}/firmware/imx"
+      cp -r "${CRAFT_PART_BUILD}/firmware-imx-"*/firmware/* "${CRAFT_PART_INSTALL}/firmware/imx"
+    stage:
+      - -firmware/imx/ddr
 
 package-repositories:
    - type: apt
