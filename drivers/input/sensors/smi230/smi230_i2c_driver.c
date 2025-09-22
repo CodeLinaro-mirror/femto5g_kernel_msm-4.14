@@ -199,9 +199,9 @@ static void smi230_acc_i2c_remove(struct i2c_client *client)
 }
 #endif
 
-static void smi230_acc_i2c_shutdown(struct device *dev)
+static void smi230_acc_i2c_shutdown(struct i2c_client *client)
 {
-	smi230_acc_shutdown(dev);
+	smi230_acc_shutdown(&client->dev);
 }
 
 static int __maybe_unused smi230_acc_i2c_suspend(struct device *dev)
@@ -248,13 +248,13 @@ struct i2c_driver smi230_acc_driver = {
 		.owner = THIS_MODULE,
 		.name = SENSOR_ACC_NAME,
 		.of_match_table = smi230_acc_of_match,
-		.pm = &smi230_acc_i2c_pm_ops,
-		.shutdown = smi230_acc_i2c_shutdown,
+		.pm = &smi230_acc_i2c_pm_ops,		
 	},
 	.class = I2C_CLASS_HWMON,	
 	.probe = smi230_acc_i2c_probe,
 	.remove = smi230_acc_i2c_remove,	
 	.id_table = smi230_acc_id,
+	.shutdown = smi230_acc_i2c_shutdown,
 };
 #endif
 
@@ -311,9 +311,9 @@ static void smi230_gyro_i2c_remove(struct i2c_client *client)
 }
 #endif
 
-static void smi230_gyro_i2c_shutdown(struct device *dev)
+static void smi230_gyro_i2c_shutdown(struct i2c_client *client)
 {
-	smi230_gyro_shutdown(dev);
+	smi230_gyro_shutdown(&client->dev);
 }
 
 static int __maybe_unused smi230_gyro_i2c_suspend(struct device *dev)
@@ -360,12 +360,12 @@ static struct i2c_driver smi230_gyro_driver = {
 		.owner = THIS_MODULE,
 		.name  = SENSOR_GYRO_NAME,
 		.of_match_table = smi230_gyro_of_match,
-		.pm = &smi230_gyro_i2c_pm_ops,
-		.shutdown = smi230_gyro_i2c_shutdown,
+		.pm = &smi230_gyro_i2c_pm_ops,		
 	},	
 	.probe    = smi230_gyro_i2c_probe,
 	.remove    = smi230_gyro_i2c_remove,	
 	.id_table = smi230_gyro_id,
+	.shutdown = smi230_gyro_i2c_shutdown,
 };
 #endif
 
