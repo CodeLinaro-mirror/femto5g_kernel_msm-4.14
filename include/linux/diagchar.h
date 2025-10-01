@@ -172,7 +172,7 @@
 #define MSG_SSID_9			5500
 #define MSG_SSID_9_LAST			5517
 #define MSG_SSID_10			6000
-#define MSG_SSID_10_LAST		6081
+#define MSG_SSID_10_LAST		6101
 #define MSG_SSID_11			6500
 #define MSG_SSID_11_LAST		6521
 #define MSG_SSID_12			7000
