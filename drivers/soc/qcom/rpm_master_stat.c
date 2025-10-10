@@ -433,7 +433,7 @@ static int master_stats_create_sysfs(struct platform_device *pdev,
 	pdata->ka.attr.name = "stats";
 	pdata->ka.show = stats_file_read;
 
-	return sysfs_create_file(kpdata->obj, &pdata->ka.attr);
+	return sysfs_create_file(pdata->kobj, &pdata->ka.attr);
 }
 #endif
 
@@ -562,7 +562,7 @@ static int msm_rpm_master_stats_remove(struct platform_device *pdev)
 	struct msm_rpm_master_stats_platform_data *pdata;
 
 	pdata = platform_get_drvdata(pdev);
-	sysfs_remove_file(pdata->ktobj, &pdata->ka.attr);
+	sysfs_remove_file(pdata->kobj, &pdata->ka.attr);
 	kobject_put(pdata->kobj);
 #endif
 	platform_set_drvdata(pdev, NULL);
