@@ -2,7 +2,6 @@ menuconfig INPUT_SMI230
 	tristate "Bosch Sensor SMI230"
 	help
 	  if you choose this option, a list of SMI230 features will be displayed.
-
 	  If unsure, say N.
 
 choice

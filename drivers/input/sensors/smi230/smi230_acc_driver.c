@@ -54,6 +54,7 @@
 #include <linux/time64.h>
 #include <linux/timekeeping.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include "smi230.h"
 #include "smi230_data_sync.h"
@@ -2026,8 +2027,11 @@ static irqreturn_t smi230_irq_work_func(int irq, void *handle)
 static irqreturn_t smi230_irq_handle(int irq, void *handle)
 {
 	struct smi230_client_data *client_data = handle;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+	client_data->timestamp = ktime_to_ns(ktime_get_boottime());
+#else
 	client_data->timestamp = ktime_get_boottime_ns();
+#endif
 	return IRQ_WAKE_THREAD;
 }
 
