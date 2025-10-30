@@ -280146,6 +280146,14 @@ function {
   parameter_id: 0x6d7f5ff6
 }
 function {
+  id: 0x90103718
+  return_type_id: 0x6720d32f
+  parameter_id: 0x35a35647
+  parameter_id: 0x3fa672fd
+  parameter_id: 0x18bd6530
+  parameter_id: 0x2dcd339f
+}
+function {
   id: 0x9011dcad
   return_type_id: 0x6720d32f
   parameter_id: 0x391f15ea
@@ -304962,6 +304970,15 @@ elf_symbol {
   crc: 0xc63660e5
   type_id: 0xa0b53a19
   full_name: "class_find_device"
+}
+elf_symbol {
+  id: 0x9f11f727
+  name: "class_for_each_device"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x4c2df868
+  type_id: 0x90103718
+  full_name: "class_for_each_device"
 }
 elf_symbol {
   id: 0xa040a551
@@ -335945,6 +335962,7 @@ interface {
   symbol_id: 0xb5759473
   symbol_id: 0x4a8d54b6
   symbol_id: 0xe062f201
+  symbol_id: 0x9f11f727
   symbol_id: 0xa040a551
   symbol_id: 0xf91cb171
   symbol_id: 0x00d9abe7
