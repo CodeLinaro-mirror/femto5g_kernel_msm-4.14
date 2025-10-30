@@ -1,3 +1,9 @@
+linux-imx (6.8.0-1008.12) noble; urgency=medium
+  * build ubuntu-core-initramfs from canonical/snapd master branch
+  * seed patched systemd-bootchart with root switch fix
+
+ -- Ondrej Kubik <ondrej.kubik@canonical.com>  Wed, 24 Jul 2025 13:40:10 +0100
+
 linux-imx (6.8.0-1008.11) noble; urgency=medium
 
   * [i.MX FRDM] Add i.MX 8,91,93 FRDM board support
