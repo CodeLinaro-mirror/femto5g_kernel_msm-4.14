@@ -52,9 +52,6 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
-#include <linux/timer.h>
-#include <linux/jiffies.h>
-
 
 #include "smi230_driver.h"
 #include "smi230_data_sync.h"
@@ -72,9 +69,6 @@
 
 static uint8_t fifo_buf[SMI230_MAX_GYRO_FIFO_BYTES];
 #endif
-
-static struct timer_list pm_mode_timer;
-static bool is_gyro_ready = true;
 
 #ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
 #define SMI_GYRO_MAXSAMPLE       4000
@@ -228,10 +222,8 @@ static ssize_t smi230_gyro_store_pwr_cfg(struct device *dev,
 		err = smi230_gyro_set_power_mode(p_smi230_dev);
 	}
 	else {
-		is_gyro_ready = false;
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
 		err = smi230_gyro_set_power_mode(p_smi230_dev);
-		mod_timer(&pm_mode_timer, jiffies + msecs_to_jiffies(200));
 	}
 	else {
 		PERR("invalid param");
@@ -745,10 +737,6 @@ static void smi230_gyro_raw_data_ready_handle(
 	err = smi230_gyro_get_data(&gyro_data, p_smi230_dev);
 	if (err != SMI230_OK)
 		return;
-	if (is_gyro_ready == false) {
-		PINFO("gyro not ready, discard data of first 200ms period after active");
-		return;
-	}
 
 	input_event(client_data->input, EV_MSC, MSC_TIMESTAMP, ts.tv_sec);
 	input_event(client_data->input, EV_MSC, MSC_TIMESTAMP, ts.tv_nsec);
@@ -779,14 +767,7 @@ static void smi230_gyro_fifo_handle(
 		return;
 	}
 
-	if (is_gyro_ready == false) {
-		PINFO("gyro not ready, discard data of first 200ms period after active");
-		return;
-	}
-#if 0
 	PINFO("GYRO FIFO length %d", fifo_length);
-#endif
-
 	fifo.data = fifo_buf;
 	fifo.length = fifo_length;
 	err = smi230_gyro_read_fifo_data(&fifo, p_smi230_dev);
@@ -920,11 +901,6 @@ static void smi230_input_destroy(struct smi230_client_data *client_data)
 		input_free_device(dev);
 }
 
-static void pm_mode_callback(struct timer_list *t)
-{
-	is_gyro_ready = true;
-}
-
 int smi230_gyro_remove(struct device *dev)
 {
 	int err = 0;
@@ -937,7 +913,6 @@ int smi230_gyro_remove(struct device *dev)
 				&smi230_attribute_group);
 		smi230_input_destroy(client_data);
 		kfree(client_data);
-		del_timer(&pm_mode_timer);
 	}
 	return err;
 }
@@ -1122,7 +1097,6 @@ int smi230_gyro_probe(struct device *dev, struct smi230_dev *smi230_dev)
 	if (!err)
 		return err;
 
-	timer_setup(&pm_mode_timer, pm_mode_callback, 0);
 	PINFO("Sensor %s was probed successfully", SENSOR_GYRO_NAME);
 
 	return 0;
