@@ -3532,6 +3532,7 @@ static int qcom_ethqos_suspend(struct device *dev)
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 	update_marker("M - Ethernet Suspend End");
 #endif
+	priv->boot_kpi = false;
 	ETHQOSINFO("Ethernet Suspend End ret = %d\n", ret);
 
 	return ret;
