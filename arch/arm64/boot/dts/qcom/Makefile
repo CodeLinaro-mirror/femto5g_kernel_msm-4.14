@@ -493,6 +493,7 @@ dtb-$(CONFIG_ARCH_SDXPRAIRIE) += sdxprairie-mtp.dtb \
 	sdxprairie-pcie-ep-mtp.dtb \
 	sdxprairie-dsda-mtp.dtb \
 	sdxprairie-v2-mtp.dtb \
+	sdxprairie-v2-mtp-qca6174a.dtb \
 	sdxprairie-v2-mtp-cpe.dtb \
 	sdxprairie-v2-pcie-ep-mtp.dtb \
 	sdxprairie-v2-makena-pcie-ep-mtp.dtb \
