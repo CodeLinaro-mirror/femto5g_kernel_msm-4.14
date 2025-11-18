@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013, 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2025, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -798,6 +799,8 @@ EXPORT_SYMBOL_GPL(clk_rcg2_ops);
 
 const struct clk_ops clk_rcg2_floor_ops = {
 	.is_enabled = clk_rcg2_is_enabled,
+	.enable = clk_rcg2_enable,
+	.disable = clk_rcg2_disable,
 	.get_parent = clk_rcg2_get_parent,
 	.set_parent = clk_rcg2_set_parent,
 	.recalc_rate = clk_rcg2_recalc_rate,

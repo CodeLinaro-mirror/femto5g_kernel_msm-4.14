@@ -297,6 +297,11 @@ module_param(pcie_link_down_panic, uint, 0600);
 MODULE_PARM_DESC(pcie_link_down_panic,
 		 "Trigger kernel panic when PCIe link down is detected");
 
+static int __cnss_pcie_power_up(void);
+static int __cnss_pcie_power_down(void);
+static int __cnss_resume_link_state(struct pci_dev *pdev);
+static int __cnss_suspend_link_state(struct pci_dev *pdev);
+
 static void cnss_put_wlan_enable_gpio(void)
 {
 	struct cnss_wlan_gpio_info *gpio_info = &penv->gpio_info;
@@ -2604,8 +2609,6 @@ static int cnss_shutdown(const struct subsys_desc *subsys, bool force_stop)
 {
 	struct cnss_wlan_driver *wdrv;
 	struct pci_dev *pdev;
-	struct cnss_wlan_vreg_info *vreg_info;
-	struct cnss_wlan_gpio_info *gpio_info;
 	int ret = 0;
 
 	if (!penv)
@@ -2614,9 +2617,6 @@ static int cnss_shutdown(const struct subsys_desc *subsys, bool force_stop)
 	penv->recovery_in_progress = true;
 	wdrv = penv->driver;
 	pdev = penv->pdev;
-	vreg_info = &penv->vreg_info;
-	gpio_info = &penv->gpio_info;
-
 	if (!pdev) {
 		ret = -EINVAL;
 		goto cut_power;
@@ -2625,22 +2625,11 @@ static int cnss_shutdown(const struct subsys_desc *subsys, bool force_stop)
 	if (wdrv && wdrv->shutdown)
 		wdrv->shutdown(pdev);
 
-	if (penv->pcie_link_state) {
-		if (cnss_msm_pcie_pm_control(
-			MSM_PCIE_SUSPEND, cnss_get_pci_dev_bus_number(pdev),
-				pdev, PM_OPTIONS_SUSPEND_LINK_DOWN)) {
-			pr_debug("cnss: Failed to shutdown PCIe link\n");
-			ret = -EFAULT;
-		}
-		penv->saved_state = NULL;
-		penv->pcie_link_state = PCIE_LINK_DOWN;
-	}
+	if (__cnss_suspend_link_state(pdev))
+		ret = -EFAULT;
 
 cut_power:
-	cnss_configure_wlan_en_gpio(WLAN_EN_LOW);
-	if (cnss_wlan_vreg_set(vreg_info, VREG_OFF))
-		pr_err("cnss: Failed to set WLAN VREG_OFF\n");
-
+	__cnss_pcie_power_down();
 	return ret;
 }
 
@@ -2648,8 +2637,6 @@ static int cnss_powerup(const struct subsys_desc *subsys)
 {
 	struct cnss_wlan_driver *wdrv;
 	struct pci_dev *pdev;
-	struct cnss_wlan_vreg_info *vreg_info;
-	struct cnss_wlan_gpio_info *gpio_info;
 	int ret = 0;
 
 	if (!penv)
@@ -2660,17 +2647,11 @@ static int cnss_powerup(const struct subsys_desc *subsys)
 
 	wdrv = penv->driver;
 	pdev = penv->pdev;
-	vreg_info = &penv->vreg_info;
-	gpio_info = &penv->gpio_info;
 
-	ret = cnss_wlan_vreg_set(vreg_info, VREG_ON);
-	if (ret) {
-		pr_err("cnss: Failed to set WLAN VREG_ON\n");
+	ret = __cnss_pcie_power_up();
+	if (ret)
 		goto err_wlan_vreg_on;
-	}
 
-	msleep(POWER_ON_DELAY);
-	cnss_configure_wlan_en_gpio(WLAN_EN_HIGH);
 	/**
 	 *  Some platforms have wifi and other PCIE card attached with PCIE
 	 *  switch on the same RC like P5459 board(ROME 3.2 PCIE card + Ethernet
@@ -2684,32 +2665,11 @@ static int cnss_powerup(const struct subsys_desc *subsys)
 		goto err_pcie_link_up;
 	}
 
-	if (!penv->pcie_link_state) {
-		ret = cnss_msm_pcie_pm_control(
-			MSM_PCIE_RESUME,
-			cnss_get_pci_dev_bus_number(pdev),
-			pdev, PM_OPTIONS_RESUME_LINK_DOWN);
-
-		if (ret) {
-			pr_err("cnss: Failed to bring-up PCIe link\n");
-			goto err_pcie_link_up;
-		}
-		penv->pcie_link_state = PCIE_LINK_UP;
-		ret = cnss_msm_pcie_recover_config(penv->pdev);
-		if (ret) {
-			pr_err("cnss: PCI link failed to recover\n");
-			goto err_pcie_link_up;
-		}
-		penv->pcie_link_down_ind = false;
-	}
+	ret = __cnss_resume_link_state(pdev);
+	if (ret)
+		goto err_pcie_link_up;
 
 	if (wdrv && wdrv->reinit) {
-		if (penv->saved_state)
-			cnss_pci_load_and_free_saved_state(
-				pdev, &penv->saved_state);
-
-		pci_restore_state(pdev);
-
 		ret = wdrv->reinit(pdev, penv->id);
 		if (ret) {
 			pr_err("%d: Failed to do reinit\n", __LINE__);
@@ -2737,8 +2697,7 @@ err_wlan_reinit:
 	penv->pcie_link_state = PCIE_LINK_DOWN;
 
 err_pcie_link_up:
-	cnss_configure_wlan_en_gpio(WLAN_EN_LOW);
-	cnss_wlan_vreg_set(vreg_info, VREG_OFF);
+	__cnss_pcie_power_down();
 	if (penv->pdev) {
 		if (wdrv && wdrv->update_status)
 			wdrv->update_status(penv->pdev, CNSS_SSR_FAIL);
@@ -3611,10 +3570,9 @@ static void __cnss_set_auto_suspend(struct device *dev, int val)
 	atomic_set(&penv->auto_suspended, val);
 }
 
-static int __cnss_resume_link(struct device *dev, u32 flags)
+static int __cnss_resume_link(struct pci_dev *pdev, u32 flags)
 {
 	int ret;
-	struct pci_dev *pdev = to_pci_dev(dev);
 	u8 bus_num = cnss_get_pci_dev_bus_number(pdev);
 
 	ret = cnss_msm_pcie_pm_control(MSM_PCIE_RESUME, bus_num, pdev, flags);
@@ -3627,9 +3585,8 @@ static int __cnss_resume_link(struct device *dev, u32 flags)
 	return ret;
 }
 
-static int __cnss_suspend_link(struct device *dev, u32 flags)
+static int __cnss_suspend_link(struct pci_dev *pdev, u32 flags)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	u8 bus_num = cnss_get_pci_dev_bus_number(pdev);
 	int ret;
 
@@ -3647,11 +3604,11 @@ static int __cnss_suspend_link(struct device *dev, u32 flags)
 	return ret;
 }
 
-static int __cnss_pcie_recover_config(struct device *dev)
+static int __cnss_pcie_recover_config(struct pci_dev *pdev)
 {
 	int ret;
 
-	ret = cnss_msm_pcie_recover_config(to_pci_dev(dev));
+	ret = cnss_msm_pcie_recover_config(pdev);
 	if (ret)
 		pr_err("%s: PCIe Recover config failed\n", __func__);
 
@@ -3703,7 +3660,7 @@ static struct pci_dev *__cnss_get_pcie_dev(struct device *dev)
 	return pdev;
 }
 
-static int __cnss_pcie_power_up(struct device *dev)
+static int __cnss_pcie_power_up(void)
 {
 	struct cnss_wlan_vreg_info *vreg_info;
 	struct cnss_wlan_gpio_info *gpio_info;
@@ -3729,7 +3686,7 @@ static int __cnss_pcie_power_up(struct device *dev)
 	return 0;
 }
 
-static int __cnss_pcie_power_down(struct device *dev)
+static int __cnss_pcie_power_down(void)
 {
 	struct cnss_wlan_vreg_info *vreg_info;
 	struct cnss_wlan_gpio_info *gpio_info;
@@ -3749,11 +3706,11 @@ static int __cnss_pcie_power_down(struct device *dev)
 	return ret;
 }
 
-static int __cnss_suspend_link_state(struct device *dev)
+static int __cnss_suspend_link_state(struct pci_dev *pdev)
 {
 	int ret;
-	struct pci_dev *pdev = to_pci_dev(dev);
 	int link_ind;
+	u32 flags;
 
 	if (!penv->pcie_link_state) {
 		pr_debug("%s: Link is already suspended\n", __func__);
@@ -3766,9 +3723,8 @@ static int __cnss_suspend_link_state(struct device *dev)
 		pci_save_state(pdev);
 
 	penv->saved_state = link_ind ? NULL : cnss_pci_store_saved_state(pdev);
-
-	ret = link_ind ? __cnss_suspend_link(dev, PM_OPTIONS_SUSPEND_LINK_DOWN)
-		: __cnss_suspend_link(dev, PM_OPTIONS);
+	flags = link_ind ? PM_OPTIONS_SUSPEND_LINK_DOWN : PM_OPTIONS;
+	ret = __cnss_suspend_link(pdev, flags);
 	if (ret) {
 		pr_err("%s: Link Suspend failed in state:%s\n", __func__,
 		       link_ind ? "LINK_DOWN" : "LINK_ACTIVE");
@@ -3780,9 +3736,8 @@ static int __cnss_suspend_link_state(struct device *dev)
 	return 0;
 }
 
-static int __cnss_restore_pci_config_space(struct device *dev)
+static int __cnss_restore_pci_config_space(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret = 0;
 
 	if (penv->saved_state)
@@ -3793,10 +3748,11 @@ static int __cnss_restore_pci_config_space(struct device *dev)
 	return ret;
 }
 
-static int __cnss_resume_link_state(struct device *dev)
+static int __cnss_resume_link_state(struct pci_dev *pdev)
 {
 	int ret;
 	int link_ind;
+	u32 flags;
 
 	if (penv->pcie_link_state) {
 		pr_debug("%s: Link is already in active state\n", __func__);
@@ -3804,10 +3760,8 @@ static int __cnss_resume_link_state(struct device *dev)
 	}
 
 	link_ind = penv->pcie_link_down_ind;
-
-	ret = link_ind ? __cnss_resume_link(dev, PM_OPTIONS_RESUME_LINK_DOWN) :
-		__cnss_resume_link(dev, PM_OPTIONS);
-
+	flags = link_ind ? PM_OPTIONS_RESUME_LINK_DOWN : PM_OPTIONS;
+	ret = __cnss_resume_link(pdev, flags);
 	if (ret) {
 		pr_err("%s: Resume Link failed in link state:%s\n", __func__,
 		       link_ind ? "LINK_DOWN" : "LINK_ACTIVE");
@@ -3816,8 +3770,8 @@ static int __cnss_resume_link_state(struct device *dev)
 
 	penv->pcie_link_state = PCIE_LINK_UP;
 
-	ret = link_ind ?  __cnss_pcie_recover_config(dev) :
-		__cnss_restore_pci_config_space(dev);
+	ret = link_ind ?  __cnss_pcie_recover_config(pdev) :
+		__cnss_restore_pci_config_space(pdev);
 
 	if (ret) {
 		pr_err("%s: Link Recovery Config Failed link_state:%s\n",
@@ -3840,7 +3794,7 @@ int cnss_pcie_power_up(struct device *dev)
 		return -ENODEV;
 	}
 
-	ret = __cnss_pcie_power_up(dev);
+	ret = __cnss_pcie_power_up();
 	if (ret) {
 		pr_err("%s: Power UP Failed\n", __func__);
 		return ret;
@@ -3857,7 +3811,7 @@ int cnss_pcie_power_up(struct device *dev)
 	if (ret)
 		pr_err("%s: PCIe event registration failed\n", __func__);
 
-	ret = __cnss_resume_link_state(dev);
+	ret = __cnss_resume_link_state(pdev);
 
 	if (ret) {
 		pr_err("%s: Link Bring Up Failed\n", __func__);
@@ -3871,7 +3825,7 @@ int cnss_pcie_power_up(struct device *dev)
 event_dereg:
 	__cnss_event_dereg(dev);
 power_down:
-	__cnss_pcie_power_down(dev);
+	__cnss_pcie_power_down();
 	pr_err("%s: Device Power Up Failed Fatal Error\n", __func__);
 	return ret;
 }
@@ -3894,14 +3848,14 @@ int cnss_pcie_power_down(struct device *dev)
 
 	if (!pdev) {
 		pr_err("%s: Invalid Pdev, Cut Power to device\n", __func__);
-		__cnss_pcie_power_down(dev);
+		__cnss_pcie_power_down();
 		return -ENODEV;
 	}
 
 	__cnss_vote_bus_width(dev, CNSS_BUS_WIDTH_NONE);
 	__cnss_event_dereg(dev);
 
-	ret = __cnss_suspend_link_state(dev);
+	ret = __cnss_suspend_link_state(pdev);
 
 	if (ret) {
 		pr_err("%s: Suspend Link failed\n", __func__);
@@ -3911,7 +3865,7 @@ int cnss_pcie_power_down(struct device *dev)
 	__cnss_set_pcie_monitor_intr(dev, false);
 	__cnss_set_auto_suspend(dev, 0);
 
-	ret = __cnss_pcie_power_down(dev);
+	ret = __cnss_pcie_power_down();
 	if (ret)
 		pr_err("%s: Power Down Failed\n", __func__);
 
@@ -3922,4 +3876,4 @@ module_init(cnss_initialize);
 module_exit(cnss_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION(DEVICE "CNSS Driver");
+MODULE_DESCRIPTION("CNSS Driver");

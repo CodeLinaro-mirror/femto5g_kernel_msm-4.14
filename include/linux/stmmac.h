@@ -211,6 +211,7 @@ struct plat_stmmacenet_data {
 	unsigned int clk_ref_rate;
 	struct reset_control *stmmac_rst;
 	struct stmmac_axi *axi;
+	bool clks_suspended;
 	int has_gmac4;
 	bool has_sun8i;
 	bool tso_en;
