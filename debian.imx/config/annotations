@@ -137,6 +137,8 @@ CONFIG_XEN_NETDEV_FRONTEND                      note<'not autoloadable -- XEN pa
 CONFIG_ZONE_DMA                                 policy<{'arm64': 'y', 'armhf': '-'}>
 CONFIG_ZONE_DMA                                 note<'TODO: update note'>
 
+CONFIG_ZRAM                                     policy<{'arm64': 'y', 'armhf': 'y'}>
+CONFIG_ZRAM                                     note<'required by systemd in 26.04'>
 
 # ---- Annotations without notes ----
 
