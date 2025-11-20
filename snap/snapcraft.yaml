@@ -2,7 +2,7 @@
 # Copyright (C) 2021 Canonical Ltd
 name: imx-kernel
 type: kernel
-build-base: core24
+build-base: core26
 adopt-info: kernel
 summary: The i.MX family Linux kernel
 description: |
@@ -24,7 +24,7 @@ description: |
   You can find any and all licenses for the contents of this snap at the following locations:
 
   kernel:             https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble
-  linux-firmware:     https://git.launchpad.net/ubuntu/+source/linux-firmware/tree/?h=applied/ubuntu/noble
+  linux-firmware:     https://git.launchpad.net/ubuntu/+source/linux-firmware/tree/?h=applied/ubuntu/resolute
 
   Additional licenses can also be found within this snap in the licenses/ top-level directory.
 
@@ -324,7 +324,7 @@ package-repositories:
      architectures: [$CRAFT_ARCH_BUILD_FOR]
      formats: [deb, deb-src]
      components: [main]
-     suites: [noble, noble-updates, noble-backports]
+     suites: [resolute, resolute-updates, resolute-backports]
      key-id: F6ECB3762474EDA9D21B7022871920D1991BC93C
      url: http://ports.ubuntu.com/ubuntu-ports
 
