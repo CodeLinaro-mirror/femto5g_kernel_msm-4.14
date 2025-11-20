@@ -1,3 +1,8 @@
+linux-imx (6.8.0-1008.13) noble; urgency=medium
+  * move to build-base core26
+
+ -- Ondrej Kubik <ondrej.kubik@canonical.com>  Wed, 19 Nov 2025 13:34:47 +0100
+
 linux-imx (6.8.0-1008.12) noble; urgency=medium
   * build ubuntu-core-initramfs from canonical/snapd master branch
   * seed patched systemd-bootchart with root switch fix
