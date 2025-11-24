@@ -787,10 +787,18 @@ int smi230_gyro_remove(struct device *dev)
 int smi230_gyro_shutdown(struct device *dev)
 {
 	int ret = 0;
+	struct smi230_client_data *client_data = dev_get_drvdata(dev);
+
+	/* Disable IRQ to prevent new threaded handlers */
+	disable_irq(client_data->IRQ);
+
 	mutex_lock(&interrupt_handling_lock);
 	p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_DEEP_SUSPEND;
 	ret = smi230_gyro_set_power_mode(p_smi230_dev);
 	mutex_unlock(&interrupt_handling_lock);
+
+	/* Free IRQ to ensure no handler runs after shutdown */
+	free_irq(client_data->IRQ, client_data);
 	return ret;
 }
 
@@ -992,6 +1000,8 @@ exit_directly:
 int smi230_gyro_suspend(struct device *dev)
 {
 	int ret = 0;
+	//backup the power mode before sleeping
+	p_smi230_dev->gyro_cfg.power_bak = p_smi230_dev->gyro_cfg.power;
 	mutex_lock(&interrupt_handling_lock);
 	if (p_smi230_dev->gyro_sus_etr == SMI230_GYRO_SUSPEND) {
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_SUSPEND;
@@ -1007,7 +1017,8 @@ int smi230_gyro_resume(struct device *dev)
 {
 	int ret = 0;
 	mutex_lock(&interrupt_handling_lock);
-	p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
+	// restore the powermode before sleeping
+	p_smi230_dev->gyro_cfg.power = p_smi230_dev->gyro_cfg.power_bak;
 	ret = smi230_gyro_set_power_mode(p_smi230_dev);
 	mutex_unlock(&interrupt_handling_lock);
 	return ret;
@@ -1016,6 +1027,8 @@ int smi230_gyro_resume(struct device *dev)
 int smi230_gyro_freeze(struct device *dev)
 {
 	int ret = 0;
+	//backup the power mode before freezing
+	p_smi230_dev->gyro_cfg.power_bak = p_smi230_dev->gyro_cfg.power;
 	mutex_lock(&interrupt_handling_lock);
 	if (p_smi230_dev->gyro_frez_etr == SMI230_GYRO_SUSPEND) {
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_SUSPEND;
@@ -1031,7 +1044,8 @@ int smi230_gyro_restore(struct device *dev)
 {
 	int ret = 0;
 	mutex_lock(&interrupt_handling_lock);
-	p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
+	// restore the powermode before freezing
+	p_smi230_dev->gyro_cfg.power = p_smi230_dev->gyro_cfg.power_bak;
 	ret = smi230_gyro_set_power_mode(p_smi230_dev);
 	mutex_unlock(&interrupt_handling_lock);
 	return ret;
