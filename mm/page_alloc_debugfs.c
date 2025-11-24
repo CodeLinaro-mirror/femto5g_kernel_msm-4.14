@@ -14,17 +14,31 @@
 #include <linux/printk.h>
 #include <linux/spinlock.h>
 
+static inline void create_migrate_type_subdirs(struct dentry *orderdir)
+{
+	struct dentry *migratedir;
+	char dirname[24];
+
+	for (int mtype = 0; mtype < MIGRATE_TYPES; mtype++) {
+		snprintf(dirname, sizeof(dirname), "migrate-%s", migratetype_names[mtype]);
+		migratedir = debugfs_create_dir(dirname, orderdir);
+	}
+}
 
 static inline void create_page_orders_subdirs(struct zone *zone, struct dentry *zonedir)
 {
 	struct dentry *orderdir;
+	struct free_area *free_area;
 	char dirname[12];
 
 	for (int order = 0; order < NR_PAGE_ORDERS; order++) {
+		free_area = &(zone->free_area[order]);
 		snprintf(dirname, sizeof(dirname), "order-%d", order);
 		orderdir = debugfs_create_dir(dirname, zonedir);
+		create_migrate_type_subdirs(orderdir);
 	}
 }
+
 static inline void create_zones_subdirs(struct pglist_data *pgdata, struct dentry *nodedir)
 {
 	struct dentry *zonedir;
