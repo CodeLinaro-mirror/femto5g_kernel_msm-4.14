@@ -14,6 +14,17 @@
 #include <linux/printk.h>
 #include <linux/spinlock.h>
 
+
+static inline void create_page_orders_subdirs(struct zone *zone, struct dentry *zonedir)
+{
+	struct dentry *orderdir;
+	char dirname[12];
+
+	for (int order = 0; order < NR_PAGE_ORDERS; order++) {
+		snprintf(dirname, sizeof(dirname), "order-%d", order);
+		orderdir = debugfs_create_dir(dirname, zonedir);
+	}
+}
 static inline void create_zones_subdirs(struct pglist_data *pgdata, struct dentry *nodedir)
 {
 	struct dentry *zonedir;
@@ -29,6 +40,7 @@ static inline void create_zones_subdirs(struct pglist_data *pgdata, struct dentr
 		snprintf(dirname, sizeof(dirname), "zone-%s", zone->name);
 		spin_lock_irqsave(&zone->lock, flags);
 		zonedir = debugfs_create_dir(dirname, nodedir);
+		create_page_orders_subdirs(zone, zonedir);
 		spin_unlock_irqrestore(&zone->lock, flags);
 	}
 }
