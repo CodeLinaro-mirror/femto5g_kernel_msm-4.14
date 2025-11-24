@@ -9,8 +9,29 @@
 
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
+#include <linux/mmzone.h>
 #include <linux/nodemask.h>
 #include <linux/printk.h>
+#include <linux/spinlock.h>
+
+static inline void create_zones_subdirs(struct pglist_data *pgdata, struct dentry *nodedir)
+{
+	struct dentry *zonedir;
+	struct zone *zone;
+	struct zone *node_zones = pgdata->node_zones;
+	unsigned long flags;
+	char dirname[24];
+
+	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+		if (!populated_zone(zone))
+			continue;
+
+		snprintf(dirname, sizeof(dirname), "zone-%s", zone->name);
+		spin_lock_irqsave(&zone->lock, flags);
+		zonedir = debugfs_create_dir(dirname, nodedir);
+		spin_unlock_irqrestore(&zone->lock, flags);
+	}
+}
 
 static inline void create_nodes_subdirs(struct dentry *mmdir)
 {
@@ -19,8 +40,11 @@ static inline void create_nodes_subdirs(struct dentry *mmdir)
 	char dirname[12];
 
 	for_each_online_node(nodeid) {
+		struct pglist_data *pgdata = NODE_DATA(nodeid);
+
 		snprintf(dirname, sizeof(dirname), "node-%d", nodeid);
 		nodedir = debugfs_create_dir(dirname, mmdir);
+		create_zones_subdirs(pgdata, nodedir);
 	}
 }
 
