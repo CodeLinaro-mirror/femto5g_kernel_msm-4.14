@@ -27,9 +27,9 @@
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
-#include <linux/fdtable.h>
 
 #ifndef __GENKSYMS__
+#include <linux/fdtable.h>
 #include <trace/events/kmem.h>
 #endif
 #include <trace/hooks/dmabuf.h>
@@ -531,7 +531,7 @@ int copy_dmabuf_info(u64 clone_flags, struct task_struct *task)
 
 		if (task->mm) {
 			refcount_inc(&task->dmabuf_info->refcnt);
-			task->mm->dmabuf_info = task->dmabuf_info;
+			task->mm->abi_extend->dmabuf_info = task->dmabuf_info;
 		}
 
 		if (task->files) {
@@ -553,7 +553,7 @@ int copy_dmabuf_info(u64 clone_flags, struct task_struct *task)
 
 	if (task->mm) {
 		refcount_inc(&child_dmabuf_info->refcnt);
-		task->mm->dmabuf_info = child_dmabuf_info;
+		task->mm->abi_extend->dmabuf_info = child_dmabuf_info;
 	}
 	if (task->files) {
 		refcount_inc(&child_dmabuf_info->refcnt);
@@ -667,7 +667,7 @@ static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 
 	ret = dmabuf->ops->mmap(dmabuf, vma);
 	if (!ret) {
-		int err = dma_buf_account_task(dmabuf, vma->vm_mm->dmabuf_info);
+		int err = dma_buf_account_task(dmabuf, vma->vm_mm->abi_extend->dmabuf_info);
 
 		if (err)
 			pr_err("dmabuf accounting failed during mmap operation, err %d\n", err);
@@ -2029,7 +2029,7 @@ int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 
 	ret = dmabuf->ops->mmap(dmabuf, vma);
 	if (!ret) {
-		int err = dma_buf_account_task(dmabuf, vma->vm_mm->dmabuf_info);
+		int err = dma_buf_account_task(dmabuf, vma->vm_mm->abi_extend->dmabuf_info);
 
 		if (err)
 			pr_err("dmabuf accounting failed during mmap operation, err %d\n", err);
