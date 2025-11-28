@@ -819,6 +819,10 @@
   __drm_atomic_state_free
   drm_atomic_state_init
   drm_av_sync_delay
+  drm_bridge_edid_read
+  drm_bridge_hpd_disable
+  drm_bridge_hpd_enable
+  drm_bridge_is_panel
   drm_calc_timestamping_constants
   drm_clflush_pages
   drm_clflush_sg
@@ -954,6 +958,7 @@
   drm_get_subpixel_order_name
   drm_hdmi_avi_infoframe_from_display_mode
   drm_hdmi_avi_infoframe_quant_range
+  drm_hdmi_connector_get_output_format_name
   drm_hdmi_vendor_infoframe_from_display_mode
   drm_helper_mode_fill_fb_struct
   drm_helper_move_panel_connectors_to_head
@@ -974,6 +979,8 @@
   __drmm_add_action
   __drmm_add_action_or_reset
   drm_match_cea_mode
+  drmm_connector_hdmi_init
+  drmm_connector_init
   drmm_kfree
   drmm_kmalloc
   drm_mm_init
@@ -1030,6 +1037,7 @@
   drm_object_property_set_value
   drm_open
   drm_panel_add_follower
+  drm_panel_bridge_set_orientation
   drm_panel_remove_follower
   drm_plane_add_size_hints_property
   drm_plane_cleanup
