@@ -1,5 +1,4 @@
 /* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +8,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "ipa_i.h"
@@ -80,8 +80,8 @@ static int ipa3_hdr_proc_ctx_to_hw_format(struct ipa_mem_buffer *mem,
 	list_for_each_entry(entry,
 			&ipa3_ctx->hdr_proc_ctx_tbl.head_proc_ctx_entry_list,
 			link) {
-		IPADBG_LOW("processing type %d ofst=%d\n",
-			entry->type, entry->offset_entry->offset);
+		IPADBG("processing type %d ofst=%d is_l2tp_dst_valid: %d\n",
+			entry->type, entry->offset_entry->offset, entry->l2tp_params.is_dst_pipe_valid);
 
 		if (entry->l2tp_params.is_dst_pipe_valid) {
 			ep = ipa3_get_ep_mapping(entry->l2tp_params.dst_pipe);
@@ -713,7 +713,10 @@ static int __ipa3_del_hdr_proc_ctx(u32 proc_ctx_hdl,
 		return 0;
 	}
 
-	if (release_hdr)
+	if (entry->hdr && entry == entry->hdr->proc_ctx)
+		entry->hdr->proc_ctx = NULL;
+
+	if (entry->hdr && release_hdr)
 		__ipa3_del_hdr(entry->hdr->id, false);
 
 	/* move the offset entry to appropriate free list */
@@ -772,10 +775,14 @@ int __ipa3_del_hdr(u32 hdr_hdl, bool by_user)
 		entry->user_deleted = true;
 	}
 
+
 	if (--entry->ref_cnt) {
 		IPADBG("hdr_hdl %x ref_cnt %d\n", hdr_hdl, entry->ref_cnt);
 		return 0;
 	}
+
+	if (entry->proc_ctx && entry == entry->proc_ctx->hdr)
+		entry->proc_ctx->hdr = NULL;
 
 	if (entry->is_hdr_proc_ctx || entry->proc_ctx) {
 		dma_unmap_single(ipa3_ctx->pdev,
