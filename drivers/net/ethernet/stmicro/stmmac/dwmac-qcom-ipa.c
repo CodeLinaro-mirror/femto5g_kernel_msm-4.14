@@ -2390,8 +2390,10 @@ void ethqos_ipa_offload_event_handler(void *data,
 		{
 			if (eth_ipa_ctx.ipa_offload_conn)
 				*(int *)data = false;
-			else
+			else {
 				*(int *)data = true;
+				eth_ipa_ctx.ipa_offload_link_down = true;
+			}
 		}
 		break;
 	case EV_USR_SUSPEND:
