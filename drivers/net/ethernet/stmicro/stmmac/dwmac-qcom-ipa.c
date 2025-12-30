@@ -2062,6 +2062,15 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos)
 	priv->hw->mac->map_mtl_to_dma(priv->hw, EMAC_QUEUE_0, EMAC_CHANNEL_0);
 	ETHQOSINFO("Mapped queue 0 to channel 0\n");
 
+	if (!eth_ipa_ctx.ipa_debugfs_exists) {
+		if (!ethqos_ipa_create_debugfs(eth_ipa_ctx.ethqos)) {
+			ETHQOSERR("eMAC Debugfs created\n");
+			eth_ipa_ctx.ipa_debugfs_exists = true;
+		} else {
+			ETHQOSERR("eMAC Debugfs failed\n");
+		}
+	}
+
 	ETHQOSDBG("Exit\n");
 fail:
 	return ret;
