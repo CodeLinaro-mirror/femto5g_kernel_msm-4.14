@@ -72,67 +72,17 @@
 static uint8_t fifo_buf[SMI230_MAX_ACC_FIFO_BYTES];
 #endif
 
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-#define SMI_ACC_MAXSAMPLE        5000
-#define G_MAX                    23920640
-struct smi_acc_sample {
-	int xyz[3];
-	unsigned int tsec;
-	unsigned long long tnsec;
-};
-#endif
 
 struct smi230_client_data {
 	struct device *dev;
 	struct input_dev *input;
 	int IRQ;
 	uint8_t gpio_pin;
-	uint64_t timestamp;
-	struct mutex acc_temp_read;
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-	bool read_acc_boot_sample;
-	int acc_bufsample_cnt;
-	bool acc_buffer_smi230_samples;
-	bool acc_enable;
-	struct kmem_cache *smi_acc_cachepool;
-	struct smi_acc_sample *smi230_acc_samplist[SMI_ACC_MAXSAMPLE];
-	int max_buffer_time;
-	struct input_dev *accbuf_dev;
-	int report_evt_cnt;
-	struct mutex acc_sensor_buff;
-#endif
+	struct work_struct irq_work;
 };
 
 static struct smi230_dev *p_smi230_dev;
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-static inline int smi230_check_acc_early_buff_enable_flag(
-		struct smi230_client_data *client_data)
-{
-	if (client_data->acc_buffer_smi230_samples == true)
-		return 1;
-	else
-		return 0;
-}
-static void smi230_check_acc_enable_flag(struct smi230_client_data *client_data,
-		unsigned long data)
-{
-	if (data == 0)
-		client_data->acc_enable = true;
-	else
-		client_data->acc_enable = false;
-}
-#else
-static inline int smi230_check_acc_early_buff_enable_flag(
-		struct smi230_client_data *client_data)
-{
-	return 0;
-}
-static void smi230_check_acc_enable_flag(struct smi230_client_data *client_data,
-		unsigned long data)
-{
 
-}
-#endif
 static ssize_t smi230_acc_reg_dump(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -222,20 +172,10 @@ static ssize_t smi230_acc_store_acc_pwr_cfg(struct device *dev,
 	int err = 0;
 	unsigned long pwr_cfg;
 
-<<<<<<< HEAD
-	struct smi230_client_data *client_data = dev_get_drvdata(dev);
-
-	err = kstrtoul(buf, 10, &pw_cfg);
+	err = kstrtoul(buf, 10, &pwr_cfg);
 	if (err)
 		return err;
-
-	smi230_check_acc_enable_flag(client_data, pw_cfg);
-
-	err = smi230_check_acc_early_buff_enable_flag(client_data);
-	if (err)
-		return count;
-
-	if (pw_cfg == 3) {
+	if (pwr_cfg == 3) {
 		p_smi230_dev->accel_cfg.power = SMI230_ACCEL_PM_SUSPEND;
 		err = smi230_acc_set_power_mode(p_smi230_dev);
 	}
@@ -273,23 +213,6 @@ static ssize_t smi230_acc_show_driver_version(struct device *dev,
 		"Driver version: %s\n", DRIVER_VERSION);
 }
 
-static ssize_t smi230_acc_temperature_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	int32_t sensor_temp = 0;
-	int err;
-	struct smi230_client_data *client_data = dev_get_drvdata(dev);
-
-	mutex_lock(&client_data->acc_temp_read);
-	err = smi230_acc_get_sensor_temperature(p_smi230_dev, &sensor_temp);
-	mutex_unlock(&client_data->acc_temp_read);
-	if (err != SMI230_OK)
-		return err;
-
-	return snprintf(buf, PAGE_SIZE, "temperature: %d\n", sensor_temp);
-
-}
-
 #ifdef CONFIG_SMI230_DATA_SYNC
 static ssize_t smi230_acc_show_sync_data(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -308,88 +231,6 @@ static ssize_t smi230_acc_show_sync_data(struct device *dev,
 			gyro_data.x, gyro_data.y, gyro_data.z
 			);
 }
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-static int smi_acc_read_bootsampl(struct smi230_client_data *client_data,
-		unsigned long enable_read)
-{
-	int i = 0;
-
-	client_data->acc_buffer_smi230_samples = false;
-
-	if (enable_read) {
-		for (i = 0; i < client_data->acc_bufsample_cnt; i++) {
-			PDEBUG("acc=%d,x=%d,y=%d,z=%d,sec=%d,ns=%lld\n",
-				i, client_data->smi230_acc_samplist[i]->xyz[0],
-				client_data->smi230_acc_samplist[i]->xyz[1],
-				client_data->smi230_acc_samplist[i]->xyz[2],
-				client_data->smi230_acc_samplist[i]->tsec,
-				client_data->smi230_acc_samplist[i]->tnsec);
-			input_report_abs(client_data->accbuf_dev, ABS_X,
-				client_data->smi230_acc_samplist[i]->xyz[0]);
-			input_report_abs(client_data->accbuf_dev, ABS_Y,
-				client_data->smi230_acc_samplist[i]->xyz[1]);
-			input_report_abs(client_data->accbuf_dev, ABS_Z,
-				client_data->smi230_acc_samplist[i]->xyz[2]);
-			input_report_abs(client_data->accbuf_dev, ABS_RX,
-				client_data->smi230_acc_samplist[i]->tsec);
-			input_report_abs(client_data->accbuf_dev, ABS_RY,
-				client_data->smi230_acc_samplist[i]->tnsec);
-			input_sync(client_data->accbuf_dev);
-		}
-	} else {
-		/* clean up */
-		if (client_data->acc_bufsample_cnt != 0) {
-			for (i = 0; i < SMI_ACC_MAXSAMPLE; i++)
-				kmem_cache_free(client_data->smi_acc_cachepool,
-					client_data->smi230_acc_samplist[i]);
-			kmem_cache_destroy(client_data->smi_acc_cachepool);
-			client_data->acc_bufsample_cnt = 0;
-		}
-
-	}
-	/*SYN_CONFIG indicates end of data*/
-	input_event(client_data->accbuf_dev, EV_SYN, SYN_CONFIG, 0xFFFFFFFF);
-	input_sync(client_data->accbuf_dev);
-	PDEBUG("End of acc samples bufsample_cnt=%d\n",
-			client_data->acc_bufsample_cnt);
-	return 0;
-}
-static ssize_t read_acc_boot_sample_show(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct smi230_client_data *client_data = dev_get_drvdata(dev);
-
-	return snprintf(buf, 16, "%u\n",
-			client_data->read_acc_boot_sample);
-}
-static ssize_t read_acc_boot_sample_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	int err;
-
-	struct smi230_client_data *client_data = dev_get_drvdata(dev);
-
-	unsigned long enable = 0;
-
-	err = kstrtoul(buf, 10, &enable);
-	if (err)
-		return err;
-	if (enable > 1) {
-		PERR("Invalid value of input, input=%ld\n", enable);
-		return -EINVAL;
-	}
-	mutex_lock(&client_data->acc_sensor_buff);
-	err = smi_acc_read_bootsampl(client_data, enable);
-	mutex_unlock(&client_data->acc_sensor_buff);
-	if (err)
-		return err;
-
-	client_data->read_acc_boot_sample = enable;
-	return count;
-}
-#endif
 
 static ssize_t smi230_acc_store_datasync_odr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -712,12 +553,6 @@ static DEVICE_ATTR(temp, S_IRUGO,
 	smi230_acc_show_sensor_temperature, NULL);
 static DEVICE_ATTR(driver_version, S_IRUGO,
 	smi230_acc_show_driver_version, NULL);
-static DEVICE_ATTR(temperature, 0644,
-		smi230_acc_temperature_show, NULL);
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-static DEVICE_ATTR(read_acc_boot_sample, 0644,
-		read_acc_boot_sample_show, read_acc_boot_sample_store);
-#endif
 
 static struct attribute *smi230_attributes[] = {
 	&dev_attr_regs_dump.attr,
@@ -736,10 +571,6 @@ static struct attribute *smi230_attributes[] = {
 	&dev_attr_fifo_reset.attr,
 	&dev_attr_temp.attr,
 	&dev_attr_driver_version.attr,
-	&dev_attr_temperature.attr,
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-	&dev_attr_read_acc_boot_sample.attr,
-#endif
 	NULL
 };
 
@@ -757,18 +588,15 @@ static int smi230_input_init(struct smi230_client_data *client_data)
 
 	dev->id.bustype = BUS_I2C;
 	dev->name = SENSOR_ACC_NAME;
-	//dev_set_name(&dev->dev, SENSOR_ACC_NAME);
+	dev_set_name(&dev->dev, SENSOR_ACC_NAME);
 	input_set_drvdata(dev, client_data);
 	client_data->input = dev;
 
 	input_set_capability(dev, EV_MSC, MSC_RAW);
 	input_set_capability(dev, EV_MSC, MSC_GESTURE);
-	input_set_capability(dev, EV_MSC, MSC_TIMESTAMP);
 	input_set_abs_params(dev, ABS_X, SMI230_MIN_VALUE, SMI230_MAX_VALUE, 0, 0);
 	input_set_abs_params(dev, ABS_Y, SMI230_MIN_VALUE, SMI230_MAX_VALUE, 0, 0);
 	input_set_abs_params(dev, ABS_Z, SMI230_MIN_VALUE, SMI230_MAX_VALUE, 0, 0);
-
-	mutex_init(&client_data->acc_temp_read);
 
 	err = input_register_device(dev);
 	if (err)
@@ -776,172 +604,9 @@ static int smi230_input_init(struct smi230_client_data *client_data)
 	return err;
 }
 
-<<<<<<< HEAD
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-static void store_acc_boot_sample(struct smi230_client_data *client_data,
-		int x, int y, int z, struct timespec ts)
-{
-	if (false == client_data->acc_buffer_smi230_samples)
-		return;
-	mutex_lock(&client_data->acc_sensor_buff);
-	if (ts.tv_sec <  client_data->max_buffer_time) {
-		if (client_data->acc_bufsample_cnt < SMI_ACC_MAXSAMPLE) {
-			client_data->smi230_acc_samplist[client_data
-				->acc_bufsample_cnt]->xyz[0] = x;
-			client_data->smi230_acc_samplist[client_data
-				->acc_bufsample_cnt]->xyz[1] = y;
-			client_data->smi230_acc_samplist[client_data
-				->acc_bufsample_cnt]->xyz[2] = z;
-			client_data->smi230_acc_samplist[client_data
-				->acc_bufsample_cnt]->tsec = ts.tv_sec;
-			client_data->smi230_acc_samplist[client_data
-				->acc_bufsample_cnt]->tnsec = ts.tv_nsec;
-			client_data->acc_bufsample_cnt++;
-		}
-	} else {
-		PINFO("End of ACC buffering %d\n",
-				client_data->acc_bufsample_cnt);
-		client_data->acc_buffer_smi230_samples = false;
-		if (client_data->acc_enable == false) {
-			/*set accel power mode */
-			p_smi230_dev->accel_cfg.power = SMI230_ACCEL_PM_SUSPEND;
-			smi230_acc_set_power_mode(p_smi230_dev);
-		}
-	}
-	mutex_unlock(&client_data->acc_sensor_buff);
-}
-#else
-static void store_acc_boot_sample(struct smi230_client_data *client_data,
-		int x, int y, int z, struct timespec ts)
-{
-}
-#endif
-#ifdef CONFIG_ENABLE_SMI230_ACC_GYRO_BUFFERING
-static int smi230_acc_early_buff_init(struct smi230_client_data *client_data)
-{
-	int i = 0, err = 0;
-
-	client_data->acc_bufsample_cnt = 0;
-	client_data->report_evt_cnt = 5;
-	client_data->max_buffer_time = 40;
-
-	client_data->smi_acc_cachepool = kmem_cache_create("acc_sensor_sample",
-			sizeof(struct smi_acc_sample),
-			0,
-			SLAB_HWCACHE_ALIGN, NULL);
-	if (!client_data->smi_acc_cachepool) {
-		PERR("smi_acc_cachepool cache create failed\n");
-		err = -ENOMEM;
-		return 0;
-	}
-	for (i = 0; i < SMI_ACC_MAXSAMPLE; i++) {
-		client_data->smi230_acc_samplist[i] =
-			kmem_cache_alloc(client_data->smi_acc_cachepool,
-					GFP_KERNEL);
-		if (!client_data->smi230_acc_samplist[i]) {
-			err = -ENOMEM;
-			goto clean_exit1;
-		}
-	}
-
-	client_data->accbuf_dev = input_allocate_device();
-	if (!client_data->accbuf_dev) {
-		err = -ENOMEM;
-		PERR("input device allocation failed\n");
-		goto clean_exit1;
-	}
-	client_data->accbuf_dev->name = "smi230_accbuf";
-	client_data->accbuf_dev->id.bustype = BUS_I2C;
-	input_set_events_per_packet(client_data->accbuf_dev,
-			client_data->report_evt_cnt * SMI_ACC_MAXSAMPLE);
-	set_bit(EV_ABS, client_data->accbuf_dev->evbit);
-	input_set_abs_params(client_data->accbuf_dev, ABS_X,
-			-G_MAX, G_MAX, 0, 0);
-	input_set_abs_params(client_data->accbuf_dev, ABS_Y,
-			-G_MAX, G_MAX, 0, 0);
-	input_set_abs_params(client_data->accbuf_dev, ABS_Z,
-			-G_MAX, G_MAX, 0, 0);
-	input_set_abs_params(client_data->accbuf_dev, ABS_RX,
-			-G_MAX, G_MAX, 0, 0);
-	input_set_abs_params(client_data->accbuf_dev, ABS_RY,
-			-G_MAX, G_MAX, 0, 0);
-	err = input_register_device(client_data->accbuf_dev);
-	if (err) {
-		PERR("unable to register input device %s\n",
-				client_data->accbuf_dev->name);
-		goto clean_exit2;
-	}
-
-	client_data->acc_buffer_smi230_samples = true;
-	client_data->acc_enable = false;
-
-	mutex_init(&client_data->acc_sensor_buff);
-
-	/*set accel power mode */
-	p_smi230_dev->accel_cfg.power = SMI230_ACCEL_PM_ACTIVE;
-	smi230_acc_set_power_mode(p_smi230_dev);
-
-	return 1;
-
-clean_exit2:
-	input_free_device(client_data->accbuf_dev);
-clean_exit1:
-	for (i = 0; i < SMI_ACC_MAXSAMPLE; i++)
-		kmem_cache_free(client_data->smi_acc_cachepool,
-				client_data->smi230_acc_samplist[i]);
-	kmem_cache_destroy(client_data->smi_acc_cachepool);
-	return 0;
-}
-static void smi230_acc_input_cleanup(struct smi230_client_data *client_data)
-{
-	int i = 0;
-
-	input_unregister_device(client_data->accbuf_dev);
-	input_free_device(client_data->accbuf_dev);
-	for (i = 0; i < SMI_ACC_MAXSAMPLE; i++)
-		kmem_cache_free(client_data->smi_acc_cachepool,
-				client_data->smi230_acc_samplist[i]);
-	kmem_cache_destroy(client_data->smi_acc_cachepool);
-}
-#else
-static int smi230_acc_early_buff_init(struct smi230_client_data *client_data)
-{
-	return 1;
-}
-static void smi230_acc_input_cleanup(struct smi230_client_data *client_data)
-{
-}
-#endif
-
-#ifdef CONFIG_SMI230_RAW_DATA
-static void smi230_raw_data_ready_handle(
-		struct smi230_client_data *client_data)
-{
-	struct smi230_sensor_data accel_data;
-	int err = 0;
-	struct timespec ts;
-
-	ts = ns_to_timespec(client_data->timestamp);
-
-	err = smi230_acc_get_data(&accel_data, p_smi230_dev);
-	if (err != SMI230_OK)
-		return;
-	input_event(client_data->input, EV_MSC, MSC_TIMESTAMP, ts.tv_sec);
-	input_event(client_data->input, EV_MSC, MSC_TIMESTAMP, ts.tv_nsec);
-	input_event(client_data->input, EV_MSC, MSC_GESTURE, (int)accel_data.x);
-	input_event(client_data->input, EV_MSC, MSC_GESTURE, (int)accel_data.y);
-	input_event(client_data->input, EV_MSC, MSC_GESTURE, (int)accel_data.z);
-
-	input_sync(client_data->input);
-
-	store_acc_boot_sample(client_data, accel_data.x,
-			accel_data.y, accel_data.z, ts);
-}
-#endif
-
 #ifdef CONFIG_SMI230_DATA_SYNC
 static void smi230_data_sync_ready_handle(
-		struct smi230_client_data *client_data)
+	struct smi230_client_data *client_data)
 {
 	struct smi230_sensor_data accel_data;
 	struct smi230_sensor_data gyro_data;
@@ -1052,25 +717,11 @@ static void smi230_new_data_ready_handle(
 }
 #endif
 
-uint64_t smi230_acc_get_alarm_timestamp(void)
+static void smi230_irq_work_func(struct work_struct *work)
 {
-	uint64_t ts_ap;
-	struct timespec tmp_time;
+	struct smi230_client_data *client_data =
+		container_of(work, struct smi230_client_data, irq_work);
 
-	get_monotonic_boottime(&tmp_time);
-	ts_ap = (uint64_t)tmp_time.tv_sec * 1000000000 + tmp_time.tv_nsec;
-	return ts_ap;
-}
-
-static irqreturn_t smi230_irq_work_func(int irq, void *handle)
-{
-	struct smi230_client_data *client_data = handle;
-
-	/* int status reg is not available to tell the interupt source */
-	mutex_lock(&client_data->acc_temp_read);
-#ifdef CONFIG_SMI230_RAW_DATA
-	smi230_raw_data_ready_handle(client_data);
-#endif
 #ifdef CONFIG_SMI230_ACC_FIFO
 	smi230_acc_fifo_handle(client_data);
 #else
@@ -1080,8 +731,6 @@ static irqreturn_t smi230_irq_work_func(int irq, void *handle)
 #ifdef CONFIG_SMI230_DATA_SYNC
 	smi230_data_sync_ready_handle(client_data);
 #endif
-	mutex_unlock(&client_data->acc_temp_read);
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t smi230_irq_handle(int irq, void *handle)
@@ -1089,13 +738,16 @@ static irqreturn_t smi230_irq_handle(int irq, void *handle)
 	struct smi230_client_data *client_data = handle;
 	int err = 0;
 
-	client_data->timestamp = smi230_acc_get_alarm_timestamp();
+	err = schedule_work(&client_data->irq_work);
+	if (err < 0)
+		PERR("schedule_work failed\n");
 
-	return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
 }
 
 static void smi230_free_irq(struct smi230_client_data *client_data)
 {
+	cancel_work_sync(&client_data->irq_work);
 	free_irq(client_data->IRQ, client_data);
 	gpio_free(client_data->gpio_pin);
 }
@@ -1103,6 +755,8 @@ static void smi230_free_irq(struct smi230_client_data *client_data)
 static int smi230_request_irq(struct smi230_client_data *client_data)
 {
 	int err = 0;
+
+	INIT_WORK(&client_data->irq_work, smi230_irq_work_func);
 
 	client_data->gpio_pin = of_get_named_gpio_flags(
 		client_data->dev->of_node,
@@ -1120,7 +774,7 @@ static int smi230_request_irq(struct smi230_client_data *client_data)
 		return err;
 	}
 	client_data->IRQ = gpio_to_irq(client_data->gpio_pin);
-	err = request_threaded_irq(client_data->IRQ, smi230_irq_handle, smi230_irq_work_func,
+	err = request_irq(client_data->IRQ, smi230_irq_handle,
 			IRQF_TRIGGER_RISING,
 			SENSOR_ACC_NAME, client_data);
 	if (err < 0) {
@@ -1145,7 +799,6 @@ int smi230_acc_remove(struct device *dev)
 	struct smi230_client_data *client_data = dev_get_drvdata(dev);
 
 	if (NULL != client_data) {
-		smi230_acc_input_cleanup(client_data);
 		smi230_free_irq(client_data);
 		sysfs_remove_group(&client_data->input->dev.kobj,
 				&smi230_attribute_group);
@@ -1367,10 +1020,6 @@ int smi230_acc_probe(struct device *dev, struct smi230_dev *smi230_dev)
 		PERR("Request irq failed");
 		goto exit_cleanup_sysfs;
 	}
-
-	err = smi230_acc_early_buff_init(client_data);
-	if (!err)
-		return err;
 
 	PINFO("Sensor %s was probed successfully", SENSOR_ACC_NAME);
 
