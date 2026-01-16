@@ -294,11 +294,12 @@ static BINDER_SHRINKER: Shrinker = unsafe { Shrinker::new() };
 struct BinderModule {}
 
 impl kernel::Module for BinderModule {
-    fn init(module: &'static kernel::ThisModule) -> Result<Self> {
+    fn init(_module: &'static kernel::ThisModule) -> Result<Self> {
         // SAFETY: The module initializer never runs twice, so we only call this once.
         unsafe { crate::context::CONTEXTS.init() };
 
         // SAFETY: This just accesses global booleans.
+        #[cfg(CONFIG_ANDROID_BINDER_IPC)]
         unsafe {
             #[allow(improper_ctypes)]
             extern "C" {
@@ -308,12 +309,12 @@ impl kernel::Module for BinderModule {
             }
 
             if binder_use_rust == 0 {
-                binder_remove_trace_events(module.as_ptr());
+                binder_remove_trace_events(_module.as_ptr());
                 return Ok(Self {});
             }
             if unload_binder() != 0 {
                 pr_err!("Failed to unload C Binder.");
-                binder_remove_trace_events(module.as_ptr());
+                binder_remove_trace_events(_module.as_ptr());
                 return Ok(Self {});
             }
         }
