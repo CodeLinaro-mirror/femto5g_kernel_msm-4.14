@@ -296,7 +296,8 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 					      BHIE_RXVECSTATUS_OFFS,
 					      BHIE_RXVECSTATUS_STATUS_BMSK,
 					      BHIE_RXVECSTATUS_STATUS_SHFT,
-					      &rx_status) || rx_status,
+					      &rx_status) ||
+			   (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL),
 			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
 	return (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) ? 0 : -EIO;
