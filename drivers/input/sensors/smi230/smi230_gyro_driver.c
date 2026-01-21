@@ -56,6 +56,7 @@
 #include <linux/workqueue.h>
 #include <linux/input.h>
 #include <linux/jiffies.h>
+#include <linux/version.h>
 
 #include "smi230_data_sync.h"
 #include "smi230_driver.h"
@@ -223,7 +224,11 @@ static ssize_t smi230_gyro_store_pwr_cfg(struct device *dev,
 		is_gyro_ready = false;
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_NORMAL;
 		err = smi230_gyro_set_power_mode(p_smi230_dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+		client_data->timestamp_old = ktime_to_ns(ktime_get_boottime());
+#else
 		client_data->timestamp_old = ktime_get_boottime_ns();
+#endif
 		mod_timer(&pm_mode_timer, jiffies + msecs_to_jiffies(200));
 	} else if (pwr_cfg == 3) {
 		p_smi230_dev->gyro_cfg.power = SMI230_GYRO_PM_SUSPEND;
@@ -788,8 +793,11 @@ static int smi230_gyro_early_buff_init(struct smi230_client_data *client_data)
 	PINFO("GYRO FIFO set water mark");
 	smi230_gyro_set_fifo_wm(10, p_smi230_dev);
 	p_smi230_dev->gyro_cfg.fifo_wm = 10;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+	client_data->timestamp_old = ktime_to_ns(ktime_get_boottime());
+#else
 	client_data->timestamp_old = ktime_get_boottime_ns();
+#endif
 	is_gyro_ready = false;
 	mod_timer(&pm_mode_timer, jiffies + msecs_to_jiffies(200));
 
@@ -1018,8 +1026,11 @@ static irqreturn_t smi230_irq_work_func(int irq, void *handle)
 static irqreturn_t smi230_irq_handle(int irq, void *handle)
 {
 	struct smi230_client_data *client_data = handle;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+	client_data->timestamp = ktime_to_ns(ktime_get_boottime());
+#else
 	client_data->timestamp = ktime_get_boottime_ns();
+#endif
 
 	if (IS_ENABLED(CONFIG_SMI230_DATA_SYNC))
 		return IRQ_HANDLED;

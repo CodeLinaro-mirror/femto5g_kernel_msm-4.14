@@ -54,6 +54,7 @@
 #include <linux/time64.h>
 #include <linux/timekeeping.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include "smi230.h"
 #include "smi230_data_sync.h"
@@ -236,7 +237,11 @@ static ssize_t smi230_acc_store_acc_pwr_cfg(struct device *dev,
 		err |= smi230_acc_fifo_reset(p_smi230_dev);
 		p_smi230_dev->accel_cfg.power = SMI230_ACCEL_PM_ACTIVE;
 		err = smi230_acc_set_power_mode(p_smi230_dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+		client_data->timestamp_old = ktime_to_ns(ktime_get_boottime());
+#else
 		client_data->timestamp_old = ktime_get_boottime_ns();
+#endif
 	}
 
 	PINFO("set power cfg to %ld, err %d", pwr_cfg, err);
@@ -1870,7 +1875,11 @@ static int smi230_acc_early_buff_init(struct smi230_client_data *client_data)
 
 	p_smi230_dev->accel_cfg.power = SMI230_ACCEL_PM_ACTIVE;
 	smi230_acc_set_power_mode(p_smi230_dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+	client_data->timestamp_old = ktime_to_ns(ktime_get_boottime());
+#else
 	client_data->timestamp_old = ktime_get_boottime_ns();
+#endif
 
 	return 1;
 
@@ -2318,8 +2327,11 @@ static irqreturn_t smi230_irq_work_func(int irq, void *handle)
 static irqreturn_t smi230_irq_handle(int irq, void *handle)
 {
 	struct smi230_client_data *client_data = handle;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+	client_data->timestamp = ktime_to_ns(ktime_get_boottime());
+#else
 	client_data->timestamp = ktime_get_boottime_ns();
+#endif
 	return IRQ_WAKE_THREAD;
 }
 
