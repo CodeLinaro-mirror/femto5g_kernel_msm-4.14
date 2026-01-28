@@ -43,6 +43,12 @@ struct pkvm_sglist_page {
 	u8	order;
 } __packed;
 
+enum pkvm_smc_handler_ret {
+	GUEST_SMC_HANDLED,
+	GUEST_SMC_NOT_HANDLED,
+	GUEST_SMC_NEED_TOPUP,
+};
+
 /**
  * struct pkvm_module_ops - pKVM modules callbacks
  * @create_private_mapping:	Map a memory region into the hypervisor private
@@ -236,7 +242,7 @@ struct pkvm_module_ops {
 	int (*host_stage2_mod_prot)(u64 pfn, enum kvm_pgtable_prot prot, u64 nr_pages, bool update_iommu);
 	int (*host_stage2_get_leaf)(phys_addr_t phys, kvm_pte_t *ptep, s8 *level);
 	int (*register_host_smc_handler)(bool (*cb)(struct user_pt_regs *));
-	int (*register_guest_smc_handler)(bool (*cb)(struct arm_smccc_1_2_regs *regs,
+	int (*register_guest_smc_handler)(enum pkvm_smc_handler_ret (*cb)(struct arm_smccc_1_2_regs *regs,
 						     struct arm_smccc_1_2_regs *res,
 						     pkvm_handle_t handle));
 	int (*register_default_trap_handler)(bool (*cb)(struct user_pt_regs *));
@@ -255,7 +261,7 @@ struct pkvm_module_ops {
 	void* (*memset)(void *dst, int c, size_t count);
 	void* (*tracing_reserve_entry)(unsigned long length);
 	void (*tracing_commit_entry)(void);
-	void (*tracing_mod_hyp_printk)(u8 fmt_id, u64 a, u64 b, u64 c, u64 d);
+	void (*tracing_mod_hyp_printk)(u16 fmt_id, u64 a, u64 b, u64 c, u64 d);
 	int (*map_module_pages)(u64 pfn, void *va, u64 nr_pages,
 				    enum kvm_pgtable_prot prot, bool is_protected);
 	int (*unmap_module_pages)(u64 pfn, void *va, u64 nr_pages);
@@ -286,6 +292,10 @@ struct pkvm_module_ops {
 				     int (*cb)(void *cookie, bool host_to_guest));
 	int (*iommu_register_pviommu_drv)(pkvm_handle_t drv_id);
 	int (*register_guest_trng_ops)(const struct pkvm_module_trng_ops *ops);
+	int (*guest_accept_module_prot_page)(u64 ipa, u64 nr_pages);
+	int (*register_guest_accept_module_owned_handler)(int (*cb)(u64 phys, u64 ipa, u64 size,
+								   pkvm_handle_t handle));
+
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);

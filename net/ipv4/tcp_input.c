@@ -815,6 +815,8 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 	u32 new_sample, old_sample = tp->rcv_rtt_est.rtt_us;
 	long m = sample << 3;
 
+	trace_android_vh_tcp_rcv_rtt_update(tp, sample, win_dep);
+
 	if (old_sample == 0 || m < old_sample) {
 		new_sample = m;
 	} else {
@@ -3265,6 +3267,8 @@ static bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 	if (seq_rtt_us < 0)
 		return false;
 
+	trace_android_vh_tcp_update_rtt(sk, seq_rtt_us);
+
 	/* ca_rtt_us >= 0 is counting on the invariant that ca_rtt_us is
 	 * always taken together with ACK, SACK, or TS-opts. Any negative
 	 * values will be skipped with the seq_rtt_us < 0 check above.
@@ -4731,6 +4735,8 @@ void tcp_fin(struct sock *sk)
 		tcp_sack_reset(&tp->rx_opt);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
+		trace_android_vh_tcp_sock_error(sk);
+
 		sk->sk_state_change(sk);
 
 		/* Do not send POLL_HUP for half duplex close. */
@@ -6666,6 +6672,8 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 
 		if (th->rst) {
 			tcp_reset(sk, skb);
+
+			trace_android_vh_tcp_state_change(sk, TCP_STATE_CHANGE_REASON_SYN_RST, 0);
 consume:
 			__kfree_skb(skb);
 			return 0;

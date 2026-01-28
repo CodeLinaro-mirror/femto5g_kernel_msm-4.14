@@ -135,6 +135,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_iowait);
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 EXPORT_SYMBOL_GPL(runqueues);
+DEFINE_PER_CPU(struct rnd_state, sched_rnd_state);
 
 #ifdef CONFIG_SCHED_PROXY_EXEC
 DEFINE_STATIC_KEY_FALSE(__sched_proxy_exec);
@@ -195,6 +196,7 @@ static int __init setup_proxy_exec_toggle(void)
 {
 	int retval;
 
+	pr_info("sched_proxy_exec: %s\n", sched_proxy_exec() ? "enabled" : "disabled");
 	sched_proxy_exec_kobj = kobject_create_and_add("sched_proxy_exec", kernel_kobj);
 	if (!sched_proxy_exec_kobj)
 		return -ENOMEM;
@@ -4706,6 +4708,7 @@ int try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 
 	wake_flags |= WF_TTWU;
 
+	trace_android_rvh_try_to_wake_up_begin(p, state, &wake_flags);
 	if (p == current) {
 		/*
 		 * We're waking current, this means 'p->on_rq' and 'task_cpu(p)
@@ -5313,7 +5316,7 @@ int sched_fork(u64 clone_flags, struct task_struct *p)
 
 	scx_pre_fork(p);
 
-	trace_android_vh_task_should_scx(&should_scx, p->policy, p->prio);
+	trace_android_vh_setscheduler_class(NULL, &should_scx, p, p->policy, p->prio);
 	if (rt_prio(p->prio) && !should_scx) {
 		p->sched_class = &rt_sched_class;
 #ifdef CONFIG_SCHED_CLASS_EXT
@@ -8185,18 +8188,8 @@ EXPORT_SYMBOL(default_wake_function);
 
 const struct sched_class *__setscheduler_class(int policy, int prio)
 {
-#ifdef CONFIG_SCHED_CLASS_EXT
-	int should_scx = 0;
-#endif
-
 	if (dl_prio(prio))
 		return &dl_sched_class;
-
-#ifdef CONFIG_SCHED_CLASS_EXT
-	trace_android_vh_task_should_scx(&should_scx, policy, prio);
-	if (should_scx)
-		return &ext_sched_class;
-#endif
 
 	if (rt_prio(prio))
 		return &rt_sched_class;
@@ -8307,15 +8300,17 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	trace_sched_pi_setprio(p, pi_task);
 	oldprio = p->prio;
 
-	if (oldprio == prio)
+	if (oldprio == prio && !dl_prio(prio))
 		queue_flag &= ~DEQUEUE_MOVE;
 
 	prev_class = p->sched_class;
 	next_class = __setscheduler_class(p->policy, prio);
+	trace_android_vh_setscheduler_class(&next_class, NULL, p, p->policy, prio);
 
 	if (prev_class != next_class && p->se.sched_delayed)
 		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
 
+	trace_android_vh_scx_restore_flags(prev_class, next_class, &queue_flag);
 	queued = task_on_rq_queued(p);
 	running = task_current_donor(rq, p);
 	if (queued)
@@ -9520,6 +9515,8 @@ int sched_cpu_dying(unsigned int cpu)
 void __init sched_init_smp(void)
 {
 	sched_init_numa(NUMA_NO_NODE);
+
+	prandom_init_once(&sched_rnd_state);
 
 	/*
 	 * There's no userspace yet to cause hotplug operations; hence all the

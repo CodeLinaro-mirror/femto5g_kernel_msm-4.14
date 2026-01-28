@@ -33,7 +33,7 @@ int register_hyp_mod_events(void *event_ids, size_t nr_events,
 
 void __pkvm_update_clock_tracing(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc);
 int __pkvm_load_tracing(unsigned long desc_va, size_t desc_size);
-void __pkvm_teardown_tracing(void);
+int __pkvm_teardown_tracing(void);
 int __pkvm_enable_tracing(bool enable);
 int __pkvm_reset_tracing(unsigned int cpu);
 int __pkvm_swap_reader_tracing(unsigned int cpu);
@@ -43,13 +43,13 @@ int __pkvm_enable_event(unsigned short id, bool enable);
 extern struct hyp_printk_fmt __hyp_printk_fmts_start[];
 
 #ifdef MODULE
-#define hyp_printk_fmt_to_id(fmt)					\
-({									\
-	static u8 fmt_id_offset __section(".hyp.printk_fmt_offset") __used;	\
+#define hyp_printk_fmt_to_id(fmt)						\
+({										\
+	static u16 fmt_id_offset __section(".hyp.printk_fmt_offset") __used;	\
 	(struct hyp_printk_fmt *)fmt - __hyp_printk_fmts_start + fmt_id_offset; \
 })
 #else
-static inline u8 hyp_printk_fmt_to_id(const char *fmt)
+static inline u16 hyp_printk_fmt_to_id(const char *fmt)
 {
 	return (struct hyp_printk_fmt *)fmt - __hyp_printk_fmts_start;
 }
@@ -125,7 +125,7 @@ static inline int register_hyp_event_ids(void *event_ids, size_t nr_events)
 static inline
 void __pkvm_update_clock_tracing(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc) { }
 static inline int __pkvm_load_tracing(unsigned long desc_va, size_t desc_size) { return -ENODEV; }
-static inline void __pkvm_teardown_tracing(void) { }
+static inline int __pkvm_teardown_tracing(void) { return -ENODEV; }
 static inline int __pkvm_enable_tracing(bool enable) { return -ENODEV; }
 static inline int __pkvm_reset_tracing(unsigned int cpu) { return -ENODEV; }
 static inline int __pkvm_swap_reader_tracing(unsigned int cpu) { return -ENODEV; }
