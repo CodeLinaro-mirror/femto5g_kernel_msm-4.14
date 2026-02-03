@@ -91,6 +91,7 @@ static __init void pkvm_setup_syms(void)
 		static_branch_enable(&pkvm_sym(__fpu_state_size_dynamic));
 #endif
 	pkvm_sym(x86_pred_cmd) = x86_pred_cmd;
+	pkvm_sym(tsc_khz) = tsc_khz;
 }
 
 static __init int pkvm_setup_host_vmcs_config(void)
@@ -154,6 +155,7 @@ static __init int pkvm_setup_host_vm(struct pkvm_hyp *pkvm)
 		return -ENOMEM;
 	}
 
+	kvmx->kvm.arch.pkvm.handle = PKVM_HOST_VM_HANDLE;
 	/*
 	 * Only a few fields in the kvm structure will be used, e.g.,
 	 * hlt_in_guest for exception injection code to clear hlt state.
@@ -1184,18 +1186,6 @@ static __init int pkvm_hyp_init(void)
 		}
 	}
 
-	/*
-	 * XXX: Revert
-	 * Temporarily fail pkvm initialization until pVMCS is fully merged.
-	 * pKVM doesn't serve any real purpose until we have pVMCS ready and
-	 * this failure helps us test reprivilege logic. This also enables
-	 * host to boot normally with KVM enabled and thereby not breaking
-	 * any virtualization functionality.
-	 */
-	if (!ret || !init_ret) {
-		pr_err("Explicitly triggering pkvm initialization failure!\n");
-		ret = -EFAULT;
-	}
 	return ret ? ret : init_ret;
 }
 

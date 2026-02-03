@@ -59,6 +59,11 @@ size_t kvm_vcpu_sz = sizeof(struct kvm_vcpu);
 /* The current loaded guest vCPU. */
 static DEFINE_PER_CPU(struct kvm_vcpu*, cur_guest_vcpu);
 
+static struct pkvm_x86_ops pkvm_x86_ops __read_mostly;
+
+/* TODO: If can be optimized with the static call mechanism. */
+#define pkvm_x86_call(func)		(pkvm_x86_ops.func)
+
 static int __pkvm_vcpu_free(struct pkvm_vm *pkvm_vm, int vcpu_handle,
 			    struct pkvm_memcache *mc);
 
@@ -356,6 +361,7 @@ static int __vcpu_create(struct kvm *kvm, struct kvm_vcpu *vcpu, struct fpstate 
 {
 	struct pkvm_vcpu *pkvm_vcpu = to_pkvm_vcpu(vcpu);
 	int ret = kvm_x86_call(vcpu_precreate)(kvm);
+	struct pkvm_vm *pkvm_vm = to_pkvm(kvm);
 	void *unused = (void *)pkvm_vcpu +
 		       PKVM_VCPU_BASE_SIZE +
 		       kvm_vcpu_sz;
@@ -363,6 +369,32 @@ static int __vcpu_create(struct kvm *kvm, struct kvm_vcpu *vcpu, struct fpstate 
 
 	if (ret)
 		return ret;
+
+	pkvm_spin_lock(&pkvm_vm->lock);
+
+	/*
+	 * The following setup is per VM, not per vCPU, however it cannot be
+	 * done during VM creation, since these values are set by the host VMM
+	 * via an ioctl after a VM is already created. At the same time, the
+	 * host KVM relies on these values being already set when setting up a
+	 * vCPU, thus implicitly assuming that the VMM should set them before
+	 * creating vCPUs. So it is ok to assume these host's values here are
+	 * up-to-date.
+	 */
+	if (!kvm->arch.bus_lock_detection_enabled &&
+	    pkvm_vm->shared_kvm->arch.bus_lock_detection_enabled &&
+	    kvm_caps.has_bus_lock_exit)
+		kvm->arch.bus_lock_detection_enabled = true;
+	if (!kvm->arch.notify_vmexit_flags &&
+	    pkvm_vm->shared_kvm->arch.notify_vmexit_flags &&
+	    kvm_caps.has_notify_vmexit) {
+		kvm->arch.notify_window = pkvm_vm->shared_kvm->arch.notify_window;
+		kvm->arch.notify_vmexit_flags = pkvm_vm->shared_kvm->arch.notify_vmexit_flags;
+	}
+	if (!pkvm_is_protected_vcpu(vcpu))
+		kvm->arch.disabled_exits = pkvm_vm->shared_kvm->arch.disabled_exits;
+
+	pkvm_spin_unlock(&pkvm_vm->lock);
 
 	vcpu->kvm = kvm;
 	/* Set cpu to -1 to indicate it is not loaded on any CPU */
@@ -414,6 +446,8 @@ static int __vcpu_create(struct kvm *kvm, struct kvm_vcpu *vcpu, struct fpstate 
 	ret = kvm_x86_call(vcpu_create)(vcpu);
 	if (ret)
 		goto unsetup_lapic;
+
+	pkvm_vcpu_perf_init(vcpu);
 
 	/* Load guest vCPU to reset it. */
 	kvm_x86_call(vcpu_load)(vcpu, cpu);
@@ -583,6 +617,14 @@ static int pkvm_vcpu_load(int vm_handle, int vcpu_handle)
 		 */
 		BUG_ON(pkvm_vcpu != pkvm_get_vcpu(vm_handle, vcpu_handle));
 
+		/*
+		 * Save the PKRU used by the host for the pKVM hypervisor to
+		 * switch with the guest. The XCR0 and XSS are already saved in
+		 * the kvm_host structure which are not changed at the running
+		 * time.
+		 */
+		vcpu->arch.host_pkru = read_pkru();
+
 		this_cpu_write(cur_guest_vcpu, vcpu);
 	} else if (loaded_cpu == cpu) {
 		/* The guest vCPU is already loaded on this CPU. */
@@ -681,6 +723,8 @@ static bool is_guest_vcpu_accessible(struct kvm_vcpu *vcpu, enum pkvm_hc hc)
 	case __pkvm__write_tsc_multiplier:
 	case __pkvm__load_mmu_pgd:
 	case __pkvm__setup_mce:
+	case __pkvm__vcpu_run:
+	case __pkvm__complete_emulated_msr:
 		/*
 		 * The host is responsible for running vCPU, injecting
 		 * interrupts, emulating lapic etc. Always allow the related PV
@@ -853,7 +897,9 @@ static void pkvm_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
 
 static inline bool pkvm_event_injection_allowed(struct kvm_vcpu *vcpu)
 {
-	return !kvm_event_needs_reinjection(vcpu) && !vcpu->arch.exception.pending;
+	return !kvm_event_needs_reinjection(vcpu) &&
+	       !vcpu->arch.exception.pending &&
+	       !to_pkvm_vcpu(vcpu)->host_emulated_msr_err;
 }
 
 static int pkvm_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
@@ -1149,6 +1195,185 @@ static int pkvm_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_lev
 	return 0;
 }
 
+static void update_vcpu_state_from_host(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu *shared_vcpu = to_pkvm_vcpu(vcpu)->shared_vcpu;
+
+	if (!pkvm_is_protected_vcpu(vcpu)) {
+		/*
+		 * Make sure the RSP/RIP in shared_vcpu are aligned with the
+		 * private vcpu if they are not dirty.
+		 */
+		if (kvm_register_is_dirty(shared_vcpu, VCPU_REGS_RSP))
+			kvm_register_mark_dirty(vcpu, VCPU_REGS_RSP);
+		else
+			shared_vcpu->arch.regs[VCPU_REGS_RSP] = kvm_rsp_read(vcpu);
+		if (kvm_register_is_dirty(shared_vcpu, VCPU_REGS_RIP))
+			kvm_register_mark_dirty(vcpu, VCPU_REGS_RIP);
+		else
+			shared_vcpu->arch.regs[VCPU_REGS_RIP] = kvm_rip_read(vcpu);
+		/* Update the npVM's GPRs from the host */
+		memcpy(vcpu->arch.regs, shared_vcpu->arch.regs,
+		       NR_VCPU_REGS * sizeof(*vcpu->arch.regs));
+
+		/* Update the debug registers from the host */
+		memcpy(vcpu->arch.db, shared_vcpu->arch.db,
+		       ARRAY_SIZE(vcpu->arch.db) * sizeof(*vcpu->arch.db));
+		memcpy(vcpu->arch.eff_db, shared_vcpu->arch.eff_db,
+		       ARRAY_SIZE(vcpu->arch.eff_db) * sizeof(*vcpu->arch.eff_db));
+		vcpu->arch.dr6 = shared_vcpu->arch.dr6;
+		vcpu->arch.dr7 = shared_vcpu->arch.dr7;
+		vcpu->arch.xcr0 = shared_vcpu->arch.xcr0;
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+			vcpu->arch.guest_debug_dr7 = shared_vcpu->arch.guest_debug_dr7;
+		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+			vcpu->arch.singlestep_rip = shared_vcpu->arch.singlestep_rip;
+	} else if (unlikely(!kvm_vcpu_has_run(vcpu) && kvm_vcpu_is_reset_bsp(vcpu))) {
+		/*
+		 * Allow the host VMM to set the initial values of most GPRs
+		 * to let it pass boot information to the pVM payload and/or
+		 * to pvmfw using various boot protocols, e.g. in RSI with the
+		 * Linux/x86 boot protocol or in RAX/RBX with Multiboot.
+		 */
+		kvm_rax_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RAX]);
+		kvm_rbx_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RBX]);
+		kvm_rcx_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RCX]);
+		kvm_rdx_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RDX]);
+		kvm_rsi_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RSI]);
+		kvm_rdi_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RDI]);
+		if (kvm_register_is_dirty(shared_vcpu, VCPU_REGS_RSP))
+			kvm_rsp_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RSP]);
+		kvm_rbp_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RBP]);
+		kvm_r8_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R8]);
+		kvm_r9_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R9]);
+		kvm_r10_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R10]);
+		kvm_r11_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R11]);
+		kvm_r12_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R12]);
+		kvm_r13_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R13]);
+		kvm_r14_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_R14]);
+
+		/* Reserve R15 for pKVM for future extensions. */
+		kvm_r15_write(vcpu, 0);
+
+		/*
+		 * If the host VMM boots the pVM directly, without pvmfw,
+		 * let it set the boot entry address.
+		 */
+		if (kvm_register_is_dirty(shared_vcpu, VCPU_REGS_RIP))
+			kvm_rip_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RIP]);
+	} else if (unlikely(!kvm_vcpu_has_run(vcpu) && !kvm_vcpu_is_reset_bsp(vcpu))) {
+		/*
+		 * FIXME: temporarily let the host set the initial RIP for
+		 * secondary vCPUs for INIT/SIPI emulation, until we implement
+		 * a guest PV mechanism for secondary vCPUs startup.
+		 */
+		kvm_rip_write(vcpu, shared_vcpu->arch.regs[VCPU_REGS_RIP]);
+	}
+
+	pkvm_x86_call(update_vcpu_state_from_host)(vcpu);
+}
+
+static void share_vcpu_state_with_host(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu *shared_vcpu = to_pkvm_vcpu(vcpu)->shared_vcpu;
+
+	if (!pkvm_is_protected_vcpu(vcpu)) {
+		/* Make sure the RSP/RIP in private vcpu are up-to-date */
+		if (!kvm_register_is_available(vcpu, VCPU_REGS_RSP))
+			kvm_rsp_read(vcpu);
+		if (!kvm_register_is_available(vcpu, VCPU_REGS_RIP))
+			kvm_rip_read(vcpu);
+
+		/*
+		 * Share the npVM's GPRs/EFER/CR0/CR4 to the host which may be
+		 * used by the host to handle vmexit.
+		 *
+		 * In particular, EFER/CR0/CR4 need to be shared when paging
+		 * role bits are changed, to let the host update the guest
+		 * stage-1 MMU info which is needed for instruction emulation
+		 * for npVM.
+		 */
+		memcpy(shared_vcpu->arch.regs, vcpu->arch.regs,
+		       NR_VCPU_REGS * sizeof(*vcpu->arch.regs));
+		kvm_register_mark_available(shared_vcpu, VCPU_REGS_RSP);
+		kvm_register_mark_available(shared_vcpu, VCPU_REGS_RIP);
+		shared_vcpu->arch.cr0 = kvm_read_cr0(vcpu);
+		kvm_register_mark_available(shared_vcpu, VCPU_EXREG_CR0);
+		shared_vcpu->arch.cr4 = kvm_read_cr4(vcpu);
+		kvm_register_mark_available(shared_vcpu, VCPU_EXREG_CR4);
+		shared_vcpu->arch.efer = vcpu->arch.efer;
+
+		/* Share the exception information to the host if there is any */
+		if (vcpu->arch.exception.pending || vcpu->arch.exception.injected) {
+			shared_vcpu->arch.exception = vcpu->arch.exception;
+			kvm_clear_exception_queue(vcpu);
+		}
+
+		/* Share the debug registers to the host */
+		memcpy(shared_vcpu->arch.db, vcpu->arch.db,
+		       ARRAY_SIZE(vcpu->arch.db) * sizeof(*vcpu->arch.db));
+		memcpy(shared_vcpu->arch.eff_db, vcpu->arch.eff_db,
+		       ARRAY_SIZE(vcpu->arch.eff_db) * sizeof(*vcpu->arch.eff_db));
+		shared_vcpu->arch.dr6 = vcpu->arch.dr6;
+		shared_vcpu->arch.dr7 = vcpu->arch.dr7;
+		shared_vcpu->arch.xcr0 = vcpu->arch.xcr0;
+	}
+
+	pkvm_x86_call(share_vcpu_state_with_host)(vcpu);
+}
+
+static int pkvm_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit,
+			 unsigned long *reqs_to_host)
+{
+	int ret;
+
+	/*
+	 * Flush predictor when switching from host VM to pVM to prevent host VM
+	 * from attacking pVM. This is not needed if switch from host VM to npVM
+	 * as host VM is in npVM's trust boundary.
+	 */
+	if (static_branch_likely(&switch_vcpu_ibpb) && pkvm_is_protected_vcpu(vcpu))
+		indirect_branch_prediction_barrier();
+
+	update_vcpu_state_from_host(vcpu);
+
+	ret = pkvm_vcpu_enter_guest(vcpu, force_immediate_exit, reqs_to_host);
+
+	share_vcpu_state_with_host(vcpu);
+
+	/*
+	 * Flush predictor when switching from any guest VM (either npVM or pVM)
+	 * to host VM, to prevent guest VM from attacking host VM.
+	 */
+	if (static_branch_likely(&switch_vcpu_ibpb))
+		indirect_branch_prediction_barrier();
+
+	return ret;
+}
+
+static int pkvm_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
+{
+	/*
+	 * For the npVM, the host itself can complete the emulated MSR by either
+	 * injecting the exception or skipping the instruction, according to the
+	 * emulation result.
+	 */
+	if (!pkvm_is_protected_vcpu(vcpu))
+		return -EOPNOTSUPP;
+
+	/*
+	 * For the pVM, just save the error code rather than completing the MSR
+	 * emulation via kvm_x86_call(complete_emulated_msr), to prevent the
+	 * host from injecting exception or skipping instructions as the host
+	 * can use this PV interface at any scenario, e.g, not for MSR emulation
+	 * at all. The pKVM hypervisor will decide how to complete the MSR
+	 * emulation according to the last exit reason and this saved error code
+	 * before entering the guest again.
+	 */
+	to_pkvm_vcpu(vcpu)->host_emulated_msr_err = err;
+	return 1;
+}
+
 static int pkvm_vcpu_handle_host_hypercall(struct kvm_vcpu *hvcpu, enum pkvm_hc hc,
 					   union pkvm_hc_data *in, union pkvm_hc_data *out)
 {
@@ -1327,6 +1552,13 @@ static int pkvm_vcpu_handle_host_hypercall(struct kvm_vcpu *hvcpu, enum pkvm_hc 
 	case __pkvm__setup_mce:
 		ret = kvm_vcpu_x86_setup_mce(vcpu, to_pkvm_vcpu(vcpu)->shared_vcpu->arch.mcg_cap);
 		break;
+	case __pkvm__vcpu_run:
+		ret = pkvm_vcpu_run(vcpu, pkvm_hc_input1(hvcpu),
+				    &out->vcpu_run.reqs_to_host);
+		break;
+	case __pkvm__complete_emulated_msr:
+		ret = pkvm_complete_emulated_msr(vcpu, pkvm_hc_input1(hvcpu));
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1360,7 +1592,7 @@ void pkvm_handle_host_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	case __pkvm__dump_vmexit_trace:
 		ret = pkvm_dump_vmexit_trace(pkvm_host_gpa_to_phys(pkvm_hc_input1(vcpu)),
-					     pkvm_hc_input2(vcpu));
+					     pkvm_hc_input2(vcpu), pkvm_hc_input3(vcpu));
 		break;
 	case __pkvm__check_processor_compatibility:
 		ret = kvm_x86_call(check_processor_compatibility)();
@@ -1392,6 +1624,9 @@ void pkvm_handle_host_hypercall(struct kvm_vcpu *vcpu)
 	case __pkvm__vcpu_put:
 		ret = pkvm_vcpu_put(pkvm_hc_input1(vcpu),
 				    pkvm_hc_input2(vcpu));
+		break;
+	case __pkvm__has_wbinvd_exit:
+		ret = kvm_x86_call(has_wbinvd_exit)();
 		break;
 	default:
 		ret = pkvm_vcpu_handle_host_hypercall(vcpu, hc, &in, &out);
@@ -1528,4 +1763,30 @@ unsigned long pkvm_pcpu_tss(int cpu)
 
 	return (unsigned long)&pcpu->tss;
 #endif
+}
+
+void pkvm_x86_ops_init(struct pkvm_x86_ops *ops)
+{
+	memcpy(&pkvm_x86_ops, ops, sizeof(struct pkvm_x86_ops));
+}
+
+int pkvm_walk_each_vm(pkvm_vm_func_t func, void *arg)
+{
+	struct pkvm_vm *vm;
+	int i, ret = 0;
+
+	pkvm_spin_lock(&pkvm_vms_lock);
+
+	for (i = 0; i < MAX_PKVM_VMS; i++) {
+		vm = pkvm_vms_ref[i].pkvm_vm;
+		if (!vm)
+			continue;
+		ret = func(vm, arg);
+		if (ret)
+			break;
+	}
+
+	pkvm_spin_unlock(&pkvm_vms_lock);
+
+	return ret;
 }

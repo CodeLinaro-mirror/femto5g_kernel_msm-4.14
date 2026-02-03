@@ -75,6 +75,9 @@ PKVM_HC(write_tsc_offset)
 PKVM_HC(write_tsc_multiplier)
 PKVM_HC(load_mmu_pgd)
 PKVM_HC(setup_mce)
+PKVM_HC_OUT(vcpu_run)
+PKVM_HC(complete_emulated_msr)
+PKVM_HC(has_wbinvd_exit)
 
 #undef PKVM_HC
 #undef PKVM_HC_OUT

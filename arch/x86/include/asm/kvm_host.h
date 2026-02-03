@@ -837,6 +837,8 @@ static inline void free_pkvm_memcache(struct pkvm_memcache *mc,
 		free(pop_pkvm_memcache(mc, to_va));
 }
 
+#define PKVM_HOST_VM_HANDLE	INT_MAX
+
 struct kvm_pkvm_vm {
 	int handle;
 };
@@ -1809,6 +1811,7 @@ struct kvm_x86_ops {
 	void (*vcpu_reset)(struct kvm_vcpu *vcpu, bool init_event);
 
 	void (*prepare_switch_to_guest)(struct kvm_vcpu *vcpu);
+	void (*prepare_switch_to_host)(struct kvm_vcpu *vcpu);
 	void (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 
@@ -2069,10 +2072,12 @@ extern phys_addr_t pkvm_mem_base;
 extern phys_addr_t pkvm_mem_size;
 void __init pkvm_reserve(void);
 void pkvm_init_debugfs(void);
+void pkvm_create_vm_debugfs(struct kvm *kvm);
 void kvm_free_pkvm_memcache(struct pkvm_memcache *mc);
 #else
 #define enable_pkvm		false
 static inline void __init pkvm_reserve(void) {}
+static inline void pkvm_create_vm_debugfs(struct kvm *kvm) {}
 #endif
 
 #ifdef __PKVM_HYP__
