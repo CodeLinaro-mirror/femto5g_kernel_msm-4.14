@@ -45,6 +45,8 @@ static int virtio_send_pmem_request(struct nd_region *nd_region,
 	unsigned long flags;
 	int err, err1;
 
+	guard(mutex)(&vpmem->flush_lock);
+
 	/*
 	 * Don't bother to submit the request to the device if the device is
 	 * not activated.
@@ -106,7 +108,6 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 	struct virtio_pmem_request *req_data;
 	int err;
 
-	might_sleep();
 	req_data = kmalloc(sizeof(*req_data), GFP_KERNEL);
 	if (!req_data)
 		return -ENOMEM;
@@ -151,7 +152,6 @@ int virtio_pmem_discard(struct nd_region *nd_region, __u64 offset, __u64 size)
 	struct virtio_pmem_request *req_data;
 	int err;
 
-	might_sleep();
 	req_data = kmalloc(sizeof(*req_data), GFP_KERNEL);
 	if (!req_data)
 		return -ENOMEM;
