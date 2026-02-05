@@ -47140,11 +47140,6 @@ array {
   element_type_id: 0xdce3c92e
 }
 array {
-  id: 0x974b46a4
-  number_of_elements: 12
-  element_type_id: 0x6d7f5ff6
-}
-array {
   id: 0x97d79f3d
   number_of_elements: 4
   element_type_id: 0x6e6a309c
@@ -48107,6 +48102,11 @@ array {
 array {
   id: 0xd359db99
   element_type_id: 0x5d8155a5
+}
+array {
+  id: 0xd3a230b5
+  number_of_elements: 11
+  element_type_id: 0x6d7f5ff6
 }
 array {
   id: 0xd3d96d30
@@ -64319,10 +64319,10 @@ member {
   offset: 320
 }
 member {
-  id: 0x6fc67945
+  id: 0x6fc671ae
   name: "android_netlink_getneigh"
   type_id: 0x6d7f5ff6
-  offset: 120
+  offset: 112
 }
 member {
   id: 0x6fcc260e
@@ -64337,10 +64337,10 @@ member {
   offset: 32
 }
 member {
-  id: 0x395a2dd2
+  id: 0x395a22bf
   name: "android_netlink_route"
   type_id: 0x6d7f5ff6
-  offset: 112
+  offset: 104
 }
 member {
   id: 0xd64b28af
@@ -189875,9 +189875,9 @@ member {
   offset: 640
 }
 member {
-  id: 0x0d0f0476
+  id: 0x0d4bed00
   name: "policycap"
-  type_id: 0x974b46a4
+  type_id: 0xd3a230b5
   offset: 16
 }
 member {
@@ -332582,9 +332582,9 @@ struct_union {
     bytesize: 128
     member_id: 0x0eb6d2c5
     member_id: 0xd5629083
-    member_id: 0x0d0f0476
-    member_id: 0x395a2dd2
-    member_id: 0x6fc67945
+    member_id: 0x0d4bed00
+    member_id: 0x395a22bf
+    member_id: 0x6fc671ae
     member_id: 0xd41c6df7
     member_id: 0x8e288971
     member_id: 0x60ddb37d
