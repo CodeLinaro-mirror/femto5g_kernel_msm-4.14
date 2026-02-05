@@ -30,33 +30,54 @@
 #include "../ipa_v3/ipa_pm.h"
 
 #define ODU_BRIDGE_DRV_NAME "odu_ipa_bridge"
-
+#ifdef CONFIG_IPC_LOGGING
 #define ODU_BRIDGE_DBG(fmt, args...) \
 	do { \
 		pr_debug(ODU_BRIDGE_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 #define ODU_BRIDGE_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(ODU_BRIDGE_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 #define ODU_BRIDGE_ERR(fmt, args...) \
 	do { \
 		pr_err(ODU_BRIDGE_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				ODU_BRIDGE_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
-
+#else
+#define ODU_BRIDGE_DBG(fmt, args...) \
+	do { \
+		pr_debug(ODU_BRIDGE_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#define ODU_BRIDGE_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(ODU_BRIDGE_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#define ODU_BRIDGE_ERR(fmt, args...) \
+	do { \
+		pr_err(ODU_BRIDGE_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 #define ODU_BRIDGE_FUNC_ENTRY() \
 	ODU_BRIDGE_DBG_LOW("ENTRY\n")
 #define ODU_BRIDGE_FUNC_EXIT() \
@@ -149,8 +170,10 @@ struct odu_bridge_ctx {
 	u32 odu_emb_cons_hdl;
 	u32 odu_teth_cons_hdl;
 	u32 ipa_sys_desc_size;
+#ifdef CONFIG_IPC_LOGGING
 	void *logbuf;
 	void *logbuf_low;
+#endif
 	struct completion rm_comp;
 	void (*wakeup_request)(void *);
 	u32 pm_hdl;
@@ -1249,8 +1272,10 @@ int odu_bridge_cleanup(void)
 	device_destroy(odu_bridge_ctx->class, odu_bridge_ctx->dev_num);
 	unregister_chrdev_region(odu_bridge_ctx->dev_num, 1);
 	class_destroy(odu_bridge_ctx->class);
+#ifdef CONFIG_IPC_LOGGING
 	ipc_log_context_destroy(odu_bridge_ctx->logbuf);
 	ipc_log_context_destroy(odu_bridge_ctx->logbuf_low);
+#endif
 	kfree(odu_bridge_ctx);
 	odu_bridge_ctx = NULL;
 

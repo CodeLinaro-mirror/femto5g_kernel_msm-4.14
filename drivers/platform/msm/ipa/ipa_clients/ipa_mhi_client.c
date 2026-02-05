@@ -28,22 +28,26 @@
 
 #define IPA_MHI_DRV_NAME "ipa_mhi_client"
 #define IPA_MHI_MAX_MSG_LEN 512
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_MHI_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_MHI_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 
@@ -51,11 +55,33 @@
 	do { \
 		pr_err(IPA_MHI_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
+#else
+#define IPA_MHI_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_MHI_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+
+#define IPA_MHI_ERR(fmt, args...) \
+	do { \
+		pr_err(IPA_MHI_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 #define IPA_MHI_FUNC_ENTRY() \
 	IPA_MHI_DBG("ENTRY\n")

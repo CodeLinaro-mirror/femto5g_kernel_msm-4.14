@@ -130,7 +130,9 @@ static char dbg_buff[IPA_MAX_MSG_LEN + 1];
 static char *active_clients_buf;
 
 static s8 ep_reg_idx;
+#ifdef CONFIG_IPC_LOGGING
 static void *ipa_ipc_low_buff;
+#endif
 
 
 static ssize_t ipa3_read_gen_reg(struct file *file, char __user *ubuf,
@@ -2662,7 +2664,7 @@ static ssize_t ipa3_clear_active_clients_log(struct file *file,
 
 	return count;
 }
-
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t ipa3_enable_ipc_low(struct file *file,
 	const char __user *ubuf, size_t count, loff_t *ppos)
 {
@@ -2697,7 +2699,7 @@ static ssize_t ipa3_enable_ipc_low(struct file *file,
 
 	return count;
 }
-
+#endif
 static ssize_t ipa3_read_uc_act_tbl(struct file *file,
 	char __user *ubuf, size_t count, loff_t *ppos)
 {
@@ -2946,11 +2948,15 @@ static const struct ipa3_debugfs_file debugfs_files[] = {
 		"status_stats", IPA_READ_ONLY_MODE, NULL, {
 			.read = ipa_status_stats_read,
 		}
-	}, {
+	}, 
+#ifdef CONFIG_IPC_LOGGING
+		{
 		"enable_low_prio_print", IPA_WRITE_ONLY_MODE, NULL, {
 			.write = ipa3_enable_ipc_low,
 		}
-	}, {
+	},
+#endif		
+		{
 		"ipa_dump_regs", IPA_READ_ONLY_MODE, NULL, {
 			.read = ipa3_read_ipahal_regs,
 		}

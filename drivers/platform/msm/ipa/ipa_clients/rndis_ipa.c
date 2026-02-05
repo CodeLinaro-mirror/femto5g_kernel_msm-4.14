@@ -59,7 +59,7 @@
 #define TX_TIMEOUT (5 * HZ)
 #define MIN_TX_ERROR_SLEEP_PERIOD 500
 #define DEFAULT_AGGR_PKT_LIMIT 0
-
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_RNDIS_IPC_LOG_PAGES 50
 
 #define IPA_RNDIS_IPC_LOGGING(buf, fmt, args...) \
@@ -67,10 +67,8 @@
 		if (buf) \
 			ipc_log_string((buf), fmt, __func__, __LINE__, \
 				## args); \
-	} while (0)
-
+	} while (0)			
 static void *ipa_rndis_logbuf;
-
 #define RNDIS_IPA_DEBUG(fmt, args...) \
 	do { \
 		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
@@ -92,6 +90,21 @@ static void *ipa_rndis_logbuf;
 				DRV_NAME " %s:%d " fmt, ## args); \
 		} \
 	} while (0)
+#else
+#define RNDIS_IPA_DEBUG(fmt, args...) \
+	do { \
+		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
+
+#define RNDIS_IPA_DEBUG_XMIT(fmt, args...) \
+	pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
+
+#define RNDIS_IPA_ERROR(fmt, args...) \
+	do { \
+		pr_err(DRV_NAME "@%s@%d@ctx:%s: "\
+			fmt, __func__, __LINE__, current->comm, ## args);\
+	} while (0)
+#endif
 
 #define NULL_CHECK_RETVAL(ptr) \
 		do { \
@@ -101,6 +114,7 @@ static void *ipa_rndis_logbuf;
 			} \
 		} \
 		while (0)
+
 
 #define RNDIS_HDR_OFST(field) offsetof(struct rndis_pkt_hdr, field)
 #define RNDIS_IPA_LOG_ENTRY() RNDIS_IPA_DEBUG("begin\n")
@@ -3238,21 +3252,23 @@ static ssize_t rndis_ipa_debugfs_atomic_read
 
 static int rndis_ipa_init_module(void)
 {
+#ifdef CONFIG_IPC_LOGGING
 	ipa_rndis_logbuf = ipc_log_context_create(IPA_RNDIS_IPC_LOG_PAGES,
 		"ipa_rndis", 0);
 	if (ipa_rndis_logbuf == NULL)
 		RNDIS_IPA_DEBUG("failed to create IPC log, continue...\n");
-
+#endif
 	pr_info("RNDIS_IPA module is loaded.");
 	return 0;
 }
 
 static void rndis_ipa_cleanup_module(void)
 {
+#ifdef CONFIG_IPC_LOGGING
 	if (ipa_rndis_logbuf)
 		ipc_log_context_destroy(ipa_rndis_logbuf);
 	ipa_rndis_logbuf = NULL;
-
+#endif
 	pr_info("RNDIS_IPA module is unloaded.");
 }
 

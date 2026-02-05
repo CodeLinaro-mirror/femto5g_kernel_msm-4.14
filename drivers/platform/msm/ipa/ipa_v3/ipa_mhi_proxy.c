@@ -22,22 +22,26 @@
 
 #define IMP_DRV_NAME "ipa_mhi_proxy"
 
+#ifdef CONFIG_IPC_LOGGING
 #define IMP_DBG(fmt, args...) \
 	do { \
 		pr_debug(IMP_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IMP_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IMP_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IMP_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IMP_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IMP_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IMP_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IMP_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IMP_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 
@@ -45,12 +49,33 @@
 	do { \
 		pr_err(IMP_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
 				IMP_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
 				IMP_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
+	} while (0)
+#else
+#define IMP_DBG(fmt, args...) \
+	do { \
+		pr_debug(IMP_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
 	} while (0)
 
+#define IMP_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IMP_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+
+#define IMP_ERR(fmt, args...) \
+	do { \
+		pr_err(IMP_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 #define IMP_FUNC_ENTRY() \
 	IMP_DBG_LOW("ENTRY\n")

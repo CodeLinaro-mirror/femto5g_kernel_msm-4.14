@@ -65,8 +65,6 @@
 
 
 #define IPA_MAX_NUM_REQ_CACHE 10
-#define IPA_IPC_LOG_PAGES 50
-
 #define IPA_WDI_RX_RING_RES 0
 #define IPA_WDI_RX_RING_RP_RES 1
 #define IPA_WDI_RX_COMP_RING_RES 2
@@ -77,6 +75,8 @@
 #define IPA_WDI_TX_DB_RES 7
 #define IPA_WDI_MAX_RES 8
 
+#ifdef CONFIG_IPC_LOGGING
+#define IPA_IPC_LOG_PAGES 50
 #define IPADBG(fmt, args...) \
 	do { \
 		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
@@ -118,6 +118,28 @@
 				DRV_NAME " %s:%d " fmt, ## args); \
 		} \
 	} while (0)
+#else
+#define IPADBG(fmt, args...) \
+	do { \
+		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
+
+#define IPADBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
+
+#define IPAERR(fmt, args...) \
+	do { \
+		pr_err(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
+
+#define IPAERR_RL(fmt, args...) \
+	do { \
+		pr_err_ratelimited_ipa(DRV_NAME " %s:%d " fmt, __func__,\
+		__LINE__, ## args);\
+	} while (0)
+#endif
 
 #define WLAN_AMPDU_TX_EP 15
 #define WLAN_PROD_TX_EP  19
@@ -1185,8 +1207,10 @@ struct ipa_context {
 	/* featurize if memory footprint becomes a concern */
 	struct ipa_stats stats;
 	void *smem_pipe_mem;
+#ifdef CONFIG_IPC_LOGGING
 	void *logbuf;
 	void *logbuf_low;
+#endif
 	u32 ipa_bus_hdl;
 	struct ipa_controller *ctrl;
 	struct idr ipa_idr;

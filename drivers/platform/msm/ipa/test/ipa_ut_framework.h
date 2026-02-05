@@ -18,44 +18,76 @@
 #include "ipa_ut_i.h"
 
 #define IPA_UT_DRV_NAME "ipa_ut"
-
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_UT_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPA_UT_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_UT_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPA_UT_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPA_UT_ERR(fmt, args...) \
 	do { \
 		pr_err(IPA_UT_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_UT_INFO(fmt, args...) \
 	do { \
 		pr_info(IPA_UT_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_UT_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
+#else
+#define IPA_UT_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPA_UT_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_UT_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPA_UT_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_UT_ERR(fmt, args...) \
+	do { \
+		pr_err(IPA_UT_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_UT_INFO(fmt, args...) \
+	do { \
+		pr_info(IPA_UT_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 /**
  * struct ipa_ut_tst_fail_report - Information on test failure

@@ -119,7 +119,9 @@ const char *ipa3_hdr_proc_type_name[] = {
 static char dbg_buff[IPA_MAX_MSG_LEN + 1];
 static char *active_clients_buf;
 static s8 ep_reg_idx;
+#ifdef CONFIG_IPC_LOGGING
 static void *ipa_ipc_low_buff;
+#endif
 
 static ssize_t gen_reg_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
@@ -2694,7 +2696,7 @@ static ssize_t active_clients_store(struct device *dev, struct device_attribute 
 
 	return count;
 }
-
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t enable_low_prio_print_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
 	s8 option = 0;
@@ -2721,7 +2723,7 @@ static ssize_t enable_low_prio_print_store(struct device *dev, struct device_att
 
 	return count;
 }
-
+#endif
 static ssize_t uc_act_tbl_show(struct device *dev, struct device_attribute *attr, char *ubuf)
 {
 	int nbytes;
@@ -3201,8 +3203,9 @@ static DEVICE_ATTR_RO(emac_1_err_status);
 /* Write only sysfs attributes */
 
 static DEVICE_ATTR_WO(holb);
+#ifdef CONFIG_IPC_LOGGING
 static DEVICE_ATTR_WO(enable_low_prio_print);
-
+#endif
 /* RW sysfs attributes */
 static DEVICE_ATTR_RW(active_clients);
 static DEVICE_ATTR_RW(ep_reg);
@@ -3247,7 +3250,9 @@ static struct attribute *ipa_attrs[] = {
         &dev_attr_uc_act_tbl.attr,
 	&dev_attr_pm_ex_stats.attr,
 	&dev_attr_status_stats.attr,
+#ifdef CONFIG_IPC_LOGGING
 	&dev_attr_enable_low_prio_print.attr,
+#endif
 	&dev_attr_ipa_dump_regs.attr,
 	&dev_attr_wdi_gsi_stats.attr,
 	&dev_attr_wdi3_gsi_stats.attr,

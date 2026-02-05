@@ -19,33 +19,59 @@
 
 #define OFFLOAD_DRV_NAME "ipa_wigig"
 #define IPA_MAX_MSG_LEN 4096
+
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_WIGIG_DBG(fmt, args...) \
 	do { \
 		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_WIGIG_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPA_WIGIG_ERR(fmt, args...) \
 	do { \
 		pr_err(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
+#else
+#define IPA_WIGIG_DBG(fmt, args...) \
+	do { \
+		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_WIGIG_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_WIGIG_ERR(fmt, args...) \
+	do { \
+		pr_err(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 #define IPA_WIGIG_RX_PIPE_IDX	0
 #define IPA_WIGIG_TX_PIPE_NUM	4

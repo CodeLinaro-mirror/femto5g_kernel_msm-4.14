@@ -30,8 +30,9 @@
 		pr_err(fmt, ## args)
 
 static char dbg_buff[4096];
+#ifdef CONFIG_IPC_LOGGING
 static void *gsi_ipc_logbuf_low;
-
+#endif
 static void gsi_wq_print_dp_stats(struct work_struct *work);
 static DECLARE_DELAYED_WORK(gsi_print_dp_stats_work, gsi_wq_print_dp_stats);
 static void gsi_wq_update_dp_stats(struct work_struct *work);
@@ -601,6 +602,7 @@ error:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t ipc_low_store(struct device *dev, struct device_attribute *attr, const char *ubuf, size_t count)
 {
 	s8 option = 0;
@@ -627,7 +629,7 @@ static ssize_t ipc_low_store(struct device *dev, struct device_attribute *attr, 
 
 	return count;
 }
-
+#endif
 static DEVICE_ATTR_WO(ev_dump);
 static DEVICE_ATTR_WO(ch_dump);
 static DEVICE_ATTR_WO(gsi_stats);
@@ -635,8 +637,9 @@ static DEVICE_ATTR_WO(enable_dp_stats);
 static DEVICE_ATTR_WO(max_elem_dp_stats);
 static DEVICE_ATTR_WO(rst_stats);
 static DEVICE_ATTR_WO(print_dp_stats);
+#ifdef CONFIG_IPC_LOGGING
 static DEVICE_ATTR_WO(ipc_low);
-
+#endif
 static struct attribute *ipa_gsi_attrs[] = {
 	&dev_attr_ev_dump.attr,
 	&dev_attr_ch_dump.attr,
@@ -645,7 +648,9 @@ static struct attribute *ipa_gsi_attrs[] = {
 	&dev_attr_max_elem_dp_stats.attr,
 	&dev_attr_rst_stats.attr,
 	&dev_attr_print_dp_stats.attr,
+#ifdef CONFIG_IPC_LOGGING
 	&dev_attr_ipc_low.attr,
+#endif
 	NULL
 };
 

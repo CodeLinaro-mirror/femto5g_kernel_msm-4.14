@@ -24,22 +24,26 @@
 
 #define IPA_MPM_DRV_NAME "ipa_mpm"
 
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_MPM_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPA_MPM_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_MPM_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPA_MPM_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 
@@ -47,12 +51,33 @@
 	do { \
 		pr_err(IPA_MPM_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					IPA_MPM_DRV_NAME " %s:%d " fmt, ## args); \
+		}
+	} while (0)
+#else
+#define IPA_MPM_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPA_MPM_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
 	} while (0)
 
+#define IPA_MPM_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPA_MPM_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+
+#define IPA_MPM_ERR(fmt, args...) \
+	do { \
+		pr_err(IPA_MPM_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 #define IPA_MPM_FUNC_ENTRY() \
 	IPA_MPM_DBG("ENTRY\n")

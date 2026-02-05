@@ -3908,11 +3908,11 @@ static int ipa_init(const struct ipa_plat_drv_res *resource_p,
 		result = -ENOMEM;
 		goto fail_mem_ctx;
 	}
-
+#ifdef CONFIG_IPC_LOGGING
 	ipa_ctx->logbuf = ipc_log_context_create(IPA_IPC_LOG_PAGES, "ipa", 0);
 	if (ipa_ctx->logbuf == NULL)
 		IPADBG("failed to create IPC log, continue...\n");
-
+#endif
 	ipa_ctx->pdev = ipa_dev;
 	ipa_ctx->uc_pdev = ipa_dev;
 	ipa_ctx->smmu_present = smmu_info.present;
@@ -4086,7 +4086,9 @@ static int ipa_init(const struct ipa_plat_drv_res *resource_p,
 		bam_props.options |= SPS_BAM_SMMU_EN;
 	bam_props.options |= SPS_BAM_CACHED_WP;
 	bam_props.ee = resource_p->ee;
+#ifdef CONFIG_IPC_LOGGING
 	bam_props.ipc_loglevel = 3;
+#endif
 
 	result = sps_register_bam_device(&bam_props, &ipa_ctx->bam_handle);
 	if (result) {
@@ -4462,7 +4464,9 @@ fail_bus_reg:
 fail_bind:
 	kfree(ipa_ctx->ctrl);
 fail_mem_ctrl:
+#ifdef CONFIG_IPC_LOGGING
 	ipc_log_context_destroy(ipa_ctx->logbuf);
+#endif
 	kfree(ipa_ctx);
 	ipa_ctx = NULL;
 fail_mem_ctx:

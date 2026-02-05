@@ -18,6 +18,8 @@
 #include <linux/ipa_eth.h>
 
 #define OFFLOAD_DRV_NAME "ipa_eth"
+
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_ETH_DBG(fmt, args...) \
 	do { \
 		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
@@ -45,6 +47,25 @@
 		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
 			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
+#else
+#define IPA_ETH_DBG(fmt, args...) \
+	do { \
+		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_ETH_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_ETH_ERR(fmt, args...) \
+	do { \
+		pr_err(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 struct ipa_eth_ready_cb_wrapper {
 	struct list_head link;

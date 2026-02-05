@@ -18,44 +18,76 @@
 
 #define IPA_NTN_DMA_POOL_ALIGNMENT 8
 #define OFFLOAD_DRV_NAME "ipa_uc_offload"
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_UC_OFFLOAD_DBG(fmt, args...) \
 	do { \
 		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_UC_OFFLOAD_LOW(fmt, args...) \
 	do { \
 		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPA_UC_OFFLOAD_ERR(fmt, args...) \
 	do { \
 		pr_err(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_UC_OFFLOAD_INFO(fmt, args...) \
 	do { \
 		pr_info(OFFLOAD_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				OFFLOAD_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
+	} while (0)
+#else
+#define IPA_UC_OFFLOAD_DBG(fmt, args...) \
+	do { \
+		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
 	} while (0)
 
+#define IPA_UC_OFFLOAD_LOW(fmt, args...) \
+	do { \
+		pr_debug(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_UC_OFFLOAD_ERR(fmt, args...) \
+	do { \
+		pr_err(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_UC_OFFLOAD_INFO(fmt, args...) \
+	do { \
+		pr_info(OFFLOAD_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 enum ipa_uc_offload_state {
 	IPA_UC_OFFLOAD_STATE_INVALID,
 	IPA_UC_OFFLOAD_STATE_INITIALIZED,

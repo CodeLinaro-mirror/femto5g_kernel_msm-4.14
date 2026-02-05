@@ -35,6 +35,9 @@
 #define gsi_readl(c)	(readl(c))
 #define gsi_writel(v, c)	({ __iowmb(); writel_relaxed((v), (c)); })
 
+#ifdef CONFIG_IPC_LOGGING
+#define GSI_IPC_LOG_PAGES 50
+
 #define GSI_IPC_LOGGING(buf, fmt, args...) \
 	do { \
 		if (buf) \
@@ -42,15 +45,18 @@
 				## args); \
 	} while (0)
 
+
 #define GSIDBG(fmt, args...) \
 	do { \
 		dev_dbg(gsi_ctx->dev, "%s:%d " fmt, __func__, __LINE__, \
 		## args);\
 		if (gsi_ctx) { \
-			GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf, \
-				"%s:%d " fmt, ## args); \
-			GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf_low, \
-				"%s:%d " fmt, ## args); \
+			if (IS_REACHABLE(CONFIG_IPC_LOGGING)) { \
+				GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf, \
+					"%s:%d " fmt, ## args); \
+				GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf_low, \
+					"%s:%d " fmt, ## args); \
+			} \
 		} \
 	} while (0)
 
@@ -59,8 +65,9 @@
 		dev_dbg(gsi_ctx->dev, "%s:%d " fmt, __func__, __LINE__, \
 		## args);\
 		if (gsi_ctx) { \
-			GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf_low, \
-				"%s:%d " fmt, ## args); \
+			if (IS_REACHABLE(CONFIG_IPC_LOGGING)) \
+				GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf_low, \
+					"%s:%d " fmt, ## args); \
 		} \
 	} while (0)
 
@@ -69,14 +76,33 @@
 		dev_err(gsi_ctx->dev, "%s:%d " fmt, __func__, __LINE__, \
 		## args);\
 		if (gsi_ctx) { \
-			GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf, \
-				"%s:%d " fmt, ## args); \
-			GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf_low, \
-				"%s:%d " fmt, ## args); \
+			if (IS_REACHABLE(CONFIG_IPC_LOGGING))  { \
+				GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf, \
+					"%s:%d " fmt, ## args); \
+				GSI_IPC_LOGGING(gsi_ctx->ipc_logbuf_low, \
+					"%s:%d " fmt, ## args); \
+			} \
 		} \
 	} while (0)
+#else
+#define GSIDBG(fmt, args...) \
+	do { \
+		dev_dbg(gsi_ctx->dev, "%s:%d " fmt, __func__, __LINE__, \
+		## args);\
+	} while (0)
 
-#define GSI_IPC_LOG_PAGES 50
+#define GSIDBG_LOW(fmt, args...) \
+	do { \
+		dev_dbg(gsi_ctx->dev, "%s:%d " fmt, __func__, __LINE__, \
+		## args);\
+	} while (0)
+
+#define GSIERR(fmt, args...) \
+	do { \
+		dev_err(gsi_ctx->dev, "%s:%d " fmt, __func__, __LINE__, \
+		## args);\
+	} while (0)
+#endif
 
 enum gsi_evt_ring_state {
 	GSI_EVT_RING_STATE_NOT_ALLOCATED = 0x0,
@@ -225,8 +251,10 @@ struct gsi_ctx {
 	u32 max_ch;
 	u32 max_ev;
 	struct completion gen_ee_cmd_compl;
+#ifdef CONFIG_IPC_LOGGING
 	void *ipc_logbuf;
 	void *ipc_logbuf_low;
+#endif
 	/*
 	 * The following used only on emulation systems.
 	 */

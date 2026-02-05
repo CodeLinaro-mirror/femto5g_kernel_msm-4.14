@@ -30,7 +30,10 @@
 
 static struct dentry *dent;
 static char dbg_buff[4096];
+
+#ifdef CONFIG_IPC_LOGGING
 static void *gsi_ipc_logbuf_low;
+#endif
 
 static void gsi_wq_print_dp_stats(struct work_struct *work);
 static DECLARE_DELAYED_WORK(gsi_print_dp_stats_work, gsi_wq_print_dp_stats);
@@ -633,6 +636,7 @@ error:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t gsi_enable_ipc_low(struct file *file,
 	const char __user *ubuf, size_t count, loff_t *ppos)
 {
@@ -667,7 +671,7 @@ static ssize_t gsi_enable_ipc_low(struct file *file,
 
 	return count;
 }
-
+#endif
 const struct file_operations gsi_ev_dump_ops = {
 	.write = gsi_dump_evt,
 };
@@ -695,11 +699,11 @@ const struct file_operations gsi_rst_stats_ops = {
 const struct file_operations gsi_print_dp_stats_ops = {
 	.write = gsi_print_dp_stats,
 };
-
+#ifdef CONFIG_IPC_LOGGING
 const struct file_operations gsi_ipc_low_ops = {
 	.write = gsi_enable_ipc_low,
 };
-
+#endif
 void gsi_debugfs_init(void)
 {
 	static struct dentry *dfile;
@@ -760,12 +764,14 @@ void gsi_debugfs_init(void)
 		goto fail;
 	}
 
+#ifdef CONFIG_IPC_LOGGING
 	dfile = debugfs_create_file("ipc_low", write_only_mode,
 		dent, 0, &gsi_ipc_low_ops);
 	if (!dfile || IS_ERR(dfile)) {
 		TERR("could not create ipc_low\n");
 		goto fail;
 	}
+#endif 
 
 	return;
 fail:

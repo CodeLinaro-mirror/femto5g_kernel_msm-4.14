@@ -63,12 +63,14 @@ enum ipa_eth_dev_flags {
 	IPA_ETH_DEV_F_COUNT,
 };
 
+#ifdef CONFIG_IPC_LOGGING
 #define ipa_eth_err(fmt, args...) \
 	do { \
 		dev_err(IPA_ETH_PFDEV, \
 			IPA_ETH_SUBSYS " %s:%d ERROR: " fmt "\n", \
 			__func__, __LINE__, ## args); \
-		ipa_eth_ipc_log("ERROR: " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			ipa_eth_ipc_log("ERROR: " fmt, ## args); \
 	} while (0)
 
 #define ipa_eth_bug(fmt, args...) \
@@ -82,7 +84,8 @@ enum ipa_eth_dev_flags {
 		dev_dbg(IPA_ETH_PFDEV, \
 			IPA_ETH_SUBSYS " %s:%d " fmt "\n", \
 			__func__, __LINE__, ## args); \
-		ipa_eth_ipc_log(fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING))    \
+			ipa_eth_ipc_log(fmt, ## args);    \
 	} while (0)
 
 #define ipa_eth_dbg(fmt, args...) \
@@ -90,8 +93,37 @@ enum ipa_eth_dev_flags {
 		dev_dbg(IPA_ETH_PFDEV, \
 			IPA_ETH_SUBSYS " %s:%d " fmt "\n", \
 			__func__, __LINE__, ## args); \
-		ipa_eth_ipc_dbg("DEBUG: " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING))    \
+			ipa_eth_ipc_dbg("DEBUG: " fmt, ## args); \
 	} while (0)
+#else
+#define ipa_eth_err(fmt, args...) \
+	do { \
+		dev_err(IPA_ETH_PFDEV, \
+			IPA_ETH_SUBSYS " %s:%d ERROR: " fmt "\n", \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define ipa_eth_bug(fmt, args...) \
+	do { \
+		ipa_eth_err("BUG: " fmt, ## args); \
+		dump_stack(); \
+	} while (0)
+
+#define ipa_eth_log(fmt, args...) \
+	do { \
+		dev_dbg(IPA_ETH_PFDEV, \
+			IPA_ETH_SUBSYS " %s:%d " fmt "\n", \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define ipa_eth_dbg(fmt, args...) \
+	do { \
+		dev_dbg(IPA_ETH_PFDEV, \
+			IPA_ETH_SUBSYS " %s:%d " fmt "\n", \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 #define ipa_eth_dev_err(edev, fmt, args...) \
 	ipa_eth_err("(%s) " fmt, ((edev && edev->net_dev) ? \
@@ -162,7 +194,9 @@ struct ipa_eth_cb_map_param {
 
 extern unsigned long ipa_eth_state;
 extern bool ipa_eth_noauto;
+#ifdef CONFIG_IPC_LOGGING
 extern bool ipa_eth_ipc_logdbg;
+#endif
 
 bool ipa_eth_is_ready(void);
 bool ipa_eth_all_ready(void);
@@ -285,10 +319,12 @@ const char *ipa_eth_pm_notifier_event_name(unsigned long event);
 int ipa_eth_send_msg_connect(struct net_device *net_dev);
 int ipa_eth_send_msg_disconnect(struct net_device *net_dev);
 
+#ifdef CONFIG_IPC_LOGGING
 void *ipa_eth_get_ipc_logbuf(void);
 void *ipa_eth_get_ipc_logbuf_dbg(void);
 
 int ipa_eth_ipc_log_init(void);
 void ipa_eth_ipc_log_cleanup(void);
+#endif
 
 #endif // _IPA_ETH_I_H_

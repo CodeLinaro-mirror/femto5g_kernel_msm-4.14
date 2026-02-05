@@ -37,34 +37,58 @@
 #define IPA_GSB_MAX_MSG_LEN 512
 #define MAX_SUPPORTED_IFACE 5
 
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_GSB_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPA_GSB_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPA_GSB_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPA_GSB_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPA_GSB_ERR(fmt, args...) \
 	do { \
 		pr_err(IPA_GSB_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_GSB_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
+	} while (0)
+#else
+#define IPA_GSB_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPA_GSB_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
 	} while (0)
 
+#define IPA_GSB_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPA_GSB_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPA_GSB_ERR(fmt, args...) \
+	do { \
+		pr_err(IPA_GSB_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 
 static char dbg_buff[IPA_GSB_MAX_MSG_LEN];
 #ifdef CONFIG_DEBUG_FS
@@ -151,8 +175,10 @@ struct ipa_gsb_iface_info {
  * @pm_hdl: IPA PM handle
  */
 struct ipa_gsb_context {
+#ifdef CONFIG_IPC_LOGGING
 	void *logbuf;
 	void *logbuf_low;
+#endif
 	struct mutex lock;
 	u32 prod_hdl;
 	u32 cons_hdl;
@@ -717,8 +743,11 @@ int ipa_bridge_cleanup(u32 hdl)
 #else
 		ipa_gsb_sysfs_destroy();
 #endif
+
+#ifdef CONFIG_IPC_LOGGING
 		ipc_log_context_destroy(ipa_gsb_ctx->logbuf);
 		ipc_log_context_destroy(ipa_gsb_ctx->logbuf_low);
+#endif
 		mutex_unlock(&ipa_gsb_ctx->lock);
 		mutex_destroy(&ipa_gsb_ctx->lock);
 		for (i = 0; i < MAX_SUPPORTED_IFACE; i++)

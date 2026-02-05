@@ -82,8 +82,6 @@
 
 #define IPA_MAX_STATUS_STAT_NUM 30
 
-#define IPA_IPC_LOG_PAGES 50
-
 #define IPA_MAX_NUM_REQ_CACHE 10
 
 #define NAPI_WEIGHT 60
@@ -116,14 +114,19 @@
 	m == WLAN_AP_DISCONNECT || \
 	m == WLAN_CLIENT_DISCONNECT)
 
+#ifdef CONFIG_IPC_LOGGING
+#define IPA_IPC_LOG_PAGES 50
+
 #define IPADBG(fmt, args...) \
 	do { \
 		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
 		if (ipa3_ctx) { \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
-				DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf, \
+					DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
+					DRV_NAME " %s:%d " fmt, ## args); \
 		} \
 	} while (0)
 
@@ -131,18 +134,21 @@
 	do { \
 		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
 		if (ipa3_ctx) \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
-				DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
+					DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPAERR(fmt, args...) \
 	do { \
 		pr_err(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
 		if (ipa3_ctx) { \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
-				DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf, \
+					DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
+					DRV_NAME " %s:%d " fmt, ## args); \
 		} \
 	} while (0)
 
@@ -151,13 +157,36 @@
 		pr_err_ratelimited_ipa(DRV_NAME " %s:%d " fmt, __func__,\
 		__LINE__, ## args);\
 		if (ipa3_ctx) { \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-			IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
-				DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf, \
+					DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+				IPA_IPC_LOGGING(ipa3_ctx->logbuf_low, \
+					DRV_NAME " %s:%d " fmt, ## args); \
 		} \
 	} while (0)
+#else
+#define IPADBG(fmt, args...) \
+	do { \
+		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
 
+#define IPADBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
+
+#define IPAERR(fmt, args...) \
+	do { \
+		pr_err(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
+	} while (0)
+
+#define IPAERR_RL(fmt, args...) \
+	do { \
+		pr_err_ratelimited_ipa(DRV_NAME " %s:%d " fmt, __func__,\
+		__LINE__, ## args);\
+	} while (0)
+#endif
 /* round addresses for closes page per SMMU requirements */
 #define IPA_SMMU_ROUND_TO_PAGE(iova, pa, size, iova_p, pa_p, size_p) \
 	do { \
@@ -1997,8 +2026,10 @@ struct ipa3_context {
 	/* featurize if memory footprint becomes a concern */
 	struct ipa3_stats stats;
 	void *smem_pipe_mem;
+#ifdef CONFIG_IPC_LOGGING
 	void *logbuf;
 	void *logbuf_low;
+#endif
 	u32 ipa_bus_hdl;
 	struct ipa3_controller *ctrl;
 	struct idr ipa_idr;

@@ -262,10 +262,10 @@ int ipa_eth_debugfs_init(void)
 
 	(void) debugfs_create_bool("no_auto", 0644,
 				   ipa_eth_debugfs, &ipa_eth_noauto);
-
+#ifdef CONFIG_IPC_LOGGING
 	(void) debugfs_create_bool("ipc_logdbg", 0644,
 				   ipa_eth_debugfs, &ipa_eth_ipc_logdbg);
-
+#endif
 	ipa_eth_devices_debugfs =
 		debugfs_create_dir("devices", ipa_eth_debugfs);
 	if (IS_ERR_OR_NULL(ipa_eth_devices_debugfs)) {

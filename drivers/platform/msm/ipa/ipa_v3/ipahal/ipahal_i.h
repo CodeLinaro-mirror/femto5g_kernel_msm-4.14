@@ -18,61 +18,109 @@
 
 #define IPAHAL_DRV_NAME "ipahal"
 
+#ifdef CONFIG_IPC_LOGGING
+#define IPAHAL_IPC_LOG_PAGES 50
+
 #define IPAHAL_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
 			## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING))  { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPAHAL_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
 			## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPAHAL_ERR(fmt, args...) \
 	do { \
 		pr_err(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
 			## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPAHAL_ERR_RL(fmt, args...) \
 		do { \
 			pr_err_ratelimited_ipa(IPAHAL_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
-			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+			if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+				IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+				IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					IPAHAL_DRV_NAME " %s:%d " fmt, ## args); \
+			} \
 		} while (0)
 
 #define IPAHAL_DBG_REG(fmt, args...) \
 	do { \
 		pr_err(fmt, ## args); \
-		IPA_IPC_LOGGING(ipahal_ctx->regdumpbuf, \
-			" %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipahal_ctx->regdumpbuf, \
+				" %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPAHAL_DBG_REG_IPC_ONLY(fmt, args...) \
 	do { \
-		IPA_IPC_LOGGING(ipahal_ctx->regdumpbuf, \
-			" %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipahal_ctx->regdumpbuf, \
+				" %s:%d " fmt, ## args); \
 	} while (0)
+#else
+#define IPAHAL_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
+			## args); \
+	} while (0)
+
+#define IPAHAL_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
+			## args); \
+	} while (0)
+
+#define IPAHAL_ERR(fmt, args...) \
+	do { \
+		pr_err(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
+			## args); \
+	} while (0)
+
+#define IPAHAL_ERR_RL(fmt, args...) \
+		do { \
+			pr_err_ratelimited_ipa(IPAHAL_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+		} while (0)
+
+#define IPAHAL_DBG_REG(fmt, args...) \
+	do { \
+		pr_err(fmt, ## args); \
+	} while (0)
+
+#define IPAHAL_DBG_REG_IPC_ONLY(fmt, args...) \
+	do { \
+		pr_debug(IPAHAL_DRV_NAME " %s:%d " fmt, __func__, __LINE__, \
+			## args); \
+	} while (0)
+
+#endif
 
 #define IPAHAL_MEM_ALLOC(__size, __is_atomic_ctx) \
 	(kzalloc((__size), ((__is_atomic_ctx) ? GFP_ATOMIC : GFP_KERNEL)))
 
-#define IPAHAL_IPC_LOG_PAGES 50
 
 #define IPAHAL_PKT_STATUS_FLTRT_RULE_MISS_ID 0x3ff
 
@@ -92,7 +140,9 @@ struct ipahal_context {
 	struct dentry *dent;
 	struct device *ipa_pdev;
 	struct ipa_mem_buffer empty_fltrt_tbl;
+#ifdef CONFIG_IPC_LOGGING
 	void *regdumpbuf;
+#endif
 };
 
 extern struct ipahal_context *ipahal_ctx;

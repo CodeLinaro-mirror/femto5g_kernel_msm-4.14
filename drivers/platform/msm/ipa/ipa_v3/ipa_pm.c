@@ -17,31 +17,55 @@
 
 #define IPA_PM_DRV_NAME "ipa_pm"
 
+#ifdef CONFIG_IPC_LOGGING
 #define IPA_PM_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPA_PM_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 #define IPA_PM_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPA_PM_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 #define IPA_PM_ERR(fmt, args...) \
 	do { \
 		pr_err(IPA_PM_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_PM_DRV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
+		
+#else
+#define IPA_PM_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPA_PM_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#define IPA_PM_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPA_PM_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#define IPA_PM_ERR(fmt, args...) \
+	do { \
+		pr_err(IPA_PM_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 #define IPA_PM_DBG_STATE(hdl, name, state) \
 	IPA_PM_DBG_LOW("Client[%d] %s: %s\n", hdl, name, \
 		client_state_to_str[state])

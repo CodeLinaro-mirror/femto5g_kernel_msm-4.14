@@ -366,8 +366,10 @@ int ipa_resume_resource(enum ipa_rm_resource_name name);
 int ipa_suspend_resource_sync(enum ipa_rm_resource_name resource);
 int ipa_set_required_perf_profile(enum ipa_voltage_level floor_voltage,
 	u32 bandwidth_mbps);
+#ifdef CONFIG_IPC_LOGGING
 void *ipa_get_ipc_logbuf(void);
 void *ipa_get_ipc_logbuf_low(void);
+#endif
 void ipa_assert(void);
 
 /* MHI */

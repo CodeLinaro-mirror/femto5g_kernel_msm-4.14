@@ -1052,7 +1052,7 @@ static struct ipa_eth_ready eth_api_rdy = {
 
 int ipa_eth_init(void)
 {
-	int rc;
+	int rc = 0;
 	unsigned int wq_flags = WQ_UNBOUND | WQ_MEM_RECLAIM;
 
 	/* Freeze the workqueue so that a refresh will not happen while the
@@ -1061,12 +1061,13 @@ int ipa_eth_init(void)
 	 */
 	wq_flags |= WQ_FREEZABLE;
 
+#ifdef CONFIG_IPC_LOGGING
 	rc = ipa_eth_ipc_log_init();
 	if (rc) {
 		ipa_eth_err("Failed to initialize IPC logging");
 		goto err_ipclog;
 	}
-
+#endif
 	ipa_eth_dbg("Initializing IPA Ethernet Offload Sub-System");
 
 	ipa_eth_wq = alloc_workqueue("ipa_eth", wq_flags, 0);
@@ -1119,7 +1120,9 @@ err_bus:
 	destroy_workqueue(ipa_eth_wq);
 	ipa_eth_wq = NULL;
 err_wq:
+#ifdef CONFIG_IPC_LOGGING
 	ipa_eth_ipc_log_cleanup();
+#endif
 err_ipclog:
 	return rc;
 }
@@ -1152,5 +1155,7 @@ void ipa_eth_exit(void)
 	destroy_workqueue(ipa_eth_wq);
 	ipa_eth_wq = NULL;
 
+#ifdef CONFIG_IPC_LOGGING
 	ipa_eth_ipc_log_cleanup();
+#endif
 }

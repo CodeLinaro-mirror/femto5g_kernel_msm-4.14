@@ -31,34 +31,58 @@
 
 #define IPADMA_DRV_NAME "ipa_dma"
 
+#ifdef CONFIG_IPC_LOGGING
 #define IPADMA_DBG(fmt, args...) \
 	do { \
 		pr_debug(IPADMA_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPADMA_DBG_LOW(fmt, args...) \
 	do { \
 		pr_debug(IPADMA_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPADMA_ERR(fmt, args...) \
 	do { \
 		pr_err(IPADMA_DRV_NAME " %s:%d " fmt, \
 			__func__, __LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-			IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-			IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPADMA_DRV_NAME " %s:%d " fmt, ## args); \
+	} while (0)
+#else
+#define IPADMA_DBG(fmt, args...) \
+	do { \
+		pr_debug(IPADMA_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
 	} while (0)
 
+#define IPADMA_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPADMA_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+
+#define IPADMA_ERR(fmt, args...) \
+	do { \
+		pr_err(IPADMA_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+	} while (0)
+#endif
 #define IPADMA_FUNC_ENTRY() \
 	IPADMA_DBG_LOW("ENTRY\n")
 

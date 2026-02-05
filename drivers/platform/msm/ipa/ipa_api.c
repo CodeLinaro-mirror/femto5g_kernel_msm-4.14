@@ -3432,6 +3432,8 @@ int ipa_set_required_perf_profile(enum ipa_voltage_level floor_voltage,
 }
 EXPORT_SYMBOL(ipa_set_required_perf_profile);
 
+#ifdef CONFIG_IPC_LOGGING
+
 /**
  * ipa_get_ipc_logbuf() - return a pointer to IPA driver IPC log
  */
@@ -3457,7 +3459,7 @@ void *ipa_get_ipc_logbuf_low(void)
 	return ret;
 }
 EXPORT_SYMBOL(ipa_get_ipc_logbuf_low);
-
+#endif
 /**
  * ipa_assert() - general function for assertion
  */

@@ -116,12 +116,13 @@ int ipa_eth_send_msg_disconnect(struct net_device *net_dev)
 }
 
 /* IPC Logging */
-
+#ifdef CONFIG_IPC_LOGGING
 bool ipa_eth_ipc_logdbg = IPA_ETH_IPC_LOGDBG_DEFAULT;
 module_param(ipa_eth_ipc_logdbg, bool, 0444);
 MODULE_PARM_DESC(ipa_eth_ipc_logdbg, "Log debug IPC messages");
 
 static void *ipa_eth_ipc_logbuf;
+
 
 void *ipa_eth_get_ipc_logbuf(void)
 {
@@ -155,3 +156,4 @@ void ipa_eth_ipc_log_cleanup(void)
 		ipa_eth_ipc_logbuf = NULL;
 	}
 }
+#endif

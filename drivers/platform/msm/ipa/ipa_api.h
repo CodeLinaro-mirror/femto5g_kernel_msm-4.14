@@ -435,11 +435,11 @@ struct ipa_api_controller {
 
 	int (*ipa_set_required_perf_profile)(
 		enum ipa_voltage_level floor_voltage, u32 bandwidth_mbps);
-
+#ifdef CONFIG_IPC_LOGGING
 	void *(*ipa_get_ipc_logbuf)(void);
 
 	void *(*ipa_get_ipc_logbuf_low)(void);
-
+#endif
 	int (*ipa_rx_poll)(u32 clnt_hdl, int budget);
 
 	void (*ipa_recycle_wan_skb)(struct sk_buff *skb);

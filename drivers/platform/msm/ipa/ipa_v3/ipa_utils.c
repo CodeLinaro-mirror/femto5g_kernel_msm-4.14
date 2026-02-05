@@ -7235,6 +7235,7 @@ bool ipa3_check_idr_if_freed(void *ptr)
 	return true;
 }
 
+#ifdef CONFIG_IPC_LOGGING
 static void *ipa3_get_ipc_logbuf(void)
 {
 	if (ipa3_ctx)
@@ -7250,7 +7251,7 @@ static void *ipa3_get_ipc_logbuf_low(void)
 
 	return NULL;
 }
-
+#endif
 static void ipa3_get_holb(int ep_idx, struct ipa_ep_cfg_holb *holb)
 {
 	*holb = ipa3_ctx->ep[ep_idx].holb;
@@ -7475,8 +7476,10 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_suspend_resource_sync = ipa3_suspend_resource_sync;
 	api_ctrl->ipa_set_required_perf_profile =
 		ipa3_set_required_perf_profile;
+#ifdef CONFIG_IPC_LOGGING
 	api_ctrl->ipa_get_ipc_logbuf = ipa3_get_ipc_logbuf;
 	api_ctrl->ipa_get_ipc_logbuf_low = ipa3_get_ipc_logbuf_low;
+#endif
 	api_ctrl->ipa_rx_poll = ipa3_rx_poll;
 	api_ctrl->ipa_setup_uc_ntn_pipes = ipa3_setup_uc_ntn_pipes;
 	api_ctrl->ipa_tear_down_uc_offload_pipes =

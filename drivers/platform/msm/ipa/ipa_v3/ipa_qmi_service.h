@@ -32,15 +32,17 @@
 #define SUBSYS_LOCAL_MODEM "modem"
 #define SUBSYS_REMOTE_MODEM "esoc0"
 
-
+#ifdef CONFIG_IPC_LOGGING
 #define IPAWANDBG(fmt, args...) \
 	do { \
 		pr_debug(DEV_NAME " %s:%d " fmt, __func__,\
 				__LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 
@@ -48,39 +50,78 @@
 	do { \
 		pr_debug(DEV_NAME " %s:%d " fmt, __func__,\
 				__LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
 	} while (0)
 
 #define IPAWANERR(fmt, args...) \
 	do { \
 		pr_err(DEV_NAME " %s:%d " fmt, __func__,\
 				__LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPAWANERR_RL(fmt, args...) \
 	do { \
 		pr_err_ratelimited_ipa(DEV_NAME " %s:%d " fmt, __func__,\
 				__LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
 
 #define IPAWANINFO(fmt, args...) \
 	do { \
 		pr_info(DEV_NAME " %s:%d " fmt, __func__,\
 				__LINE__, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
-		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
-				DEV_NAME " %s:%d " fmt, ## args); \
+		if (IS_ENABLED(CONFIG_IPC_LOGGING)) { \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+			IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+					DEV_NAME " %s:%d " fmt, ## args); \
+		} \
 	} while (0)
+#else
+#define IPAWANDBG(fmt, args...) \
+	do { \
+		pr_debug(DEV_NAME " %s:%d " fmt, __func__,\
+				__LINE__, ## args); \
+	} while (0)
+
+
+#define IPAWANDBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(DEV_NAME " %s:%d " fmt, __func__,\
+				__LINE__, ## args); \
+	} while (0)
+
+#define IPAWANERR(fmt, args...) \
+	do { \
+		pr_err(DEV_NAME " %s:%d " fmt, __func__,\
+				__LINE__, ## args); \
+	} while (0)
+
+#define IPAWANERR_RL(fmt, args...) \
+	do { \
+		pr_err_ratelimited_ipa(DEV_NAME " %s:%d " fmt, __func__,\
+				__LINE__, ## args); \
+	} while (0)
+
+#define IPAWANINFO(fmt, args...) \
+	do { \
+		pr_info(DEV_NAME " %s:%d " fmt, __func__,\
+				__LINE__, ## args); \
+	} while (0)
+#endif
 
 extern struct ipa3_qmi_context *ipa3_qmi_ctx;
 

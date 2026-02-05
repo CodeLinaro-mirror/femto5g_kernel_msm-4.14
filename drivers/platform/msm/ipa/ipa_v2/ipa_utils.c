@@ -4970,6 +4970,7 @@ static int ipa2_stop_gsi_channel(u32 clnt_hdl)
 	return -EFAULT;
 }
 
+#ifdef CONFIG_IPC_LOGGING
 static void *ipa2_get_ipc_logbuf(void)
 {
 	if (ipa_ctx)
@@ -4985,6 +4986,7 @@ static void *ipa2_get_ipc_logbuf_low(void)
 
 	return NULL;
 }
+#endif 
 
 static void ipa2_get_holb(int ep_idx, struct ipa_ep_cfg_holb *holb)
 {
@@ -5174,8 +5176,11 @@ int ipa2_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_suspend_resource_sync = ipa2_suspend_resource_sync;
 	api_ctrl->ipa_set_required_perf_profile =
 		ipa2_set_required_perf_profile;
+
+#ifdef CONFIG_IPC_LOGGING
 	api_ctrl->ipa_get_ipc_logbuf = ipa2_get_ipc_logbuf;
 	api_ctrl->ipa_get_ipc_logbuf_low = ipa2_get_ipc_logbuf_low;
+#endif
 	api_ctrl->ipa_rx_poll = ipa2_rx_poll;
 	api_ctrl->ipa_recycle_wan_skb = ipa2_recycle_wan_skb;
 	api_ctrl->ipa_setup_uc_ntn_pipes = ipa2_setup_uc_ntn_pipes;

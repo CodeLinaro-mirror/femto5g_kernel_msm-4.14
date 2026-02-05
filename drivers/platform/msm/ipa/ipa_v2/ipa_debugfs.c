@@ -137,7 +137,9 @@ static struct dentry *dfile_ipa_poll_iteration;
 static char dbg_buff[IPA_MAX_MSG_LEN];
 static char *active_clients_buf;
 static s8 ep_reg_idx;
+#ifdef CONFIG_IPC_LOGGING
 static void *ipa_ipc_low_buff;
+#endif
 
 int _ipa_read_gen_reg_v1_1(char *buff, int max_len)
 {
@@ -1881,7 +1883,7 @@ static ssize_t ipa_write_polling_iteration(struct file *file,
 
 	return count;
 }
-
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t ipa_enable_ipc_low(struct file *file,
 	const char __user *ubuf, size_t count, loff_t *ppos)
 {
@@ -1916,7 +1918,7 @@ static ssize_t ipa_enable_ipc_low(struct file *file,
 
 	return count;
 }
-
+#endif
 static const struct file_operations ipa_gen_reg_ops = {
 	.read = ipa_read_gen_reg,
 };
@@ -1994,11 +1996,11 @@ static const struct file_operations ipa2_active_clients = {
 	.read = ipa2_print_active_clients_log,
 	.write = ipa2_clear_active_clients_log,
 };
-
+#ifdef CONFIG_IPC_LOGGING
 static const struct file_operations ipa_ipc_low_ops = {
 	.write = ipa_enable_ipc_low,
 };
-
+#endif
 static const struct file_operations ipa_rx_poll_time_ops = {
 	.read = ipa_read_rx_polling_timeout,
 	.write = ipa_write_rx_polling_timeout,
@@ -2212,13 +2214,14 @@ void ipa_debugfs_init(void)
 		IPAERR("could not create bw_threshold_turbo_mbps\n");
 		goto fail;
 	}
-
+#ifdef CONFIG_IPC_LOGGING
 	file = debugfs_create_file("enable_low_prio_print", write_only_mode,
 		dent, NULL, &ipa_ipc_low_ops);
 	if (!file) {
 		IPAERR("could not create enable_low_prio_print file\n");
 		goto fail;
 	}
+#endif
 
 	return;
 

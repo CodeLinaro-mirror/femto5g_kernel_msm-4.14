@@ -30,8 +30,9 @@ static LIST_HEAD(ipa_eth_devices);
 static DEFINE_MUTEX(ipa_eth_devices_lock);
 
 extern bool ipa_eth_noauto;
+#ifdef CONFIG_IPC_LOGGING
 extern bool ipa_eth_ipc_logdbg;
-
+#endif
 /* Function prototypes */
 /* Function prototypes */
 static ssize_t eth_dev_init_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
@@ -48,8 +49,10 @@ static ssize_t ethdev_stats_show(struct kobject *kobj, struct kobj_attribute *at
 static ssize_t ethdev_stats_store(struct kobject *kobj, struct kobj_attribute *attr, const char *ubuf, size_t size);
 static ssize_t ready_show(struct kobject *kobj, struct kobj_attribute *attr, char *ubuf);
 static ssize_t ready_store(struct kobject *kobj, struct kobj_attribute *attr, const char *ubuf, size_t size);
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t ipc_logdbg_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 static ssize_t ipc_logdbg_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t size);
+#endif
 static ssize_t no_auto_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 static ssize_t no_auto_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t size);
 
@@ -88,7 +91,7 @@ static ssize_t no_auto_store(struct kobject *kobj, struct kobj_attribute *attr, 
     }
     return ret;
 }
-
+#ifdef CONFIG_IPC_LOGGING
 static ssize_t ipc_logdbg_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
     return sprintf(buf, "%s\n", ipa_eth_ipc_logdbg ? "true" : "false");
@@ -103,7 +106,7 @@ static ssize_t ipc_logdbg_store(struct kobject *kobj, struct kobj_attribute *att
     }
     return ret;
 }
-
+#endif
 static ssize_t eth_dev_write_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
     struct eth_dev_sys_ent *ent = container_of(kobj, struct eth_dev_sys_ent, kobj);
@@ -395,8 +398,9 @@ int ipa_eth_sysfs_init(void)
 
     static struct kobj_attribute ready_attr = __ATTR(ready, 0644, ready_show, ready_store);
     static struct kobj_attribute no_auto_attr = __ATTR(no_auto, 0644, no_auto_show, no_auto_store);
+#ifdef CONFIG_IPC_LOGGING
     static struct kobj_attribute ipc_logdbg_attr = __ATTR(ipc_logdbg, 0644, ipc_logdbg_show, ipc_logdbg_store);
-
+#endif
     err = sysfs_create_file(eth_kobj, &ready_attr.attr);
     if (err) {
         ipa_eth_log("Unable to create ready file\n");
@@ -406,12 +410,12 @@ int ipa_eth_sysfs_init(void)
     if (err) {
         ipa_eth_log("Unable to create no_auto file\n");
     }
-
+#ifdef CONFIG_IPC_LOGGING
     err = sysfs_create_file(eth_kobj, &ipc_logdbg_attr.attr);
     if (err) {
         ipa_eth_log("Unable to create ipc_logdbg file\n");
     }
-
+#endif
     eth_dev_kobj = kobject_create_and_add("devices", eth_kobj);
     if (IS_ERR_OR_NULL(eth_dev_kobj))
         return -ENOMEM;
