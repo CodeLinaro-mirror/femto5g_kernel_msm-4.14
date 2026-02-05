@@ -297,11 +297,6 @@ int release_resource(struct resource *old)
 
 EXPORT_SYMBOL(release_resource);
 
-static bool is_type_match(struct resource *p, unsigned long flags, unsigned long desc)
-{
-	return (p->flags & flags) == flags && (desc == IORES_DESC_NONE || desc == p->desc);
-}
-
 /**
  * find_next_iomem_res - Finds the lowest iomem resource that covers part of
  *			 [@start..@end].
@@ -323,8 +318,6 @@ static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 			       unsigned long flags, unsigned long desc,
 			       struct resource *res)
 {
-	/* Skip children until we find a top level range that matches */
-	bool skip_children = true;
 	struct resource *p;
 
 	if (!res)
@@ -335,7 +328,7 @@ static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 
 	read_lock(&resource_lock);
 
-	for_each_resource(&iomem_resource, p, skip_children) {
+	for_each_resource(&iomem_resource, p, false) {
 		/* If we passed the resource we are looking for, stop */
 		if (p->start > end) {
 			p = NULL;
@@ -346,15 +339,13 @@ static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 		if (p->end < start)
 			continue;
 
-		/*
-		 * We found a top level range that matches what we are looking
-		 * for. Time to start checking children too.
-		 */
-		skip_children = false;
+		if ((p->flags & flags) != flags)
+			continue;
+		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
+			continue;
 
 		/* Found a match, break */
-		if (is_type_match(p, flags, desc))
-			break;
+		break;
 	}
 
 	if (p) {
@@ -546,18 +537,21 @@ static int __region_intersects(struct resource *parent, resource_size_t start,
 			       size_t size, unsigned long flags,
 			       unsigned long desc)
 {
+	resource_size_t ostart, oend;
 	int type = 0; int other = 0;
 	struct resource *p, *dp;
-	struct resource res, o;
-	bool covered;
+	bool is_type, covered;
+	struct resource res;
 
 	res.start = start;
 	res.end = start + size - 1;
 
 	for (p = parent->child; p ; p = p->sibling) {
-		if (!resource_intersection(p, &res, &o))
+		if (!resource_overlaps(p, &res))
 			continue;
-		if (is_type_match(p, flags, desc)) {
+		is_type = (p->flags & flags) == flags &&
+			(desc == IORES_DESC_NONE || desc == p->desc);
+		if (is_type) {
 			type++;
 			continue;
 		}
@@ -574,23 +568,27 @@ static int __region_intersects(struct resource *parent, resource_size_t start,
 		 * |-- "System RAM" --||-- "CXL Window 0a" --|
 		 */
 		covered = false;
+		ostart = max(res.start, p->start);
+		oend = min(res.end, p->end);
 		for_each_resource(p, dp, false) {
 			if (!resource_overlaps(dp, &res))
 				continue;
-			if (is_type_match(dp, flags, desc)) {
+			is_type = (dp->flags & flags) == flags &&
+				(desc == IORES_DESC_NONE || desc == dp->desc);
+			if (is_type) {
 				type++;
 				/*
-				 * Range from 'o.start' to 'dp->start'
+				 * Range from 'ostart' to 'dp->start'
 				 * isn't covered by matched resource.
 				 */
-				if (dp->start > o.start)
+				if (dp->start > ostart)
 					break;
-				if (dp->end >= o.end) {
+				if (dp->end >= oend) {
 					covered = true;
 					break;
 				}
 				/* Remove covered range */
-				o.start = max(o.start, dp->end + 1);
+				ostart = max(ostart, dp->end + 1);
 			}
 		}
 		if (!covered)

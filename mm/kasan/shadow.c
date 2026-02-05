@@ -561,9 +561,7 @@ void *__kasan_unpoison_vmalloc(const void *start, unsigned long size,
 	    !(flags & KASAN_VMALLOC_PROT_NORMAL))
 		return (void *)start;
 
-	if (unlikely(!(flags & KASAN_VMALLOC_KEEP_TAG)))
-		start = set_tag(start, kasan_random_tag());
-
+	start = set_tag(start, kasan_random_tag());
 	kasan_unpoison(start, size, false);
 	return (void *)start;
 }

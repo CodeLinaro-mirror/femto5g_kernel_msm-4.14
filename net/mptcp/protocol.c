@@ -1637,7 +1637,7 @@ void __mptcp_push_pending(struct sock *sk, unsigned int flags)
 	struct mptcp_sendmsg_info info = {
 				.flags = flags,
 	};
-	bool copied = false;
+	bool do_check_data_fin = false;
 	int push_count = 1;
 
 	while (mptcp_send_head(sk) && (push_count > 0)) {
@@ -1679,7 +1679,7 @@ void __mptcp_push_pending(struct sock *sk, unsigned int flags)
 						push_count--;
 					continue;
 				}
-				copied = true;
+				do_check_data_fin = true;
 			}
 		}
 	}
@@ -1688,14 +1688,11 @@ void __mptcp_push_pending(struct sock *sk, unsigned int flags)
 	if (ssk)
 		mptcp_push_release(ssk, &info);
 
-	/* Avoid scheduling the rtx timer if no data has been pushed; the timer
-	 * will be updated on positive acks by __mptcp_cleanup_una().
-	 */
-	if (copied) {
-		if (!mptcp_rtx_timer_pending(sk))
-			mptcp_reset_rtx_timer(sk);
+	/* ensure the rtx timer is running */
+	if (!mptcp_rtx_timer_pending(sk))
+		mptcp_reset_rtx_timer(sk);
+	if (do_check_data_fin)
 		mptcp_check_send_data_fin(sk);
-	}
 }
 
 static void __mptcp_subflow_push_pending(struct sock *sk, struct sock *ssk, bool first)
@@ -2724,7 +2721,7 @@ static void __mptcp_retrans(struct sock *sk)
 		}
 
 		if (!mptcp_send_head(sk))
-			goto clear_scheduled;
+			return;
 
 		goto reset_timer;
 	}
@@ -2749,16 +2746,13 @@ static void __mptcp_retrans(struct sock *sk)
 
 			/*
 			 * make the whole retrans decision, xmit, disallow
-			 * fallback atomic, note that we can't retrans even
-			 * when an infinite fallback is in progress, i.e. new
-			 * subflows are disallowed.
+			 * fallback atomic
 			 */
 			spin_lock_bh(&msk->fallback_lock);
-			if (__mptcp_check_fallback(msk) ||
-			    !msk->allow_subflows) {
+			if (__mptcp_check_fallback(msk)) {
 				spin_unlock_bh(&msk->fallback_lock);
 				release_sock(ssk);
-				goto clear_scheduled;
+				return;
 			}
 
 			while (info.sent < info.limit) {
@@ -2790,15 +2784,6 @@ reset_timer:
 
 	if (!mptcp_rtx_timer_pending(sk))
 		mptcp_reset_rtx_timer(sk);
-
-clear_scheduled:
-	/* If no rtx data was available or in case of fallback, there
-	 * could be left-over scheduled subflows; clear them all
-	 * or later xmit could use bad ones
-	 */
-	mptcp_for_each_subflow(msk, subflow)
-		if (READ_ONCE(subflow->scheduled))
-			mptcp_subflow_set_scheduled(subflow, false);
 }
 
 /* schedule the timeout timer for the relevant event: either close timeout
@@ -2860,12 +2845,6 @@ static void mptcp_do_fastclose(struct sock *sk)
 			goto unlock;
 
 		subflow->send_fastclose = 1;
-
-		/* Initialize rcv_mss to TCP_MIN_MSS to avoid division by 0
-		 * issue in __tcp_select_window(), see tcp_disconnect().
-		 */
-		inet_csk(ssk)->icsk_ack.rcv_mss = TCP_MIN_MSS;
-
 		tcp_send_active_reset(ssk, ssk->sk_allocation,
 				      SK_RST_REASON_TCP_ABORT_ON_CLOSE);
 unlock:

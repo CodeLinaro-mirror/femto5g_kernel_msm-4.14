@@ -1450,7 +1450,7 @@ err_free_chunks:
 	kfree(srv->chunks);
 
 err_free_srv:
-	put_device(&srv->dev);
+	kfree(srv);
 	return ERR_PTR(-ENOMEM);
 }
 

@@ -388,7 +388,6 @@ static int max17040_get_property(struct power_supply *psy,
 			    union power_supply_propval *val)
 {
 	struct max17040_chip *chip = power_supply_get_drvdata(psy);
-	int ret;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -411,10 +410,7 @@ static int max17040_get_property(struct power_supply *psy,
 		if (!chip->channel_temp)
 			return -ENODATA;
 
-		ret = iio_read_channel_processed(chip->channel_temp, &val->intval);
-		if (ret)
-			return ret;
-
+		iio_read_channel_processed(chip->channel_temp, &val->intval);
 		val->intval /= 100; /* Convert from milli- to deci-degree */
 
 		break;

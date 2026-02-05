@@ -101,8 +101,7 @@ struct irdma_mr {
 	};
 	struct ib_umem *region;
 	int access;
-	bool is_hwreg:1;
-	bool dma_mr:1;
+	u8 is_hwreg;
 	u16 type;
 	u32 page_cnt;
 	u64 page_size;

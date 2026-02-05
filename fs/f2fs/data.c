@@ -2458,13 +2458,12 @@ static int f2fs_read_data_large_folio(struct inode *inode,
 	unsigned nrpages;
 	struct f2fs_folio_state *ffs;
 	int ret = 0;
-	bool folio_in_bio;
 
-	if (!IS_IMMUTABLE(inode) || f2fs_compressed_file(inode)) {
-		if (folio)
-			folio_unlock(folio);
+	if (!IS_IMMUTABLE(inode))
 		return -EOPNOTSUPP;
-	}
+
+	if (f2fs_compressed_file(inode))
+		return -EOPNOTSUPP;
 
 	map.m_seg_type = NO_CHECK_TYPE;
 
@@ -2474,13 +2473,12 @@ next_folio:
 	if (!folio)
 		goto out;
 
-	folio_in_bio = false;
 	index = folio->index;
 	offset = 0;
 	ffs = NULL;
 	nrpages = folio_nr_pages(folio);
 
-	for (; nrpages; nrpages--, max_nr_pages--, index++, offset++) {
+	for (; nrpages; nrpages--) {
 		sector_t block_nr;
 		/*
 		 * Map blocks using the previous result first.
@@ -2560,31 +2558,37 @@ submit_and_realloc:
 					offset << PAGE_SHIFT))
 			goto submit_and_realloc;
 
-		folio_in_bio = true;
 		inc_page_count(F2FS_I_SB(inode), F2FS_RD_DATA);
 		f2fs_update_iostat(F2FS_I_SB(inode), NULL, FS_DATA_READ_IO,
 				F2FS_BLKSIZE);
 		last_block_in_bio = block_nr;
+		index++;
+		offset++;
 	}
 	trace_f2fs_read_folio(folio, DATA);
-err_out:
-	if (!folio_in_bio) {
-		folio_end_read(folio, !ret);
-		if (ret)
-			return ret;
-	}
 	if (rac) {
 		folio = readahead_folio(rac);
 		goto next_folio;
 	}
-out:
-	f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
+err_out:
+	/* Nothing was submitted. */
+	if (!bio) {
+		if (!ret)
+			folio_mark_uptodate(folio);
+		folio_unlock(folio);
+		return ret;
+	}
+
 	if (ret) {
+		f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
+
 		/* Wait bios and clear uptodate. */
 		folio_lock(folio);
 		folio_clear_uptodate(folio);
 		folio_unlock(folio);
 	}
+out:
+	f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
 	return ret;
 }
 
@@ -3498,19 +3502,6 @@ static inline bool __should_serialize_io(struct inode *inode,
 	return false;
 }
 
-static inline void account_writeback(struct inode *inode, bool inc)
-{
-	if (!f2fs_sb_has_compression(F2FS_I_SB(inode)))
-		return;
-
-	f2fs_down_read(&F2FS_I(inode)->i_sem);
-	if (inc)
-		atomic_inc(&F2FS_I(inode)->writeback);
-	else
-		atomic_dec(&F2FS_I(inode)->writeback);
-	f2fs_up_read(&F2FS_I(inode)->i_sem);
-}
-
 static int __f2fs_write_data_pages(struct address_space *mapping,
 						struct writeback_control *wbc,
 						enum iostat_type io_type)
@@ -3556,13 +3547,9 @@ static int __f2fs_write_data_pages(struct address_space *mapping,
 		locked = true;
 	}
 
-	account_writeback(inode, true);
-
 	blk_start_plug(&plug);
 	ret = f2fs_write_cache_pages(mapping, wbc, io_type);
 	blk_finish_plug(&plug);
-
-	account_writeback(inode, false);
 
 	if (locked)
 		mutex_unlock(&sbi->writepages);

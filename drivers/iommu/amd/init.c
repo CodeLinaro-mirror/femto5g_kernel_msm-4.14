@@ -1602,22 +1602,13 @@ static struct amd_iommu_pci_seg *__init alloc_pci_segment(u16 id,
 	list_add_tail(&pci_seg->list, &amd_iommu_pci_seg_list);
 
 	if (alloc_dev_table(pci_seg))
-		goto err_free_pci_seg;
+		return NULL;
 	if (alloc_alias_table(pci_seg))
-		goto err_free_dev_table;
+		return NULL;
 	if (alloc_rlookup_table(pci_seg))
-		goto err_free_alias_table;
+		return NULL;
 
 	return pci_seg;
-
-err_free_alias_table:
-	free_alias_table(pci_seg);
-err_free_dev_table:
-	free_dev_table(pci_seg);
-err_free_pci_seg:
-	list_del(&pci_seg->list);
-	kfree(pci_seg);
-	return NULL;
 }
 
 static struct amd_iommu_pci_seg *__init get_pci_segment(u16 id,

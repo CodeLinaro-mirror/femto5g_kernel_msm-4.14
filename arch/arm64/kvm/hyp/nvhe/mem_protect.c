@@ -976,7 +976,6 @@ static enum pkvm_page_state host_get_mmio_page_state(kvm_pte_t pte, u64 addr)
 enum host_check_page_state_flags {
 	HOST_CHECK_NULL_REFCNT		= BIT(0),
 	HOST_CHECK_IS_MEMORY		= BIT(1),
-	HOST_CHECK_ALLOW_NO_MAP		= BIT(2),
 };
 
 static int ___host_check_page_state_range(u64 addr, u64 size,
@@ -1009,7 +1008,7 @@ static int ___host_check_page_state_range(u64 addr, u64 size,
 	if (!reg)
 		return check_page_state_range(&host_mmu.pgt, addr, size, &d);
 
-	if (reg->flags & MEMBLOCK_NOMAP && !(flags & HOST_CHECK_ALLOW_NO_MAP))
+	if (reg->flags & MEMBLOCK_NOMAP)
 		return -EPERM;
 
 	for (; addr < end; addr += PAGE_SIZE) {
@@ -1658,10 +1657,7 @@ int __pkvm_host_donate_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = ___host_check_page_state_range(phys, size, PKVM_PAGE_OWNED,
-					     HOST_CHECK_IS_MEMORY |
-						     HOST_CHECK_NULL_REFCNT |
-						     HOST_CHECK_ALLOW_NO_MAP);
+	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_OWNED);
 	if (ret)
 		goto unlock;
 
@@ -1686,9 +1682,7 @@ int __pkvm_host_reclaim_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = ___host_check_page_state_range(phys, size, PKVM_NOPAGE,
-					     HOST_CHECK_IS_MEMORY |
-						     HOST_CHECK_ALLOW_NO_MAP);
+	ret = __host_check_page_state_range(phys, size, PKVM_NOPAGE);
 	if (ret)
 		goto unlock;
 
@@ -1842,10 +1836,7 @@ int __pkvm_host_share_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = ___host_check_page_state_range(phys, size, PKVM_PAGE_OWNED,
-					     HOST_CHECK_IS_MEMORY |
-						     HOST_CHECK_NULL_REFCNT |
-						     HOST_CHECK_ALLOW_NO_MAP);
+	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_OWNED);
 	if (!ret)
 		ret = __host_set_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED);
 
@@ -1864,9 +1855,7 @@ int __pkvm_host_unshare_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = ___host_check_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED,
-					     HOST_CHECK_IS_MEMORY |
-						     HOST_CHECK_ALLOW_NO_MAP);
+	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED);
 	if (!ret)
 		ret = __host_set_page_state_range(phys, size, PKVM_PAGE_OWNED);
 

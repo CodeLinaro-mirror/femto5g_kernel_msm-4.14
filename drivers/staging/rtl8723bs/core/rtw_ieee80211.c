@@ -140,24 +140,22 @@ u8 *rtw_get_ie(u8 *pbuf, signed int index, signed int *len, signed int limit)
 	signed int tmp, i;
 	u8 *p;
 
-	if (limit < 2)
+	if (limit < 1)
 		return NULL;
 
 	p = pbuf;
 	i = 0;
 	*len = 0;
-	while (i + 2 <= limit) {
-		tmp = *(p + 1);
-		if (i + 2 + tmp > limit)
-			break;
-
+	while (1) {
 		if (*p == index) {
-			*len = tmp;
+			*len = *(p + 1);
 			return p;
 		}
-
+		tmp = *(p + 1);
 		p += (tmp + 2);
 		i += (tmp + 2);
+		if (i >= limit)
+			break;
 	}
 	return NULL;
 }

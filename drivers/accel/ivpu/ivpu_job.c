@@ -8,7 +8,6 @@
 #include <linux/bitfield.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
-#include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <uapi/drm/ivpu_accel.h>
 
@@ -849,12 +848,9 @@ void ivpu_context_abort_thread_handler(struct work_struct *work)
 	struct ivpu_job *job;
 	unsigned long id;
 
-	if (drm_WARN_ON(&vdev->drm, pm_runtime_get_if_active(vdev->drm.dev) <= 0))
-		return;
-
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
 		if (ivpu_jsm_reset_engine(vdev, 0))
-			goto runtime_put;
+			return;
 
 	mutex_lock(&vdev->context_list_lock);
 	xa_for_each(&vdev->context_xa, ctx_id, file_priv) {
@@ -868,10 +864,10 @@ void ivpu_context_abort_thread_handler(struct work_struct *work)
 	mutex_unlock(&vdev->context_list_lock);
 
 	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
-		goto runtime_put;
+		return;
 
 	if (ivpu_jsm_hws_resume_engine(vdev, 0))
-		goto runtime_put;
+		return;
 	/*
 	 * In hardware scheduling mode NPU already has stopped processing jobs
 	 * and won't send us any further notifications, thus we have to free job related resources
@@ -882,8 +878,4 @@ void ivpu_context_abort_thread_handler(struct work_struct *work)
 		if (job->file_priv->aborted)
 			ivpu_job_signal_and_destroy(vdev, job->job_id, DRM_IVPU_JOB_STATUS_ABORTED);
 	mutex_unlock(&vdev->submitted_jobs_lock);
-
-runtime_put:
-	pm_runtime_mark_last_busy(vdev->drm.dev);
-	pm_runtime_put_autosuspend(vdev->drm.dev);
 }

@@ -40,7 +40,7 @@ config FW_LOADER_DEBUG
 config RUST_FW_LOADER_ABSTRACTIONS
 	bool "Rust Firmware Loader abstractions"
 	depends on RUST
-	select FW_LOADER
+	depends on FW_LOADER=y
 	help
 	  This enables the Rust abstractions for the firmware loader API.
 

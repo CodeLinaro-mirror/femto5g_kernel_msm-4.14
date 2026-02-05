@@ -759,7 +759,9 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 			break;
 		}
 
-		(void)gfs2_do_thaw(sdp, who);
+		error = gfs2_do_thaw(sdp, who);
+		if (error)
+			goto out;
 
 		if (error == -EBUSY)
 			fs_err(sdp, "waiting for recovery before freeze\n");

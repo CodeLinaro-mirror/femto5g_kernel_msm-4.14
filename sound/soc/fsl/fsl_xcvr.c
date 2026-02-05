@@ -1237,7 +1237,7 @@ static irqreturn_t irq0_isr(int irq, void *devid)
 						bitrev32(val);
 				}
 				/* clear CS control register */
-				writel_relaxed(0, reg_ctrl);
+				memset_io(reg_ctrl, 0, sizeof(val));
 			}
 		} else {
 			regmap_read(xcvr->regmap, FSL_XCVR_RX_CS_DATA_0,

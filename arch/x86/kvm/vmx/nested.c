@@ -18,7 +18,6 @@
 #include "trace.h"
 #include "vmx.h"
 #include "smm.h"
-#include "x86_ops.h"
 
 static bool __read_mostly enable_shadow_vmcs = 1;
 module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
@@ -5052,7 +5051,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 
 	if (vmx->nested.update_vmcs01_apicv_status) {
 		vmx->nested.update_vmcs01_apicv_status = false;
-		vmx_refresh_apicv_exec_ctrl(vcpu);
+		kvm_make_request(KVM_REQ_APICV_UPDATE, vcpu);
 	}
 
 	if (vmx->nested.update_vmcs01_hwapic_isr) {

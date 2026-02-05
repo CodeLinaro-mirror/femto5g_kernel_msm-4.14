@@ -1453,8 +1453,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 				dev_err(&pdev->dev,
 					"External synchro not supported\n");
 				of_node_put(args.np);
-				ret = -EINVAL;
-				goto err_put_sync_provider;
+				return -EINVAL;
 			}
 			sai->sync = SAI_SYNC_EXTERNAL;
 
@@ -1463,8 +1462,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 			    (sai->synci > (SAI_GCR_SYNCIN_MAX + 1))) {
 				dev_err(&pdev->dev, "Wrong SAI index\n");
 				of_node_put(args.np);
-				ret = -EINVAL;
-				goto err_put_sync_provider;
+				return -EINVAL;
 			}
 
 			if (of_property_match_string(args.np, "compatible",
@@ -1478,8 +1476,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 			if (!sai->synco) {
 				dev_err(&pdev->dev, "Unknown SAI sub-block\n");
 				of_node_put(args.np);
-				ret = -EINVAL;
-				goto err_put_sync_provider;
+				return -EINVAL;
 			}
 		}
 
@@ -1489,15 +1486,13 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 
 	of_node_put(args.np);
 	sai->sai_ck = devm_clk_get(&pdev->dev, "sai_ck");
-	if (IS_ERR(sai->sai_ck)) {
-		ret = dev_err_probe(&pdev->dev, PTR_ERR(sai->sai_ck),
-				    "Missing kernel clock sai_ck\n");
-		goto err_put_sync_provider;
-	}
+	if (IS_ERR(sai->sai_ck))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sai->sai_ck),
+				     "Missing kernel clock sai_ck\n");
 
 	ret = clk_prepare(sai->pdata->pclk);
 	if (ret < 0)
-		goto err_put_sync_provider;
+		return ret;
 
 	if (STM_SAI_IS_F4(sai->pdata))
 		return 0;
@@ -1506,23 +1501,14 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 	if (of_property_present(np, "#clock-cells")) {
 		ret = stm32_sai_add_mclk_provider(sai);
 		if (ret < 0)
-			goto err_unprepare_pclk;
+			return ret;
 	} else {
 		sai->sai_mclk = devm_clk_get_optional(&pdev->dev, "MCLK");
-		if (IS_ERR(sai->sai_mclk)) {
-			ret = PTR_ERR(sai->sai_mclk);
-			goto err_unprepare_pclk;
-		}
+		if (IS_ERR(sai->sai_mclk))
+			return PTR_ERR(sai->sai_mclk);
 	}
 
 	return 0;
-
-err_unprepare_pclk:
-	clk_unprepare(sai->pdata->pclk);
-err_put_sync_provider:
-	of_node_put(sai->np_sync_provider);
-
-	return ret;
 }
 
 static int stm32_sai_sub_probe(struct platform_device *pdev)
@@ -1562,34 +1548,26 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 			       IRQF_SHARED, dev_name(&pdev->dev), sai);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ request returned %d\n", ret);
-		goto err_unprepare_pclk;
+		return ret;
 	}
 
 	if (STM_SAI_PROTOCOL_IS_SPDIF(sai))
 		conf = &stm32_sai_pcm_config_spdif;
 
 	ret = snd_dmaengine_pcm_register(&pdev->dev, conf, 0);
-	if (ret) {
-		ret = dev_err_probe(&pdev->dev, ret, "Could not register pcm dma\n");
-		goto err_unprepare_pclk;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Could not register pcm dma\n");
 
 	ret = snd_soc_register_component(&pdev->dev, &stm32_component,
 					 &sai->cpu_dai_drv, 1);
 	if (ret) {
 		snd_dmaengine_pcm_unregister(&pdev->dev);
-		goto err_unprepare_pclk;
+		return ret;
 	}
 
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
-
-err_unprepare_pclk:
-	clk_unprepare(sai->pdata->pclk);
-	of_node_put(sai->np_sync_provider);
-
-	return ret;
 }
 
 static void stm32_sai_sub_remove(struct platform_device *pdev)
@@ -1600,7 +1578,6 @@ static void stm32_sai_sub_remove(struct platform_device *pdev)
 	snd_dmaengine_pcm_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	of_node_put(sai->np_sync_provider);
 }
 
 #ifdef CONFIG_PM_SLEEP
