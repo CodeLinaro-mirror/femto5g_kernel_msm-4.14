@@ -14,8 +14,6 @@ static int pkvm_complete_emulated_msr(struct kvm_vcpu *vcpu, int err);
 static unsigned short has_wbinvd_exit = USHRT_MAX;
 
 static bool pkvm_has_vmx_wbinvd_exit(void);
-static int pkvm_check_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
-					  void *insn, int insn_len);
 static int vmx_get_msr_imm_reg(struct kvm_vcpu *vcpu);
 
 static void pkvm_free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
@@ -440,22 +438,6 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	return __vmx_handle_ept_violation(vcpu, gpa, exit_qualification);
 }
 
-static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
-{
-	gpa_t gpa;
-
-	if (pkvm_check_emulate_instruction(vcpu, EMULTYPE_PF, NULL, 0))
-		return 1;
-
-	gpa = to_vmx(vcpu)->exit_gpa;
-	if (!kvm_io_bus_write(vcpu, KVM_FAST_MMIO_BUS, gpa, 0, NULL)) {
-		trace_kvm_fast_mmio(gpa);
-		return kvm_skip_emulated_instruction(vcpu);
-	}
-
-	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
-}
-
 /*
  * Indicate a busy-waiting vcpu in spinlock. We do not enable the PAUSE
  * exiting, so only get here on cpu with PAUSE-Loop-Exiting.
@@ -546,7 +528,6 @@ static int (*pkvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_TASK_SWITCH]             = handle_task_switch,
 	[EXIT_REASON_MCE_DURING_VMENTRY]      = handle_machine_check,
 	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
-	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
 	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
 	[EXIT_REASON_BUS_LOCK]                = handle_bus_lock_vmexit,
 	[EXIT_REASON_NOTIFY]		      = handle_notify,
@@ -655,7 +636,7 @@ static bool pkvm_has_emulated_msr(struct kvm *kvm, u32 index)
 
 static int pkvm_vm_init(struct kvm *kvm)
 {
-	void *pkvm_vm;
+	void *pkvm_vm, *pgd;
 	int ret;
 
 	/*
@@ -671,9 +652,17 @@ static int pkvm_vm_init(struct kvm *kvm)
 	if (!pkvm_vm)
 		return -ENOMEM;
 
-	ret = pkvm_hypercall(vm_init, __pa(kvm), __pa(pkvm_vm));
-	if (ret < 0)
+	pgd = (void *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	if (!pgd) {
+		ret = -ENOMEM;
 		goto free_page;
+	}
+
+	kvm_account_pgtable_pages(pgd, 1);
+
+	ret = pkvm_hypercall(vm_init, __pa(kvm), __pa(pkvm_vm), __pa(pgd));
+	if (ret < 0)
+		goto free_pgtable_page;
 
 	kvm->arch.pkvm.handle = ret;
 
@@ -682,6 +671,9 @@ static int pkvm_vm_init(struct kvm *kvm)
 
 	return 0;
 
+free_pgtable_page:
+	kvm_account_pgtable_pages(pgd, -1);
+	free_page((unsigned long)pgd);
 free_page:
 	free_pages_exact(pkvm_vm, PKVM_VMX_VM_SIZE);
 	return ret;
@@ -690,6 +682,7 @@ free_page:
 static void pkvm_vm_destroy(struct kvm *kvm)
 {
 	int vm_handle = kvm->arch.pkvm.handle;
+	struct pkvm_mapping *mapping;
 	union pkvm_hc_data out;
 	int ret;
 
@@ -700,6 +693,22 @@ static void pkvm_vm_destroy(struct kvm *kvm)
 	}
 
 	kvm_free_pkvm_memcache(&out.vm_destroy.memcache);
+	kvm_free_pkvm_memcache(&kvm->arch.pkvm.guest_mmu_teardown_mc);
+
+	/*
+	 * TODO: do this in the generic code in kvm_mmu_uninit_vm() instead.
+	 * For now we cannot do that, since kvm_mmu_uninit_vm() is called too
+	 * early, when pKVM has not released guest pages to the host yet
+	 * (which is currently completely postponed until vm_destroy).
+	 */
+	for_each_pkvm_mapping(kvm, 0, U64_MAX, mapping) {
+		WARN_ON_ONCE((mapping->pinned_page != NULL) ^ pkvm_is_protected_vm(kvm));
+		if (mapping->pinned_page)
+			put_page(mapping->pinned_page);
+
+		pkvm_mapping_remove(mapping, &kvm->arch.pkvm.mappings);
+		kfree(mapping);
+	}
 
 	vmx_vm_destroy(kvm);
 }
@@ -781,14 +790,7 @@ static void pkvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/*
-	 * TODO: The vcpu_reset PV interface will be disallowed for the pVM
-	 * once its INIT event is handled inside the pKVM hypervisor. So should
-	 * check `pkvm_is_protected_vcpu(vcpu)` rather than
-	 * `vcpu->arch.guest_state_protected` once it is ready. See comments for
-	 * `__pkvm__vcpu_reset` in pkvm_vcpu_handle_host_hypercall.
-	 */
-	if (!vcpu->arch.guest_state_protected && init_event)
+	if (!pkvm_is_protected_vcpu(vcpu) && init_event)
 		KVM_BUG_ON(pkvm_hypercall(vcpu_reset), vcpu->kvm);
 
 	/*
@@ -1286,6 +1288,18 @@ static void pkvm_flush_tlb_guest(struct kvm_vcpu *vcpu)
 
 static int pkvm_vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
+	struct kvm_pkvm_vm *pkvm = &vcpu->kvm->arch.pkvm;
+	int ret;
+
+	if (unlikely(pkvm_is_protected_vcpu(vcpu) && !kvm_vcpu_has_run(vcpu) &&
+		     kvm_vcpu_is_reset_bsp(vcpu))) {
+		mutex_lock(&pkvm->finalized_lock);
+		ret = pkvm_hypercall(vm_finalize, vcpu->kvm->arch.pkvm.handle);
+		mutex_unlock(&pkvm->finalized_lock);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 1;
 }
 
@@ -1699,7 +1713,16 @@ static void pkvm_write_tsc_multiplier(struct kvm_vcpu *vcpu)
 
 static void pkvm_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level)
 {
-	KVM_BUG_ON(pkvm_hypercall(load_mmu_pgd, root_hpa, root_level), vcpu->kvm);
+	/*
+	 * The host's root_hpa and root_level values are ignored, since
+	 * the EPT is managed by the pKVM hypervisor independently of the
+	 * host, for both pVMs and npVMs. The purpose of the load_mmu_pgd
+	 * PV interface is not to load the guest's EPT (pKVM will load it
+	 * anyway, without the host's help) but only to load the guest's
+	 * stage-1 page table root, i.e. CR3 and/or PDPTRs.
+	 */
+	if (!vcpu->arch.guest_state_protected)
+		KVM_BUG_ON(pkvm_hypercall(load_mmu_pgd), vcpu->kvm);
 }
 
 static void pkvm_leave_nested(struct kvm_vcpu *vcpu) {}
@@ -1888,8 +1911,6 @@ struct kvm_x86_ops pkvm_host_vt_x86_ops __initdata = {
 	.sync_pir_to_irr = vmx_sync_pir_to_irr,
 	.deliver_interrupt = vmx_deliver_interrupt,
 	.dy_apicv_has_pending_interrupt = pi_has_pending_interrupt,
-
-	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = pkvm_get_exit_info,
 	.get_entry_info = pkvm_get_entry_info,

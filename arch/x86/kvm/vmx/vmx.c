@@ -78,6 +78,7 @@
 #include "memory.h"
 #include "pkvm.h"
 #include "pkvm/trace.h"
+#include "vmx/ept.h"
 
 #undef module_param_named
 #define module_param_named(...)
@@ -5838,14 +5839,19 @@ static __always_inline int handle_external_interrupt(struct kvm_vcpu *vcpu)
 	++vcpu->stat.irq_exits;
 	return 1;
 }
+#endif /* !__PKVM_HYP__ */
 
 static int handle_triple_fault(struct kvm_vcpu *vcpu)
 {
+#ifndef __PKVM_HYP__
 	vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 	vcpu->mmio_needed = 0;
+#else
+	if (pkvm_is_protected_vcpu(vcpu))
+		vcpu->arch.mp_state = KVM_MP_STATE_STOPPED;
+#endif
 	return 0;
 }
-#endif /* !__PKVM_HYP__ */
 
 static int handle_io(struct kvm_vcpu *vcpu)
 {
@@ -6345,9 +6351,9 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 #endif
 }
 
+#ifndef __PKVM_HYP__
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
-#ifndef __PKVM_HYP__
 	gpa_t gpa;
 
 	if (vmx_check_emulate_instruction(vcpu, EMULTYPE_PF, NULL, 0))
@@ -6365,21 +6371,8 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	}
 
 	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
-#else
-	if (WARN_ON_ONCE(pkvm_is_protected_vcpu(vcpu))) {
-		/*
-		 * The pVM should not cause EPT_MISCONFIG vmexit as it should be
-		 * enlightened to use PV method to access MMIO rather than the
-		 * memory mapped way. In case this is happened, injecting a #GP
-		 * to the pVM.
-		 */
-		kvm_queue_exception(vcpu, GP_VECTOR);
-		return 1;
-	}
-
-	return 0;
-#endif
 }
+#endif /* !__PKVM_HYP__ */
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
@@ -6753,8 +6746,8 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_EXCEPTION_NMI]           = handle_exception_nmi,
 #ifndef __PKVM_HYP__
 	[EXIT_REASON_EXTERNAL_INTERRUPT]      = handle_external_interrupt,
-	[EXIT_REASON_TRIPLE_FAULT]            = handle_triple_fault,
 #endif
+	[EXIT_REASON_TRIPLE_FAULT]            = handle_triple_fault,
 	[EXIT_REASON_NMI_WINDOW]	      = handle_nmi_window,
 	[EXIT_REASON_IO_INSTRUCTION]          = handle_io,
 	[EXIT_REASON_CR_ACCESS]               = handle_cr,
@@ -6794,7 +6787,9 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_LDTR_TR]		      = handle_desc,
 #endif
 	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
+#ifndef __PKVM_HYP__
 	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
+#endif
 	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
 	[EXIT_REASON_MWAIT_INSTRUCTION]	      = kvm_emulate_mwait,
 	[EXIT_REASON_MONITOR_TRAP_FLAG]       = handle_monitor_trap,
@@ -8513,7 +8508,6 @@ int vmx_vm_init(struct kvm *kvm)
 	return 0;
 }
 
-#ifndef __PKVM_HYP__
 static inline bool vmx_ignore_guest_pat(struct kvm *kvm)
 {
 	/*
@@ -8540,7 +8534,6 @@ u8 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 
 	return (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT);
 }
-#endif /* !__PKVM_HYP__ */
 
 static void vmcs_set_secondary_exec_control(struct vcpu_vmx *vmx, u32 new_ctl)
 {
@@ -9379,7 +9372,15 @@ __init int vmx_hardware_setup(void)
 		allow_smaller_maxphyaddr = true;
 
 	if (!cpu_has_vmx_ept_ad_bits() || !enable_ept)
+#ifndef __PKVM_HYP__
 		enable_ept_ad_bits = 0;
+#else
+		/*
+		 * The pKVM hypervisor requires EPT A/D bits capability to
+		 * support aging of guest pages in a simple efficient way.
+		 */
+		return -EOPNOTSUPP;
+#endif
 
 	if (!cpu_has_vmx_unrestricted_guest() || !enable_ept)
 #ifndef __PKVM_HYP__
@@ -9464,7 +9465,7 @@ __init int vmx_hardware_setup(void)
 
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
-#ifndef __PKVM_HYP__ /* TODO: Coordinate with pvEPT */
+#ifndef __PKVM_HYP__
 	if (enable_ept)
 		kvm_mmu_set_ept_masks(enable_ept_ad_bits,
 				      cpu_has_vmx_ept_execute_only());
@@ -9479,6 +9480,8 @@ __init int vmx_hardware_setup(void)
 
 	kvm_configure_mmu(enable_ept, 0, vmx_get_max_ept_level(),
 			  ept_caps_to_lpage_level(vmx_capability.ept));
+#else
+	pkvm_guest_ept_setup();
 #endif
 
 	/*
@@ -9644,6 +9647,19 @@ static void __init do_vmx_pkvm_init(void)
 		enable_sgx = false;
 #endif
 		allow_smaller_maxphyaddr = false;
+
+		/*
+		 * Below features are required by the pKVM. See the checks in
+		 * vmx_hardware_setup().
+		 *
+		 * enable_preemption_timer is also required by pKVM, but on the
+		 * host side it can be disabled. In such case the host will
+		 * simply use the SW timer instead.
+		 */
+		enable_ept = true;
+		enable_ept_ad_bits = true;
+		enable_unrestricted_guest = true;
+		enable_vnmi = true;
 	}
 }
 #endif
@@ -9757,6 +9773,18 @@ static void update_protected_vcpu_state(struct kvm_vcpu *vcpu,
 		break;
 	case EXIT_REASON_VMCALL:
 		/*
+		 * If the memory share hypercall has been handled by the host,
+		 * not by pKVM alone, it indicates that there were not enough
+		 * pages in the memcache for pKVM to handle the hypercall, and
+		 * now the host has refilled the memcache with the needed number
+		 * of pages and the hypercall should be retried. So don't skip
+		 * the instruction, to let the guest re-issue the hypercall.
+		 * See also comments in kvm_pkvm_hypercall().
+		 */
+		if (kvm_rax_read(vcpu) == PKVM_GHC_SHARE_MEM)
+			break;
+
+		/*
 		 * After a hypercall being emulated by the host, the RAX may be
 		 * filled by the host with the return value to the guest. So for
 		 * the pVM, suppose it is aware that the RAX may be modified by
@@ -9816,7 +9844,6 @@ static void share_nonprotected_vcpu_state(struct kvm_vcpu *vcpu,
 		}
 		break;
 	case EXIT_REASON_EPT_VIOLATION:
-	case EXIT_REASON_EPT_MISCONFIG:
 		to_vmx(shared_vcpu)->exit_gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 		fallthrough;
 	case EXIT_REASON_IO_INSTRUCTION:

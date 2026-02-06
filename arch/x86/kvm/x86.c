@@ -88,6 +88,7 @@
 
 #ifdef __PKVM_HYP__
 #include "pkvm.h"
+#include "pkvm/mmu.h"
 
 #undef module_param_named
 #define module_param_named(...)
@@ -6996,6 +6997,16 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 {
 	int r;
 
+	/* Capabilities with flags */
+	switch (cap->cap) {
+	case KVM_CAP_X86_PROTECTED_VM:
+		return pkvm_vm_ioctl_enable_cap(kvm, cap);
+	default:
+		if (cap->flags)
+			return -EINVAL;
+	}
+
+	/* Capabilities without flags */
 	if (cap->flags)
 		return -EINVAL;
 
@@ -8054,6 +8065,7 @@ static int vcpu_mmio_read(struct kvm_vcpu *vcpu, gpa_t addr, int len, void *v)
 
 	return handled;
 }
+#endif /* !__PKVM_HYP__ */
 
 void kvm_set_segment(struct kvm_vcpu *vcpu,
 		     struct kvm_segment *var, int seg)
@@ -8067,6 +8079,7 @@ void kvm_get_segment(struct kvm_vcpu *vcpu,
 	kvm_x86_call(get_segment)(vcpu, var, seg);
 }
 
+#ifndef __PKVM_HYP__
 gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u64 access,
 			   struct x86_exception *exception)
 {
@@ -10393,7 +10406,7 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 
 	kvm_register_perf_callbacks(ops->handle_intel_pt_intr);
 
-	if (IS_ENABLED(CONFIG_KVM_SW_PROTECTED_VM) && tdp_mmu_enabled)
+	if (IS_ENABLED(CONFIG_KVM_SW_PROTECTED_VM) && (tdp_mmu_enabled || enable_pkvm))
 		kvm_caps.supported_vm_types |= BIT(KVM_X86_SW_PROTECTED_VM);
 
 	if (enable_pkvm)
@@ -10624,6 +10637,32 @@ static int complete_hypercall_exit(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
+#ifdef CONFIG_PKVM_X86
+static int pkvm_start_secondary_vcpu(struct kvm *kvm, int apic_id)
+{
+	struct kvm_vcpu *vcpu = kvm_get_vcpu_by_id(kvm, apic_id);
+	struct kvm_lapic *apic;
+
+	if (WARN_ON(!vcpu))
+		return -EINVAL;
+
+	apic = vcpu->arch.apic;
+	if (WARN_ON(!apic))
+		return -EOPNOTSUPP;
+
+	/*
+	 * "Assert" both INIT and SIPI to let the vcpu thread start the vcpu
+	 * in the usual way. Note that it doesn't matter which value of
+	 * apic->sipi_vector the host will use, since pKVM will enforce
+	 * the needed start vector anyway.
+	 */
+	set_bit(KVM_APIC_INIT, &apic->pending_events);
+	set_bit(KVM_APIC_SIPI, &apic->pending_events);
+	kvm_vcpu_kick(vcpu);
+
+	return 0;
+}
+
 static int kvm_pkvm_hypercall(struct kvm_vcpu *vcpu)
 {
 	unsigned long nr = kvm_rax_read(vcpu);
@@ -10653,6 +10692,40 @@ static int kvm_pkvm_hypercall(struct kvm_vcpu *vcpu)
 		/* Leverage sev_es MMIO write */
 		ret = kvm_sev_es_mmio_write(vcpu, kvm_rbx_read(vcpu), size, &val);
 		break;
+	case PKVM_GHC_SHARE_MEM:
+		/*
+		 * The only case when pKVM forwards this hypercall to the host
+		 * is when it asks the host to refill the memcache with the
+		 * needed amount of pages.
+		 */
+		ret = kvm_topup_pkvm_memcache(&vcpu->arch.pkvm.guest_mmu_memcache,
+					      vcpu->arch.pkvm.req_param);
+		/*
+		 * If refill succeeded, pKVM will let the guest re-issue the
+		 * hypercall, by avoiding skipping the instruction in
+		 * update_protected_vcpu_state().
+		 *
+		 * If refill failed (likely due to lack of memory), for simplicity
+		 * just return the error to userspace to let the VMM kill the VM.
+		 * We cannot return the error to the guest just by writing it to
+		 * RAX here, since we need to retain the hypercall nr in RAX (for
+		 * the successful case when we let the host re-issue the hypercall
+		 * instruction) and thus can't overwrite RAX with the returned
+		 * error.
+		 *
+		 * TODO: improve this by letting the guest itself handle -EAGAIN
+		 * to retry the hypercall, to avoid the need for the above and
+		 * thus allow the guest to properly handle other errors as well.
+		 * This would require updating existing guests.
+		 */
+		if (!ret)
+			ret = 1;
+		break;
+	case PKVM_GHC_START_CPU:
+		ret = pkvm_start_secondary_vcpu(vcpu->kvm, kvm_rbx_read(vcpu));
+		kvm_rax_write(vcpu, ret);
+		ret = 1;
+		break;
 	}
 	default:
 		ret = 1;
@@ -10667,6 +10740,7 @@ invalid:
 	vcpu->run->internal.ndata = 0;
 	return 0;
 }
+#endif /* CONFIG_PKVM_X86 */
 
 int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, int cpl,
 			      int (*complete_hypercall)(struct kvm_vcpu *))
@@ -10774,8 +10848,10 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(____kvm_emulate_hypercall);
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
+#ifdef CONFIG_PKVM_X86
 	if (pkvm_is_protected_vcpu(vcpu))
 		return kvm_pkvm_hypercall(vcpu);
+#endif
 
 	if (kvm_xen_hypercall_enabled(vcpu->kvm))
 		return kvm_xen_hypercall(vcpu);
@@ -13356,7 +13432,6 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_vcpu_reset);
 
-#ifndef __PKVM_HYP__
 void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
 {
 	struct kvm_segment cs;
@@ -13369,6 +13444,7 @@ void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_vcpu_deliver_sipi_vector);
 
+#ifndef __PKVM_HYP__
 void kvm_arch_enable_virtualization(void)
 {
 	cpu_emergency_register_virt_callback(kvm_x86_ops.emergency_disable_virtualization_cpu);
@@ -13550,6 +13626,11 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 #if IS_ENABLED(CONFIG_HYPERV)
 	spin_lock_init(&kvm->arch.hv_root_tdp_lock);
 	kvm->arch.hv_root_tdp = INVALID_PAGE;
+#endif
+
+#ifdef CONFIG_PKVM_X86
+	kvm->arch.pkvm.pvmfw_load_addr = INVALID_GPA;
+	mutex_init(&kvm->arch.pkvm.finalized_lock);
 #endif
 
 	INIT_DELAYED_WORK(&kvm->arch.kvmclock_update_work, kvmclock_update_fn);
@@ -14331,6 +14412,7 @@ void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm)
 	if (!atomic_dec_return(&kvm->arch.noncoherent_dma_count))
 		kvm_noncoherent_dma_assignment_start_or_stop(kvm);
 }
+#endif /* !__PKVM_HYP__ */
 
 bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 {
@@ -14338,6 +14420,7 @@ bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_arch_has_noncoherent_dma);
 
+#ifndef __PKVM_HYP__
 bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
 {
 	return (vcpu->arch.msr_kvm_poll_control & 1) == 0;
@@ -14938,8 +15021,10 @@ int pkvm_vcpu_enter_guest(struct kvm_vcpu *vcpu, bool force_immediate_exit,
 
 int pkvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
+	struct pkvm_vcpu *pkvm_vcpu = to_pkvm_vcpu(vcpu);
+	unsigned long min_pages;
+	u64 nr, a0, a1, a2, a3;
 	int ret = -KVM_EPERM;
-	u64 nr;
 
 	if (!pkvm_is_protected_vcpu(vcpu))
 		return 0;
@@ -14950,12 +15035,51 @@ int pkvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	}
 
 	nr = kvm_rax_read(vcpu);
+	a0 = kvm_rbx_read(vcpu);
+	a1 = kvm_rcx_read(vcpu);
+	a2 = kvm_rdx_read(vcpu);
+	a3 = kvm_rsi_read(vcpu);
 
 	switch (nr) {
+	case PKVM_GHC_SHARE_MEM:
+		pkvm_guest_mmu_refill_memcache(pkvm_vcpu);
+
+		/*
+		 * May need to allocate additional pages for guest page table
+		 * in order to split a huge mapping into smaller ones. Assume
+		 * the worst case.
+		 */
+		min_pages = __pkvm_pgtable_max_pages(a1 >> PAGE_SHIFT);
+		if (vcpu->arch.pkvm.guest_mmu_memcache.count < min_pages) {
+			/*
+			 * If not enough pages in the memcache, forward request
+			 * to the host for refilling the memcache with the needed
+			 * number of pages. After that the guest will retry the
+			 * hypercall.
+			 */
+			pkvm_vcpu->shared_vcpu->arch.pkvm.req_param = min_pages;
+			return 0;
+		}
+
+		ret = pkvm_guest_share_host(vcpu, a0, a1);
+		break;
+	case PKVM_GHC_UNSHARE_MEM:
+		ret = pkvm_guest_unshare_host(vcpu, a0, a1);
+		break;
 	case PKVM_GHC_IOREAD:
 	case PKVM_GHC_IOWRITE:
 		/* Hypercall for MMIO accessing should be forwarded to the host */
 		return 0;
+	case PKVM_GHC_START_CPU:
+		ret = pkvm_start_secondary_vcpu(vcpu->kvm, a0, a1);
+		if (!ret) {
+			/* Don't expose start address to the host. */
+			kvm_rcx_write(vcpu, 0);
+
+			/* Let the host finish handling the hypercall. */
+			return 0;
+		}
+		break;
 	default:
 		/* Other hypercalls are not supported */
 		break;
