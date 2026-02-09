@@ -70,6 +70,7 @@ parts:
       - firmware
       - kernel
       - test-signing-keys
+      - ubuntu-core-initramfs
     plugin: initrd
     initrd-addons:
       - usr/lib/systemd/systemd-bootchart
@@ -173,6 +174,42 @@ parts:
     plugin: nil
     override-build: |
       install -D -m 755 ${CRAFT_PROJECT_DIR}/systemd-bootchart ${CRAFT_PART_INSTALL}/usr/lib/systemd/systemd-bootchart
+    prime:
+      - -*
+
+  ubuntu-core-initramfs:
+    plugin: nil
+    source: https://github.com/canonical/snapd.git
+    source-branch: master
+    override-build: |
+      rm -rf core-initrd
+      git checkout core-initrd
+      cd core-initrd
+      mkdir -p bin
+      # disable deb signing for the test build
+      echo -e '#!/bin/sh\n/usr/bin/dpkg-buildpackage -us -uc ${@}' > bin/dpkg-buildpackage
+      chmod +x bin/dpkg-buildpackage
+      # force new deb version to changelog, no matter what
+      echo -e '#!/bin/sh\nyes | /usr/bin/dch -b -m "Binary-only non-maintainer upload" ${@}' > bin/dch
+      chmod +x bin/dch
+      export PATH=${PWD}/bin:${PATH}
+      export DEB_BUILD_OPTIONS=nocheck
+      export DEBEMAIL="ubuntu@ubuntu.com"
+      export DEBFULLNAME="Ubuntu"
+      export DEBIAN_FRONTEND=noninteractive
+      unset GOROOT; unset GOPATH
+      TEST_BUILD=1 ./build-source-pkgs.sh
+      tar -xf ubuntu-core-initramfs_*24.04.tar.xz
+      cd 24.04
+      apt build-dep -y .
+      dpkg-buildpackage -us -uc
+      cp ../ubuntu-core-initramfs_*24.04_${CRAFT_ARCH_BUILD_FOR}.deb ${CRAFT_PART_INSTALL}/ubuntu-core-initramfs.deb
+    build-packages:
+      - devscripts
+      - dpkg-dev
+      - pkgconf
+    build-snaps:
+      - go/1.23/stable
     prime:
       - -*
 
