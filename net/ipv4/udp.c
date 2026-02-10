@@ -1290,6 +1290,8 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct ip_options_data opt_copy;
 	int uc_index;
 
+	trace_android_rvh_udp_sendmsg(sk, msg, len);
+
 	if (len > 0xFFFF)
 		return -EMSGSIZE;
 
@@ -1713,6 +1715,8 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	int q_size = 0;
 	int dropcount;
 	int nb = 0;
+
+	trace_android_vh_udp_enqueue_schedule_skb(sk, skb);
 
 	rmem = atomic_read(&sk->sk_rmem_alloc);
 	rcvbuf = READ_ONCE(sk->sk_rcvbuf);
@@ -2147,6 +2151,8 @@ try_again:
 	err = copied;
 	if (flags & MSG_TRUNC)
 		err = ulen;
+
+	trace_android_rvh_udp_recvmsg(sk, msg, len, flags, addr_len);
 
 	skb_consume_udp(sk, skb, peeking ? -err : err);
 	return err;
