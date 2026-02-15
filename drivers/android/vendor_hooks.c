@@ -64,6 +64,7 @@
 #include <trace/hooks/fuse.h>
 #include <trace/hooks/madvise.h>
 #include <trace/hooks/dmabuf.h>
+#include <trace/hooks/softlockup.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -84,6 +85,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_oom_reaper_delay_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_killed_process);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_thaw_killed_process);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_arch_set_freq_scale);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_bitmap_find_best_next_area);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_futex_sleep_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_finish);
@@ -371,6 +373,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_page_should_be_protected);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_page_referenced_check_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_slab_folio_alloced);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_die_kernel_fault);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_sea);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_sp_pc_abort);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_wp_page_reuse);
@@ -457,3 +460,13 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_kswapd_shrink_node);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_keep_reclaimed_folio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_reclaimed_folio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_evict_folios_bypass);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dpm_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dpm_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sync_irq_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sync_irq_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_wq_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_wq_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_work_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_work_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_task_mem);

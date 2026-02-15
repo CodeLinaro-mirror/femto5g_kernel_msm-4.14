@@ -42,6 +42,17 @@ DECLARE_RESTRICTED_HOOK(android_rvh_try_alloc_pages_gfp,
 			TP_PROTO(struct page **page, unsigned int order,
 				gfp_t gfp, enum zone_type highest_zoneidx),
 			TP_ARGS(page, order, gfp, highest_zoneidx), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_bitmap_find_best_next_area,
+		TP_PROTO(unsigned long *bitmap,
+			unsigned long bitmap_maxno,
+			unsigned long start,
+			unsigned int bitmap_count,
+			unsigned long mask,
+			unsigned long offset,
+			unsigned long *bitmap_no,
+			bool status),
+		TP_ARGS(bitmap, bitmap_maxno, start, bitmap_count, mask,
+			offset, bitmap_no, status), 1);
 
 /*
 
@@ -401,6 +412,9 @@ DECLARE_HOOK(android_vh_calc_alloc_flags,
 	TP_PROTO(gfp_t gfp_mask, unsigned int *alloc_flags,
 		bool *bypass),
 	TP_ARGS(gfp_mask, alloc_flags, bypass));
+DECLARE_HOOK(android_vh_task_mem,
+	TP_PROTO(struct seq_file *m, struct mm_struct *mm),
+	TP_ARGS(m, mm));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */
