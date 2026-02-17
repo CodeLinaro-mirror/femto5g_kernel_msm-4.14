@@ -20,6 +20,10 @@ struct oom_control;
 DECLARE_RESTRICTED_HOOK(android_rvh_shmem_get_folio,
 			TP_PROTO(struct shmem_inode_info *info, struct folio **folio, int order),
 			TP_ARGS(info, folio, order), 3);
+DECLARE_RESTRICTED_HOOK(android_rvh_perform_reclaim,
+			TP_PROTO(int order, gfp_t gfp_mask, nodemask_t *nodemask,
+				 unsigned long *progress, bool *skip),
+			TP_ARGS(order, gfp_mask, nodemask, progress, skip), 4);
 DECLARE_RESTRICTED_HOOK(android_rvh_shmem_suitable_orders,
 			TP_PROTO(struct inode *inode, pgoff_t index,
 				unsigned long orders, unsigned long *suitable_orders),
@@ -38,6 +42,17 @@ DECLARE_RESTRICTED_HOOK(android_rvh_try_alloc_pages_gfp,
 			TP_PROTO(struct page **page, unsigned int order,
 				gfp_t gfp, enum zone_type highest_zoneidx),
 			TP_ARGS(page, order, gfp, highest_zoneidx), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_bitmap_find_best_next_area,
+		TP_PROTO(unsigned long *bitmap,
+			unsigned long bitmap_maxno,
+			unsigned long start,
+			unsigned int bitmap_count,
+			unsigned long mask,
+			unsigned long offset,
+			unsigned long *bitmap_no,
+			bool status),
+		TP_ARGS(bitmap, bitmap_maxno, start, bitmap_count, mask,
+			offset, bitmap_no, status), 1);
 
 /*
 
@@ -202,6 +217,15 @@ DECLARE_RESTRICTED_HOOK(android_rvh_alloc_pages_reclaim_cycle_end,
 	unsigned long direct_reclaim_retries),
 	TP_ARGS(gfp_mask, order, alloc_flags, did_some_progress,
 	no_progress_loops, direct_reclaim_retries), 6);
+DECLARE_HOOK(android_vh_filemap_pages,
+	TP_PROTO(struct folio *folio),
+	TP_ARGS(folio));
+DECLARE_HOOK(android_vh_lru_gen_add_folio_skip,
+	TP_PROTO(struct lruvec *lruvec, struct folio *folio, bool *skip),
+	TP_ARGS(lruvec, folio, skip));
+DECLARE_HOOK(android_vh_lru_gen_del_folio_skip,
+	TP_PROTO(struct lruvec *lruvec, struct folio *folio, bool *skip),
+	TP_ARGS(lruvec, folio, skip));
 DECLARE_HOOK(android_vh_add_lazyfree_bypass,
 	TP_PROTO(struct lruvec *lruvec, struct folio *folio, bool *bypass),
 	TP_ARGS(lruvec, folio, bypass));
@@ -388,6 +412,9 @@ DECLARE_HOOK(android_vh_calc_alloc_flags,
 	TP_PROTO(gfp_t gfp_mask, unsigned int *alloc_flags,
 		bool *bypass),
 	TP_ARGS(gfp_mask, alloc_flags, bypass));
+DECLARE_HOOK(android_vh_task_mem,
+	TP_PROTO(struct seq_file *m, struct mm_struct *mm),
+	TP_ARGS(m, mm));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */

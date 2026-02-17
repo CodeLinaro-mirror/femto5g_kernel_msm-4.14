@@ -64,6 +64,7 @@
 #include <trace/hooks/fuse.h>
 #include <trace/hooks/madvise.h>
 #include <trace/hooks/dmabuf.h>
+#include <trace/hooks/softlockup.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -84,6 +85,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_oom_reaper_delay_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_killed_process);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_thaw_killed_process);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_arch_set_freq_scale);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_bitmap_find_best_next_area);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_futex_sleep_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_wait_finish);
@@ -203,6 +205,14 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_selinux_avc_node_delete);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_selinux_avc_node_replace);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_selinux_avc_lookup);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_selinux_is_initialized);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_lock_acquired);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_lock_released);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rtmutex_lock_acquired);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rtmutex_lock_released);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_lock_acquired);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_lock_released);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pcpu_rwsem_lock_acquired);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pcpu_rwsem_lock_released);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_mmap_file);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_file_open);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_gic_v3_suspend);
@@ -275,6 +285,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_mem);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_print_slabinfo_header);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cache_show);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mglru_should_abort_scan);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mglru_should_abort_scan_ex);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_should_fault_around);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_process_madvise_begin);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_process_madvise_iter);
@@ -362,6 +373,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_page_should_be_protected);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_page_referenced_check_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_slab_folio_alloced);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_die_kernel_fault);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_sea);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_sp_pc_abort);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_wp_page_reuse);
@@ -440,3 +452,21 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_shrink_node);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_save_vmalloc_stack);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_stack_hash);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_calc_alloc_flags);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_filemap_pages);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lru_gen_add_folio_skip);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lru_gen_del_folio_skip);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_perform_reclaim);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_kswapd_shrink_node);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_keep_reclaimed_folio);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_clear_reclaimed_folio);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_evict_folios_bypass);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dpm_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dpm_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sync_irq_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sync_irq_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_wq_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_wq_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_work_wait_start);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_flush_work_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_task_mem);
