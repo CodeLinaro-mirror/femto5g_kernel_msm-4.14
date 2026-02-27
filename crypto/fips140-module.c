@@ -28,7 +28,6 @@
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/fips140-lib-overrides.h>
-#include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
 #include <crypto/rng.h>
@@ -99,15 +98,6 @@ static struct fips140_alg {
 	bool approved;
 
 	/*
-	 * maybe_uninstantiated is true if the module provides this algorithm
-	 * but doesn't register it directly at module initialization time.  This
-	 * occurs for some of the HMAC variants because they are provided by a
-	 * template which isn't immediately instantiated for every SHA variant
-	 * (since the HMAC self-test only has to test one SHA variant).
-	 */
-	bool maybe_uninstantiated;
-
-	/*
 	 * unregistered_inkern gets set to true at runtime if at least one
 	 * algorithm matching this entry was unregistered from the kernel.  This
 	 * is used to detect unregistrations with no matching registration.
@@ -121,13 +111,10 @@ static struct fips140_alg {
 	{ .cra_name = "ctr(aes)", .approved = true },
 	{ .cra_name = "cts(cbc(aes))", .approved = true },
 	{ .cra_name = "ecb(aes)", .approved = true },
-	{ .cra_name = "hmac(sha224)", .approved = true,
-	  .maybe_uninstantiated = true },
+	{ .cra_name = "hmac(sha224)", .approved = true },
 	{ .cra_name = "hmac(sha256)", .approved = true },
-	{ .cra_name = "hmac(sha384)", .approved = true,
-	  .maybe_uninstantiated = true },
-	{ .cra_name = "hmac(sha512)", .approved = true,
-	  .maybe_uninstantiated = true },
+	{ .cra_name = "hmac(sha384)", .approved = true },
+	{ .cra_name = "hmac(sha512)", .approved = true },
 	{ .cra_name = "sha224", .approved = true },
 	{ .cra_name = "sha256", .approved = true },
 	{ .cra_name = "sha384", .approved = true },
@@ -380,7 +367,7 @@ static bool __init fips140_verify_no_extra_unregistrations(void)
 		const struct crypto_alg *calg;
 		bool registered = false;
 
-		if (falg->maybe_uninstantiated || !falg->unregistered_inkern)
+		if (!falg->unregistered_inkern)
 			continue;
 
 		list_for_each_entry(calg, &crypto_alg_list, cra_list) {
@@ -565,13 +552,11 @@ extern struct {
 
 static bool __init check_fips140_module_hmac(void)
 {
-	struct crypto_shash *tfm = NULL;
-	SHASH_DESC_ON_STACK(desc, dontcare);
+	struct hmac_sha256_ctx ctx;
 	u8 digest[SHA256_DIGEST_SIZE];
 	void *textcopy, *rodatacopy;
 	int textsize, rodatasize;
 	bool ok = false;
-	int err;
 
 	textsize	= &__fips140_text_end - &__fips140_text_start;
 	rodatasize	= &__fips140_rodata_end - &__fips140_rodata_start;
@@ -606,30 +591,11 @@ static bool __init check_fips140_module_hmac(void)
 
 	fips140_inject_integrity_failure(textcopy);
 
-	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("failed to allocate hmac tfm (%ld)\n", PTR_ERR(tfm));
-		tfm = NULL;
-		goto out;
-	}
-	desc->tfm = tfm;
-
-	pr_info("using '%s' for integrity check\n",
-		crypto_shash_driver_name(tfm));
-
-	err = crypto_shash_setkey(tfm, fips140_integ_hmac_key,
-				  strlen(fips140_integ_hmac_key)) ?:
-	      crypto_shash_init(desc) ?:
-	      crypto_shash_update(desc, textcopy, textsize) ?:
-	      crypto_shash_finup(desc, rodatacopy, rodatasize, digest);
-
-	/* Zeroizing this is important; see the comment below. */
-	shash_desc_zero(desc);
-
-	if (err) {
-		pr_err("failed to calculate hmac shash (%d)\n", err);
-		goto out;
-	}
+	hmac_sha256_init_usingrawkey(&ctx, fips140_integ_hmac_key,
+				     strlen(fips140_integ_hmac_key));
+	hmac_sha256_update(&ctx, textcopy, textsize);
+	hmac_sha256_update(&ctx, rodatacopy, rodatasize);
+	hmac_sha256_final(&ctx, digest);
 
 	if (memcmp(digest, fips140_integ_hmac_digest, sizeof(digest))) {
 		pr_err("provided_digest  : %*phN\n", (int)sizeof(digest),
@@ -647,7 +613,6 @@ out:
 	 * technical reason to do this given that these values are public
 	 * information, but this is the requirement so we follow it.
 	 */
-	crypto_free_shash(tfm);
 	memzero_explicit(digest, sizeof(digest));
 	kfree_sensitive(textcopy);
 	return ok;
