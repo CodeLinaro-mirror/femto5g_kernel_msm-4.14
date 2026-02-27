@@ -15,10 +15,12 @@
   bt_err
   bt_info
   bt_warn
+  BUG_func
   build_skb
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
+  cc_mkdec
   __check_object_size
   clear_page_erms
   clear_page_orig
@@ -250,6 +252,8 @@
   page_pool_alloc_frag
   page_pool_destroy
   page_pool_put_unrefed_netmem
+  page_shift_compat_enabled
+  page_shift_compat
   param_array_ops
   param_ops_bool
   param_ops_charp
@@ -281,6 +285,7 @@
   put_device
   __put_task_struct
   put_unused_fd
+  pv_ops
   queue_delayed_work_on
   queue_work_on
   ___ratelimit
@@ -1037,6 +1042,8 @@
   iomem_resource
   is_virtio_device
   memdup_user
+  page_shift_compat
+  page_shift_compat_enabled
   pci_dev_put
   pci_get_device
   __SCK__tp_func_dma_fence_emit
