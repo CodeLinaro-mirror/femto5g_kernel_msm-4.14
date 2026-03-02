@@ -3468,6 +3468,7 @@
   tty_port_put
   tty_port_register_device
   tty_port_tty_get
+  __tty_port_tty_hangup
   tty_port_tty_wakeup
   tty_register_driver
   tty_register_ldisc
@@ -3846,6 +3847,8 @@
   vsnprintf
   vsprintf
   vunmap
+  vunmap_range_noflush
+  __vunmap_range_noflush
   vzalloc_noprof
   wait_for_completion
   wait_for_completion_interruptible
