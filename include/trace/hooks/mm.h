@@ -17,6 +17,7 @@ struct folio_batch;
 struct track;
 struct oom_control;
 struct compact_control;
+struct cma;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_shmem_get_folio,
 			TP_PROTO(struct shmem_inode_info *info, struct folio **folio, int order),
@@ -292,6 +293,9 @@ DECLARE_HOOK(android_vh_cma_alloc_end,
 	TP_PROTO(struct cma *cma, unsigned long pfn, const struct page *pages,
 		unsigned long count, unsigned int align, int ret),
 	TP_ARGS(cma, pfn, pages, count, align, ret));
+DECLARE_HOOK(android_vh_do_async_mmap_readahead,
+	TP_PROTO(struct vm_fault *vmf, struct folio *folio, bool *skip),
+	TP_ARGS(vmf, folio, skip));
 DECLARE_HOOK(android_vh_wp_page_reuse,
 	TP_PROTO(struct vm_fault *vmf, struct folio *folio),
 	TP_ARGS(vmf, folio));
