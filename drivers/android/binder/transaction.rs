@@ -34,6 +34,10 @@ pub(crate) const TRANSACTION_LAYOUT: rb_transaction_layout = rb_transaction_layo
     from_thread: offset_of!(Transaction, from),
     to_proc: offset_of!(Transaction, to),
     target_node: offset_of!(Transaction, target_node),
+    __kabi_reserved_backport0: 0,
+    __kabi_reserved_backport1: 0,
+    __kabi_reserved_backport2: 0,
+    __kabi_reserved_backport3: 0,
 };
 
 #[pin_data(PinnedDrop)]
@@ -122,7 +126,7 @@ impl Transaction {
             debug_id,
             target_node: Some(target_node),
             from_parent,
-            sender_euid: from.process.task.euid(),
+            sender_euid: Kuid::current_euid(),
             from: from.clone(),
             to,
             code: trd.code,
@@ -165,7 +169,7 @@ impl Transaction {
             debug_id,
             target_node: None,
             from_parent: None,
-            sender_euid: from.process.task.euid(),
+            sender_euid: Kuid::current_euid(),
             from: from.clone(),
             to,
             code: trd.code,
