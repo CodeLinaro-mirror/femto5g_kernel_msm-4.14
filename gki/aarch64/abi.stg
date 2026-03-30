@@ -13409,6 +13409,11 @@ pointer_reference {
   pointee_type_id: 0x4d998a91
 }
 pointer_reference {
+  id: 0x19f68db9
+  kind: POINTER
+  pointee_type_id: 0x4d9ad078
+}
+pointer_reference {
   id: 0x19fa9e98
   kind: POINTER
   pointee_type_id: 0x4daa9cfd
@@ -379642,6 +379647,13 @@ function {
   parameter_id: 0x05003835
 }
 function {
+  id: 0x11d96a86
+  return_type_id: 0x48b5725f
+  parameter_id: 0x054f691a
+  parameter_id: 0x054f691a
+  parameter_id: 0x1f73dead
+}
+function {
   id: 0x11ddd684
   return_type_id: 0x48b5725f
   parameter_id: 0x0611572c
@@ -399059,6 +399071,11 @@ function {
   return_type_id: 0x09adb9f4
   parameter_id: 0x377043cf
   parameter_id: 0x21530c77
+}
+function {
+  id: 0x83085622
+  return_type_id: 0x19f68db9
+  parameter_id: 0x18ea6ae3
 }
 function {
   id: 0x832143d7
@@ -493282,6 +493299,15 @@ elf_symbol {
   full_name: "nla_strscpy"
 }
 elf_symbol {
+  id: 0x6e09b6e4
+  name: "no_seek_end_llseek"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x72c16011
+  type_id: 0x2d64ae3e
+  full_name: "no_seek_end_llseek"
+}
+elf_symbol {
   id: 0x39787440
   name: "node_states"
   is_defined: true
@@ -508588,6 +508614,15 @@ elf_symbol {
   full_name: "skb_add_rx_frag_netmem"
 }
 elf_symbol {
+  id: 0x34556105
+  name: "skb_append"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xf04a2e6a
+  type_id: 0x11d96a86
+  full_name: "skb_append"
+}
+elf_symbol {
   id: 0x736f4bcb
   name: "skb_append_pagefrags"
   is_defined: true
@@ -516482,6 +516517,33 @@ elf_symbol {
   crc: 0x03aae51c
   type_id: 0xc564dee2
   full_name: "tty_write_room"
+}
+elf_symbol {
+  id: 0xa46589d6
+  name: "tun_get_socket"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xec1cd5d7
+  type_id: 0x229f1818
+  full_name: "tun_get_socket"
+}
+elf_symbol {
+  id: 0x3d3dcefb
+  name: "tun_get_tx_ring"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x97bdf84d
+  type_id: 0x83085622
+  full_name: "tun_get_tx_ring"
+}
+elf_symbol {
+  id: 0x7219254d
+  name: "tun_ptr_free"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0xe03724d1
+  type_id: 0x16b708df
+  full_name: "tun_ptr_free"
 }
 elf_symbol {
   id: 0x15f59e38
@@ -532895,6 +532957,7 @@ interface {
   symbol_id: 0x49027247
   symbol_id: 0x85e07b67
   symbol_id: 0x6359420c
+  symbol_id: 0x6e09b6e4
   symbol_id: 0x39787440
   symbol_id: 0x7f258c4e
   symbol_id: 0x754435c8
@@ -534594,6 +534657,7 @@ interface {
   symbol_id: 0xc4c0ed9a
   symbol_id: 0x37d54444
   symbol_id: 0x5516a755
+  symbol_id: 0x34556105
   symbol_id: 0x736f4bcb
   symbol_id: 0x3ffd8828
   symbol_id: 0x38f9f2a7
@@ -535472,6 +535536,9 @@ interface {
   symbol_id: 0x6590f3a5
   symbol_id: 0x8e95f895
   symbol_id: 0x30438a62
+  symbol_id: 0xa46589d6
+  symbol_id: 0x3d3dcefb
+  symbol_id: 0x7219254d
   symbol_id: 0x15f59e38
   symbol_id: 0xfb5efe2e
   symbol_id: 0xf4ad9ab3
