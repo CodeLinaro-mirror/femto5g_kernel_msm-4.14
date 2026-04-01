@@ -84,6 +84,7 @@
 #include <trace/hooks/rcu.h>
 #include <trace/hooks/dwc3.h>
 #include <trace/hooks/typec.h>
+#include <trace/hooks/cdc_ether.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -435,6 +436,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rcu_boost_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lruvec_add_folio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lruvec_del_folio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_async_mmap_readahead);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_sync_mmap_readahead);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mm_free_page);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_page_cache_ra_unbounded);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ra_alloc_retry);
@@ -454,6 +456,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_task_get_classid);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_blk_mq_delay_run_hw_queue);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_blk_mq_kick_requeue_list);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_update_thermal_trip_flag);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_blk_mq_has_request);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_enable_thermal_genl_check);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_thermal_pm_notify_suspend);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_pages_entry);
@@ -734,3 +737,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_skip_cma);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lock_delay_schedule);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lock_task_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_lock_task_exit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_is_rndis_enabled);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_reasm_timer_adjust);
