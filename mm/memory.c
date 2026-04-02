@@ -4413,7 +4413,9 @@ static struct folio *__alloc_swap_folio(struct vm_fault *vmf)
 	struct folio *folio;
 	swp_entry_t entry;
 
-	folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE, 0, vma, vmf->address);
+	folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_CMA,
+				0, vma, vmf->address);
+
 	if (!folio)
 		return NULL;
 
@@ -4644,7 +4646,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 				unlock_page(vmf->page);
 				put_page(vmf->page);
 			} else {
-				pte_unmap_unlock(vmf->pte, vmf->ptl);
+				pte_unmap(vmf->pte);
+				migration_entry_wait_on_locked(entry, vmf->ptl);
 			}
 		} else if (is_hwpoison_entry(entry)) {
 			ret = VM_FAULT_HWPOISON;
@@ -4713,7 +4716,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 				folio->private = NULL;
 			}
 		} else {
-			folio = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
+			folio = swapin_readahead(entry,
+						GFP_HIGHUSER_MOVABLE | __GFP_CMA,
 						vmf);
 			swapcache = folio;
 		}

@@ -1863,8 +1863,20 @@ static void unplug_oldest_pwq(struct workqueue_struct *wq)
 	raw_spin_lock_irq(&pwq->pool->lock);
 	if (pwq->plugged) {
 		pwq->plugged = false;
-		if (pwq_activate_first_inactive(pwq, true))
+		if (pwq_activate_first_inactive(pwq, true)) {
+			/*
+			 * While plugged, queueing skips activation which
+			 * includes bumping the nr_active count and adding the
+			 * pwq to nna->pending_pwqs if the count can't be
+			 * obtained. We need to restore both for the pwq being
+			 * unplugged. The first call activates the first
+			 * inactive work item and the second, if there are more
+			 * inactive, puts the pwq on pending_pwqs.
+			 */
+			pwq_activate_first_inactive(pwq, false);
+
 			kick_pool(pwq->pool);
+		}
 	}
 	raw_spin_unlock_irq(&pwq->pool->lock);
 }
@@ -5500,6 +5512,7 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(apply_workqueue_attrs);
 
 /**
  * unbound_wq_update_pwq - update a pwq slot for CPU hot[un]plug
@@ -5574,6 +5587,7 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 {
 	bool highpri = wq->flags & WQ_HIGHPRI;
 	int cpu, ret;
+	bool skip = false;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
@@ -5610,6 +5624,10 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		return 0;
 	}
 
+	trace_android_rvh_alloc_and_link_pwqs(wq, &ret, &skip);
+	if (skip)
+		goto oem_skip;
+
 	if (wq->flags & __WQ_ORDERED) {
 		struct pool_workqueue *dfl_pwq;
 
@@ -5623,6 +5641,7 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		ret = apply_workqueue_attrs_locked(wq, unbound_std_wq_attrs[highpri]);
 	}
 
+oem_skip:
 	return ret;
 
 enomem:
@@ -6286,7 +6305,7 @@ static void pr_cont_worker_id(struct worker *worker)
 {
 	struct worker_pool *pool = worker->pool;
 
-	if (pool->flags & WQ_BH)
+	if (pool->flags & POOL_BH)
 		pr_cont("bh%s",
 			pool->attrs->nice == HIGHPRI_NICE_LEVEL ? "-hi" : "");
 	else
