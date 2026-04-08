@@ -381,6 +381,13 @@ DECLARE_HOOK(android_vh_filemap_fault_folio_locked,
 DECLARE_HOOK(android_vh_filemap_read_end,
 	TP_PROTO(struct inode *inode, struct folio **folios, unsigned int nr),
 	TP_ARGS(inode, folios, nr));
+DECLARE_HOOK(android_vh_map_order0_folio,
+	TP_PROTO(struct file *file, pgoff_t pgoff, struct folio *folio,
+		vm_fault_t ret),
+	TP_ARGS(file, pgoff, folio, ret));
+DECLARE_HOOK(android_vh_do_fault_around,
+	TP_PROTO(struct vm_fault *vmf, pgoff_t *nr_pages),
+	TP_ARGS(vmf, nr_pages));
 
 DECLARE_HOOK(android_vh_alloc_contig_range_not_isolated,
 	TP_PROTO(unsigned long start, unsigned end),
@@ -785,6 +792,9 @@ DECLARE_HOOK(android_vh_mm_free,
 DECLARE_HOOK(android_vh_mm_init,
 	TP_PROTO(struct mm_struct *mm),
 	TP_ARGS(mm));
+DECLARE_RESTRICTED_HOOK(android_rvh_read_swap_cache_async_timeout,
+	TP_PROTO(size_t *count, bool *skip),
+	TP_ARGS(count, skip), 2);
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */
