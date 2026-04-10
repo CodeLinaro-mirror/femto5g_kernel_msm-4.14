@@ -91,11 +91,6 @@ static struct vfsmount *shm_mnt __ro_after_init;
 #include "internal.h"
 
 #define BLOCKS_PER_PAGE  (PAGE_SIZE/512)
-
-#ifdef CONFIG_ASHMEM
-#include "../drivers/staging/android/ashmem.h"
-#endif
-
 #define VM_ACCT(size)    (PAGE_ALIGN(size) >> PAGE_SHIFT)
 
 /* Pretend that each entry is of this size in directory's i_size */
@@ -4889,6 +4884,11 @@ static const struct address_space_operations shmem_aops = {
 #endif
 	.error_remove_folio = shmem_error_remove_folio,
 };
+
+#ifdef CONFIG_ASHMEM
+extern long ashmem_memfd_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg);
+#endif
 
 static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
