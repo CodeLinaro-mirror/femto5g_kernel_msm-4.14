@@ -681,10 +681,12 @@ static inline struct page *__page_cache_alloc(gfp_t gfp)
 	return &filemap_alloc_folio(gfp, 0)->page;
 }
 
-static inline gfp_t readahead_gfp_mask(struct address_space *x)
+static inline gfp_t __readahead_gfp_mask(struct address_space *x)
 {
 	return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
 }
+
+gfp_t readahead_gfp_mask(struct address_space *x);
 
 typedef int filler_t(struct file *, struct folio *);
 
@@ -1348,6 +1350,7 @@ struct readahead_control {
 	bool dropbehind;
 	bool _workingset;
 	unsigned long _pflags;
+	ANDROID_OEM_DATA(1);
 };
 
 #define DEFINE_READAHEAD(ractl, f, r, m, i)				\
