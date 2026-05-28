@@ -327636,7 +327636,7 @@ elf_symbol {
   name: "snd_pcm_lib_default_mmap"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x4d0224e6
+  crc: 0x20838777
   type_id: 0x9886ff64
   full_name: "snd_pcm_lib_default_mmap"
 }
@@ -327726,7 +327726,7 @@ elf_symbol {
   name: "snd_pcm_stop"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xd77ebfb0
+  crc: 0x817333eb
   type_id: 0x98e6a470
   full_name: "snd_pcm_stop"
 }
@@ -327735,7 +327735,7 @@ elf_symbol {
   name: "snd_pcm_stop_xrun"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x1212d5e0
+  crc: 0x5efdf70f
   type_id: 0x98aeb261
   full_name: "snd_pcm_stop_xrun"
 }
@@ -327744,7 +327744,7 @@ elf_symbol {
   name: "snd_pcm_stream_lock"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0a450735
+  crc: 0x66f3702f
   type_id: 0x15b600dd
   full_name: "snd_pcm_stream_lock"
 }
@@ -327753,7 +327753,7 @@ elf_symbol {
   name: "snd_pcm_stream_unlock"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0a450735
+  crc: 0x66f3702f
   type_id: 0x15b600dd
   full_name: "snd_pcm_stream_unlock"
 }
@@ -327762,7 +327762,7 @@ elf_symbol {
   name: "snd_pcm_suspend_all"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xf3fcecba
+  crc: 0x4ba9a8bf
   type_id: 0x99e386dd
   full_name: "snd_pcm_suspend_all"
 }
