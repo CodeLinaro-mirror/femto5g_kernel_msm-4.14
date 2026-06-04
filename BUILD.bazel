@@ -63,6 +63,8 @@ _GKI_RISCV64_MAKE_GOALS = [
     "Image",
     "Image.lz4",
     "Image.gz",
+    "Image.lzma",
+    "Image.zst",
     "modules",
 ]
 
