@@ -39,7 +39,6 @@
   debugfs_create_file
   debugfs_create_u32
   debugfs_create_u8
-  debugfs_lookup_and_remove
   debugfs_remove
   default_llseek
   delayed_work_timer_fn
@@ -166,6 +165,8 @@
   is_vmalloc_addr
   jiffies
   jiffies_to_msecs
+  kernel_sendmsg
+  kernel_sock_shutdown
   kfree
   kfree_sensitive
   __kmalloc_cache_noprof
@@ -183,6 +184,7 @@
   kthread_park
   kthread_should_stop
   kthread_stop
+  kthread_stop_put
   kthread_unpark
   ktime_get
   ktime_get_real_seconds
@@ -355,6 +357,7 @@
   snd_pcm_set_managed_buffer_all
   snd_pcm_set_ops
   snprintf
+  sockfd_lookup
   sprintf
   sscanf
   __stack_chk_fail
@@ -388,6 +391,7 @@
   unregister_netdevice_queue
   unregister_pernet_device
   unregister_virtio_driver
+  usb_add_gadget_udc
   usb_add_hcd
   usb_alloc_urb
   usb_anchor_urb
@@ -395,9 +399,13 @@
   usb_control_msg
   usb_create_hcd
   usb_create_shared_hcd
+  usb_del_gadget_udc
   usb_deregister
   usb_disabled
+  usb_ep_set_maxpacket_limit
   usb_free_urb
+  usb_gadget_giveback_request
+  usb_gadget_udc_reset
   usb_get_dev
   usb_hcd_check_unlink_urb
   usb_hcd_giveback_urb
@@ -588,11 +596,6 @@
   sg_miter_start
   sg_miter_stop
   strstr
-  usb_add_gadget_udc
-  usb_del_gadget_udc
-  usb_ep_set_maxpacket_limit
-  usb_gadget_giveback_request
-  usb_gadget_udc_reset
 
 # required by failover.ko
   netdev_master_upper_dev_link
@@ -618,6 +621,7 @@
 # required by goldfish_pipe.ko
   pin_user_pages_fast
   unpin_user_pages_dirty_lock
+  USER_PTR_MAX
 
 # required by goldfish_sync.ko
   dma_fence_default_wait
@@ -658,6 +662,7 @@
 
 # required by hci_vhci.ko
   _copy_from_iter
+  debugfs_lookup_and_remove
   hci_devcd_abort
   hci_resume_dev
   hci_suspend_dev
@@ -893,6 +898,9 @@
   print_hex_dump
   sock_recvmsg
 
+# required by usbip-vudc.ko
+  sysfs_emit
+
 # required by v4l2-tpg.ko
   __get_random_u32_below
 
@@ -907,12 +915,8 @@
   vm_insert_page
 
 # required by vhci-hcd.ko
-  kernel_sendmsg
-  kernel_sock_shutdown
   kstrtoll
-  kthread_stop_put
   platform_bus
-  sockfd_lookup
   sysfs_create_group
   sysfs_remove_group
   usb_speed_string
