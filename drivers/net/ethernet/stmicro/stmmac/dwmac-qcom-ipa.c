@@ -378,7 +378,7 @@ static inline phys_addr_t eth_ipa_queue_type_to_tx_reg_base_ptr_pa(
 
 static void eth_ipa_handle_rx_interrupt(unsigned int qinx)
 {
-	int type;
+	int type = 0;
 
 	if (!eth_ipa_ctx.ipa_offload_conn) {
 		ETHQOSERR("IPA Offload not connected\n");
@@ -400,7 +400,7 @@ static void eth_ipa_handle_rx_interrupt(unsigned int qinx)
 
 static void eth_ipa_handle_tx_interrupt(unsigned int qinx)
 {
-	int type;
+	int type = 0;
 
 	if (!eth_ipa_ctx.ipa_offload_conn) {
 		ETHQOSERR("IPA Offload not connected\n");
@@ -1249,7 +1249,7 @@ err_out_rx_skb_buf_alloc_failed:
 
 static void ethqos_free_ipa_queue_mem(struct qcom_ethqos *ethqos)
 {
-	int type;
+	int type = 0;
 
 	for (type = 0; type < IPA_QUEUE_MAX; type++) {
 		if (eth_ipa_queue_type_enabled(type)) {
@@ -1452,7 +1452,7 @@ static int enable_rx_dma_interrupts(
 
 static int ethqos_ipa_config_queues(struct qcom_ethqos *ethqos)
 {
-	int type, ret = 0;
+	int type = 0, ret = 0;
 
 	for (type = 0; type < IPA_QUEUE_MAX; type++) {
 		if (eth_ipa_queue_type_enabled(type)) {
@@ -1792,7 +1792,7 @@ static ssize_t read_ipa_offload_status(struct device *dev,
 {
 	unsigned int len = 0, buf_len = NTN_IPA_DBG_MAX_MSG_LEN;
 	int BUFF_SZ = 256;
-	int type;
+	int type = 0;
 	struct stmmac_priv *priv;
 	struct qcom_ethqos *ethqos;
 	struct net_device *netdev = to_net_dev(dev);
@@ -2319,7 +2319,7 @@ static ssize_t read_ntn_dma_stats(struct file *file,
 	unsigned int len = 0, buf_len = 6000;
 	char *buf;
 	ssize_t ret_cnt = 0;
-	int type;
+	int type = 0;
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
@@ -3229,7 +3229,7 @@ static int ethqos_disable_ipa_offload(struct qcom_ethqos *ethqos)
 static int ethqos_enable_ipa_offload(struct qcom_ethqos *ethqos)
 {
 	int ret = 0;
-	int type;
+	int type = 0;
 
 	if (!eth_ipa_ctx.ipa_offload_init) {
 		for (type = 0; type < IPA_QUEUE_MAX; type++) {
@@ -3438,7 +3438,7 @@ static int ethqos_ipa_uc_ready(struct qcom_ethqos *pdata)
 void ethqos_ipa_offload_event_handler(void *data,
 				      int ev)
 {
-	int type;
+	int type = 0;
 	struct platform_device *pdev;
 	struct net_device *dev;
 	struct stmmac_priv *priv;
