@@ -5291,6 +5291,10 @@ int stmmac_suspend(struct device *dev)
 	if (priv->plat->wait_for_emac_rx_clk)
 		priv->plat->wait_for_mac_rx_clk = true;
 
+	if (priv->plat->mac2mac_en) {
+		netif_carrier_off(ndev);
+	}
+
 	mutex_unlock(&priv->lock);
 
 	priv->oldlink = -1;
