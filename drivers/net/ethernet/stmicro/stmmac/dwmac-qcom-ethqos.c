@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018-19, Linaro Limited
 // Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
-// Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -286,6 +286,7 @@ unsigned int dwmac_qcom_get_plat_tx_coal_frames(
 {
 	bool is_udp;
 	unsigned int eth_type;
+	struct iphdr *ip_header = ip_hdr(skb);
 
 	eth_type = dwmac_qcom_get_eth_type(skb->data);
 
@@ -297,6 +298,8 @@ unsigned int dwmac_qcom_get_plat_tx_coal_frames(
 	if (eth_type == ETH_P_TSN)
 		return AVB_INT_MOD;
 	if (eth_type == ETH_P_IP || eth_type == ETH_P_IPV6) {
+		if (ip_header->protocol == IPPROTO_ICMP)
+			return ICMP_INT_MOD;
 #ifdef CONFIG_PTPSUPPORT_OBJ
 		is_udp = (((eth_type == ETH_P_IP) &&
 				   (ip_hdr(skb)->protocol ==
