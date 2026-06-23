@@ -1,3 +1,10 @@
+linux-imx (7.0.0-1028.29-uci) resolute; urgency=medium
+
+  * [all] Build upstream ubuntu-core-initramfs
+  * [all] Seed patched systemd-bootchart with root switch fix
+
+ -- Ondrej Kubik <ondrej.kubik@canonical.com>  Tue, 23 Mar 2026 12:06:23 +010
+
 linux-imx (7.0.0-1028.28) resolute; urgency=medium
 
   * resolute/linux: 7.0.0-28.28
