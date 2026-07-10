@@ -3549,15 +3549,13 @@ void ethqos_ipa_offload_event_handler(void *data,
 		    qcom_ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
 			ethqos_enable_ipa_offload(eth_ipa_ctx.ethqos);
 
-		if (eth_ipa_ctx.emac_dev_reset) {
-			if(!eth_ipa_ctx.ipa_debugfs_exists){
+		if(!eth_ipa_ctx.ipa_debugfs_exists){
 			if (!ethqos_ipa_create_debugfs(eth_ipa_ctx.ethqos)) {
 				ETHQOSERR("eMAC Debugfs created\n");
 				eth_ipa_ctx.ipa_debugfs_exists = true;
 			} else {
 				ETHQOSERR("eMAC Debugfs failed\n");
 			}
-		}
 			if(!eth_ipa_ctx.ipa_sysfs_exists){
 				if (!ethqos_ipa_create_sysfs(eth_ipa_ctx.ethqos)) {
 					ETHQOSERR("eMAC Sysfs created\n");
