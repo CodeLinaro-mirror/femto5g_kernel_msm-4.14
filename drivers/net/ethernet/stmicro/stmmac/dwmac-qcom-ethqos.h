@@ -9,6 +9,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+//Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+
 #ifndef	_DWMAC_QCOM_ETHQOS_H
 #define	_DWMAC_QCOM_ETHQOS_H
 
@@ -711,6 +713,7 @@ u16 dwmac_qcom_select_queue(
 #define AVB_INT_MOD 8
 #define IP_PKT_INT_MOD 32
 #define PTP_INT_MOD 1
+#define ICMP_INT_MOD 1
 
 #define PPS_19_2_FREQ 19200000
 
