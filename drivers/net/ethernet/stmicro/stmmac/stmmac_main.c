@@ -3387,6 +3387,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int enh_desc;
 	unsigned int des, int_mod;
 	unsigned int eth_type;
+	int tx_packets = 0;
+	bool set_ic = false;
 
 	trace_stmmac_xmit_entry(queue);
 	GET_ETH_TYPE(skb->data, eth_type);
@@ -3532,6 +3534,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += skb->len;
 
+	tx_packets = entry + 1 - first_entry;
 	priv->tx_count_frames += nfrags + 1;
 
 	/* According to the coalesce parameter the IC bit for the latest
@@ -3542,8 +3545,13 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(priv->tx_coal_timer_disable)) {
 		if (priv->plat->get_plat_tx_coal_frames) {
 			int_mod = priv->plat->get_plat_tx_coal_frames(skb);
-
-			if (!(tx_q->cur_tx % int_mod)) {
+			if (tx_packets > int_mod)
+				set_ic = true;
+			else if ((priv->tx_count_frames % int_mod) < tx_packets)
+				set_ic = true;
+			else
+				set_ic = false;
+			if (set_ic) {
 				priv->tx_count_frames = 0;
 				priv->hw->desc->set_tx_ic(desc);
 				priv->xstats.tx_set_ic_bit++;
