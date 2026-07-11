@@ -9,6 +9,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+//Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 #ifndef	_DWMAC_QCOM_IPA_H
 #define	_DWMAC_QCOM_IPA_H
 
@@ -65,7 +66,7 @@
 #define ETHQOS_ETH_FRAME_LEN_IPA_CV2X ((1 << 11))
 
 /* Default desc count */
-#define IPA_TX_DESC_CNT_BE	128
+#define IPA_TX_DESC_CNT_BE	512
 #define IPA_RX_DESC_CNT_BE	512
 #define IPA_TX_DESC_CNT_CV2X 128
 #define IPA_RX_DESC_CNT_CV2X 128
