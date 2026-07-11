@@ -66,7 +66,7 @@
 
 /* Default desc count */
 #define IPA_TX_DESC_CNT_BE	128
-#define IPA_RX_DESC_CNT_BE	128
+#define IPA_RX_DESC_CNT_BE	512
 #define IPA_TX_DESC_CNT_CV2X 128
 #define IPA_RX_DESC_CNT_CV2X 128
 

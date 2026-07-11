@@ -126,7 +126,7 @@ static void eth_ipa_ctx_init(void)
 			&eth_ipa_ctx.ipa_dma_tx_desc_cnt[IPA_QUEUE_BE])) {
 			ETHQOSDBG(":resource ipa-dma-tx-desc-cnt not in dt\n");
 			eth_ipa_ctx.ipa_dma_tx_desc_cnt[IPA_QUEUE_BE] =
-				IPA_RX_DESC_CNT_BE;
+				IPA_TX_DESC_CNT_BE;
 		}
 	}
 
