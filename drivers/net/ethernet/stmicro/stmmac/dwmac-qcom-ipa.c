@@ -3627,13 +3627,17 @@ void ethqos_ipa_offload_event_handler(void *data,
 
 		break;
 	case EV_DPM_SUSPEND:
+		pdev = (eth_ipa_ctx.ethqos)->pdev;
+                dev = platform_get_drvdata(pdev);
+	        priv = netdev_priv(dev);
+
 		if (eth_ipa_ctx.ipa_offload_conn)
 			*(int *)data = false;
 		else {
 			*(int *)data = true;
-			eth_ipa_ctx.ipa_offload_link_down = true;
+			if (!priv->plat->mac2mac_en)
+				eth_ipa_ctx.ipa_offload_link_down = true;
 		}
-
 		break;
 	case EV_USR_SUSPEND:
 		type = (*(int *)data);
