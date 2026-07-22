@@ -18,6 +18,7 @@ struct vdso_image {
 	unsigned long extable_base, extable_len;
 	const void *extable;
 
+	long sym_VDSO32_NOTE_MASK;
 	long sym___kernel_sigreturn;
 	long sym___kernel_rt_sigreturn;
 	long sym___kernel_vsyscall;
