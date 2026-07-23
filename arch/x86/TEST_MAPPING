@@ -4,6 +4,9 @@
       "path": "bionic"
     },
     {
+      "path": "cts/hostsidetests/statsdatom"
+    },
+    {
       "path": "cts/tests/tests/usb"
     },
     {
@@ -19,7 +22,13 @@
       "path": "packages/modules"
     },
     {
+      "path": "packages/services/Telecomm"
+    },
+    {
       "path": "system/core"
+    },
+    {
+      "path": "system/netd"
     },
     {
       "path": "test/cts-root/tests/bluetooth"
