@@ -375476,6 +375476,10 @@ enumeration {
       name: "PGWALK_WRLOCK_VERIFY"
       value: 2
     }
+    enumerator {
+      name: "PGWALK_VMA_RDLOCK_VERIFY"
+      value: 3
+    }
   }
 }
 enumeration {
@@ -536792,7 +536796,7 @@ elf_symbol {
   name: "walk_page_range"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xec586658
+  crc: 0xd35088a2
   type_id: 0x9b8c84e7
   full_name: "walk_page_range"
 }
