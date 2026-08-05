@@ -3024,6 +3024,7 @@
   stop_tty
   strcasecmp
   strchr
+  strchrnul
   strcmp
   strcpy
   strcspn
