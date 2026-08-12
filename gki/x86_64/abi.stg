@@ -39260,12 +39260,6 @@ member {
   offset: 15488
 }
 member {
-  id: 0x415b0918
-  name: "__kabi_reserved1"
-  type_id: 0x92233392
-  offset: 12928
-}
-member {
   id: 0x415b0923
   name: "__kabi_reserved1"
   type_id: 0x92233392
@@ -39629,12 +39623,6 @@ member {
   name: "__kabi_reserved2"
   type_id: 0x92233392
   offset: 1856
-}
-member {
-  id: 0xb116e168
-  name: "__kabi_reserved2"
-  type_id: 0x92233392
-  offset: 12992
 }
 member {
   id: 0xb116e235
@@ -40042,6 +40030,12 @@ member {
   name: "__kabi_reserved2"
   type_id: 0x92233392
   offset: 2176
+}
+member {
+  id: 0xb116efec
+  name: "__kabi_reserved2"
+  type_id: 0x92233392
+  offset: 12928
 }
 member {
   id: 0xf0d65008
@@ -109973,10 +109967,10 @@ member {
   offset: 1984
 }
 member {
-  id: 0x3478483c
+  id: 0x34784d63
   name: "links"
   type_id: 0xf28e5458
-  offset: 3264
+  offset: 3200
 }
 member {
   id: 0x34b77121
@@ -140557,9 +140551,9 @@ member {
   offset: 12352
 }
 member {
-  id: 0xc6fcc856
+  id: 0xc6b0bd33
   name: "pmsr_free_wk"
-  type_id: 0x1f3c8679
+  type_id: 0x5349e3cc
   offset: 1920
 }
 member {
@@ -148413,10 +148407,10 @@ member {
   offset: 3008
 }
 member {
-  id: 0xe2f6d9f4
+  id: 0xe2f6d81c
   name: "radio_mask"
   type_id: 0xc9082b19
-  offset: 12896
+  offset: 12832
 }
 member {
   id: 0x873e62a9
@@ -184631,10 +184625,10 @@ member {
   offset: 64
 }
 member {
-  id: 0xec08ee48
+  id: 0xec08e224
   name: "u"
   type_id: 0x77bbd63d
-  offset: 2240
+  offset: 2176
 }
 member {
   id: 0xec1205eb
@@ -185983,10 +185977,10 @@ member {
   offset: 72
 }
 member {
-  id: 0x35577a4a
+  id: 0x35577197
   name: "unprot_beacon_reported"
   type_id: 0x33756485
-  offset: 2176
+  offset: 2112
 }
 member {
   id: 0xf830c756
@@ -188632,10 +188626,10 @@ member {
   offset: 10304
 }
 member {
-  id: 0x90082715
+  id: 0x9008288e
   name: "valid_links"
   type_id: 0x914dbfdc
-  offset: 12864
+  offset: 12800
 }
 member {
   id: 0x43e43a07
@@ -253898,7 +253892,7 @@ struct_union {
   kind: STRUCT
   name: "wireless_dev"
   definition {
-    bytesize: 1632
+    bytesize: 1624
     member_id: 0x3f0faf2e
     member_id: 0x35a5c531
     member_id: 0x7c00e690
@@ -253929,14 +253923,14 @@ struct_union {
     member_id: 0x62614daf
     member_id: 0xb7706569
     member_id: 0x169d773a
-    member_id: 0xc6fcc856
-    member_id: 0x35577a4a
-    member_id: 0xec08ee48
-    member_id: 0x3478483c
-    member_id: 0x90082715
-    member_id: 0xe2f6d9f4
-    member_id: 0x415b0918
-    member_id: 0xb116e168
+    member_id: 0xc6b0bd33
+    member_id: 0x35577197
+    member_id: 0xec08e224
+    member_id: 0x34784d63
+    member_id: 0x9008288e
+    member_id: 0xe2f6d81c
+    member_id: 0x415b0557
+    member_id: 0xb116efec
   }
 }
 struct_union {
