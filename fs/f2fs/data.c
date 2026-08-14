@@ -28,6 +28,7 @@
 #include "iostat.h"
 #include <trace/events/f2fs.h>
 #include <trace/hooks/blk.h>
+#include <trace/hooks/fs.h>
 
 #define NUM_PREALLOC_POST_READ_CTXS	128
 
@@ -516,6 +517,7 @@ void f2fs_submit_read_bio(struct f2fs_sb_info *sbi, struct bio *bio,
 	trace_f2fs_submit_read_bio(sbi->sb, type, bio);
 
 	iostat_update_submit_ctx(bio, type);
+	trace_android_vh_f2fs_iostat_submit(sbi->sb, type, bio);
 	submit_bio(bio);
 }
 
@@ -525,6 +527,7 @@ static void f2fs_submit_write_bio(struct f2fs_sb_info *sbi, struct bio *bio,
 	WARN_ON_ONCE(is_read_io(bio_op(bio)));
 	trace_f2fs_submit_write_bio(sbi->sb, type, bio);
 	iostat_update_submit_ctx(bio, type);
+	trace_android_vh_f2fs_iostat_submit(sbi->sb, type, bio);
 	submit_bio(bio);
 }
 
