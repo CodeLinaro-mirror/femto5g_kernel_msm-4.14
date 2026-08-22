@@ -386675,7 +386675,7 @@ elf_symbol {
   name: "__traceiter_android_rvh_meminfo_proc_show"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x750e7fa8
+  crc: 0x89abd4ad
   type_id: 0x9bb62df9
   full_name: "__traceiter_android_rvh_meminfo_proc_show"
 }
@@ -387152,7 +387152,7 @@ elf_symbol {
   name: "__traceiter_android_rvh_set_user_nice_locked"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xd83179c7
+  crc: 0x07dfd726
   type_id: 0x9bd6ff14
   full_name: "__traceiter_android_rvh_set_user_nice_locked"
 }
@@ -388844,7 +388844,7 @@ elf_symbol {
   name: "__traceiter_android_vh_erofs_iostat_submit"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xf10a7c9e
+  crc: 0x58c4efe7
   type_id: 0x9b316b03
   full_name: "__traceiter_android_vh_erofs_iostat_submit"
 }
@@ -388853,7 +388853,7 @@ elf_symbol {
   name: "__traceiter_android_vh_erofs_iostat_update"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xf10a7c9e
+  crc: 0x58c4efe7
   type_id: 0x9b316b03
   full_name: "__traceiter_android_vh_erofs_iostat_update"
 }
@@ -388970,7 +388970,7 @@ elf_symbol {
   name: "__traceiter_android_vh_f2fs_iostat_submit"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0ecde9d8
+  crc: 0x85c4ac42
   type_id: 0x9b2d9d7b
   full_name: "__traceiter_android_vh_f2fs_iostat_submit"
 }
@@ -388979,7 +388979,7 @@ elf_symbol {
   name: "__traceiter_android_vh_f2fs_iostat_update"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xf8a2f61c
+  crc: 0x5221f2ff
   type_id: 0x9b312c3c
   full_name: "__traceiter_android_vh_f2fs_iostat_update"
 }
@@ -391040,7 +391040,7 @@ elf_symbol {
   name: "__traceiter_android_vh_rmqueue"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x6e4dcc91
+  crc: 0x0ce83b2c
   type_id: 0x9b858538
   full_name: "__traceiter_android_vh_rmqueue"
 }
@@ -392507,7 +392507,7 @@ elf_symbol {
   name: "__traceiter_android_vh_unlock_mmap_bypass"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xd8f71ce8
+  crc: 0x9ea8ff45
   type_id: 0x9b6444b9
   full_name: "__traceiter_android_vh_unlock_mmap_bypass"
 }
@@ -410303,7 +410303,7 @@ elf_symbol {
   name: "dev_pm_opp_get_supplies"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x3dad1d08
+  crc: 0x20ca2117
   type_id: 0x9b2efcfe
   full_name: "dev_pm_opp_get_supplies"
 }
@@ -437713,7 +437713,7 @@ elf_symbol {
   name: "of_get_next_child_with_prefix"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xfb555937
+  crc: 0x2c61471d
   type_id: 0x7aa6b5e7
   full_name: "of_get_next_child_with_prefix"
 }
@@ -456677,7 +456677,7 @@ elf_symbol {
   name: "trace_array_get_by_name"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xf7b914b7
+  crc: 0x3afbf2db
   type_id: 0x1fc56d5c
   full_name: "trace_array_get_by_name"
 }
@@ -456695,7 +456695,7 @@ elf_symbol {
   name: "trace_array_set_clr_event"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x3b2c61c9
+  crc: 0x96a92b11
   type_id: 0x9c8a3bf9
   full_name: "trace_array_set_clr_event"
 }
@@ -459911,7 +459911,7 @@ elf_symbol {
   name: "usb_alloc_dev"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xa9ad6436
+  crc: 0x40730cb0
   type_id: 0x75f8c649
   full_name: "usb_alloc_dev"
 }
@@ -461504,7 +461504,7 @@ elf_symbol {
   name: "usb_set_device_state"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xed0b8060
+  crc: 0x1e8ca54b
   type_id: 0x1172892f
   full_name: "usb_set_device_state"
 }
