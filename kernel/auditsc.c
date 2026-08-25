@@ -161,7 +161,7 @@ static const struct audit_nfcfgop_tab audit_nfcfgs[] = {
 
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
-	unsigned int n;
+	unsigned n;
 	if (unlikely(!ctx))
 		return 0;
 	n = ctx->major;
