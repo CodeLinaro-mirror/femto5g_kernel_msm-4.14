@@ -919,8 +919,7 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 	struct rtmsg *rtm;
 	int err, i;
 
-	if (filter->rtnl_held)
-		ASSERT_RTNL();
+	ASSERT_RTNL();
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
 		NL_SET_ERR_MSG(extack, "Invalid header for FIB dump request");
@@ -965,10 +964,7 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 			break;
 		case RTA_OIF:
 			ifindex = nla_get_u32(tb[i]);
-			if (filter->rtnl_held)
-				filter->dev = __dev_get_by_index(net, ifindex);
-			else
-				filter->dev = dev_get_by_index_rcu(net, ifindex);
+			filter->dev = __dev_get_by_index(net, ifindex);
 			if (!filter->dev)
 				return -ENODEV;
 			break;
@@ -990,11 +986,8 @@ EXPORT_SYMBOL_GPL(ip_valid_fib_dump_req);
 
 static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct fib_dump_filter filter = {
-		.dump_routes = true,
-		.dump_exceptions = true,
-		.rtnl_held = true,
-	};
+	struct fib_dump_filter filter = { .dump_routes = true,
+					  .dump_exceptions = true };
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	unsigned int h, s_h;

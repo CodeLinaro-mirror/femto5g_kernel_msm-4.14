@@ -2576,9 +2576,7 @@ errout_free:
 
 static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct fib_dump_filter filter = {
-		.rtnl_held = true,
-	};
+	struct fib_dump_filter filter = {};
 	int err;
 
 	if (cb->strict_check) {
