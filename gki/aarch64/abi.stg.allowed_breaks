@@ -326,3 +326,7 @@ function symbol changed from 'int __traceiter_android_vh_handle_metadata_error(v
     parameter 10 of type 'unsigned int' was added
     parameter 11 of type 'unsigned int' was added
 
+type 'struct kvm_iommu_driver' changed
+  member 'u64 __kabi_reserved1' was removed
+  member 'union { int(* get_iommu_endpoint)(struct of_phandle_args*, u64*); struct { u64 __kabi_reserved1; }; union { }; }' was added
+
