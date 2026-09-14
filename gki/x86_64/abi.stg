@@ -334920,7 +334920,7 @@ elf_symbol {
   name: "sysfs_add_file_to_group"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xdfa5b1f1
+  crc: 0xf792329f
   type_id: 0x958e52ea
   full_name: "sysfs_add_file_to_group"
 }

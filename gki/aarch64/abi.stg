@@ -411367,7 +411367,7 @@ elf_symbol {
   name: "coresight_alloc_device_name"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x3321c2c9
+  crc: 0x12820d52
   type_id: 0x3ac11100
   full_name: "coresight_alloc_device_name"
 }
@@ -411385,7 +411385,7 @@ elf_symbol {
   name: "coresight_claim_device"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x3d229e5a
+  crc: 0x2756ef54
   type_id: 0x971428a1
   full_name: "coresight_claim_device"
 }
@@ -411394,7 +411394,7 @@ elf_symbol {
   name: "coresight_claim_device_unlocked"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x3d229e5a
+  crc: 0x2756ef54
   type_id: 0x971428a1
   full_name: "coresight_claim_device_unlocked"
 }
@@ -411412,7 +411412,7 @@ elf_symbol {
   name: "coresight_disable_sysfs"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0f04345d
+  crc: 0xc69427b3
   type_id: 0x1a0c9a1d
   full_name: "coresight_disable_sysfs"
 }
@@ -411421,7 +411421,7 @@ elf_symbol {
   name: "coresight_disclaim_device"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0f04345d
+  crc: 0xc69427b3
   type_id: 0x1a0c9a1d
   full_name: "coresight_disclaim_device"
 }
@@ -411430,7 +411430,7 @@ elf_symbol {
   name: "coresight_disclaim_device_unlocked"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0f04345d
+  crc: 0xc69427b3
   type_id: 0x1a0c9a1d
   full_name: "coresight_disclaim_device_unlocked"
 }
@@ -411439,7 +411439,7 @@ elf_symbol {
   name: "coresight_enable_sysfs"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x3d229e5a
+  crc: 0x2756ef54
   type_id: 0x971428a1
   full_name: "coresight_enable_sysfs"
 }
@@ -411448,7 +411448,7 @@ elf_symbol {
   name: "coresight_find_input_type"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xcdbec2d7
+  crc: 0x8e19766b
   type_id: 0x986f96e6
   full_name: "coresight_find_input_type"
 }
@@ -411457,7 +411457,7 @@ elf_symbol {
   name: "coresight_find_output_type"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xcdbec2d7
+  crc: 0x8e19766b
   type_id: 0x986f96e6
   full_name: "coresight_find_output_type"
 }
@@ -411466,7 +411466,7 @@ elf_symbol {
   name: "coresight_get_enable_clocks"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x84d1fe94
+  crc: 0xf1c9d9e3
   type_id: 0x9d3a21db
   full_name: "coresight_get_enable_clocks"
 }
@@ -411475,7 +411475,7 @@ elf_symbol {
   name: "coresight_get_platform_data"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x5073a3cd
+  crc: 0xbbdb2699
   type_id: 0x77208beb
   full_name: "coresight_get_platform_data"
 }
@@ -411484,7 +411484,7 @@ elf_symbol {
   name: "coresight_get_static_trace_id"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x186544af
+  crc: 0xe5e43606
   type_id: 0x9df595b9
   full_name: "coresight_get_static_trace_id"
 }
@@ -411493,7 +411493,7 @@ elf_symbol {
   name: "coresight_init_driver"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x1dd24351
+  crc: 0xf2064813
   type_id: 0x92f0a75c
   full_name: "coresight_init_driver"
 }
@@ -411502,7 +411502,7 @@ elf_symbol {
   name: "coresight_register"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x59801a9a
+  crc: 0xa2bf9533
   type_id: 0x9da2fb37
   full_name: "coresight_register"
 }
@@ -411511,7 +411511,7 @@ elf_symbol {
   name: "coresight_remove_driver"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x21942cbc
+  crc: 0x6e1ce646
   type_id: 0x1fdc0b3f
   full_name: "coresight_remove_driver"
 }
@@ -411520,7 +411520,7 @@ elf_symbol {
   name: "coresight_simple_show32"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x6a0f1f5e
+  crc: 0xdb4472ef
   type_id: 0x145d7056
   full_name: "coresight_simple_show32"
 }
@@ -411529,7 +411529,7 @@ elf_symbol {
   name: "coresight_simple_show_pair"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x6a0f1f5e
+  crc: 0xdb4472ef
   type_id: 0x145d7056
   full_name: "coresight_simple_show_pair"
 }
@@ -411574,7 +411574,7 @@ elf_symbol {
   name: "coresight_unregister"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0x0f04345d
+  crc: 0xc69427b3
   type_id: 0x1a0c9a1d
   full_name: "coresight_unregister"
 }
@@ -453762,7 +453762,7 @@ elf_symbol {
   name: "seq_put_decimal_ull_width"
   is_defined: true
   symbol_type: FUNCTION
-  crc: 0xb4e98176
+  crc: 0x7eb4a858
   type_id: 0x11cd0b26
   full_name: "seq_put_decimal_ull_width"
 }
