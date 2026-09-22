@@ -1,0 +1,12 @@
+/dts-v1/;
+
+#include "imx93-ixpro-rev-c.dts"
+
+&{/} {
+	model = "ithinx iXpro Rev C Lakeport";
+};
+
+&{/aliases} {
+	rtc0 = &bbnsm_rtc;
+	rtc1 = &rv3028;
+};
