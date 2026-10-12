@@ -1,3 +1,9 @@
+linux-imx (6.8.0-1020.24-mini) noble; urgency=medium
+
+  * Create Ubuntu Mini build
+
+ -- Ondrej Kubik <ondrej.kubik@canonical.com>  Wed, 27 Oct 2026 11:40:28 +010
+
 linux-imx (6.8.0-1020.23) noble; urgency=medium
 
   * [i.MX FRDM] Add i.MX 91 FRDM board support
