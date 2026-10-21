@@ -1,3 +1,9 @@
+linux-imx (7.0.0-2043.44-mini) resolute; urgency=medium
+
+  * Create Experimental Core mini build
+
+ -- Ondrej Kubik <ondrej.kubik@canonical.com>  Tue, 27 Oct 2026 23:23:16 +0100
+
 linux-imx (7.0.0-2043.43) resolute; urgency=medium
 
   [ Ubuntu: 7.0.0-43.43 ]
