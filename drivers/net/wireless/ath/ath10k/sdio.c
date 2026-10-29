@@ -324,7 +324,22 @@ static int ath10k_sdio_write(struct ath10k *ar, u32 addr, const void *buf, size_
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;
+	void *bounce = NULL;
 	int ret;
+
+	/* The buffer goes to the SDIO host controller for DMA, and not all
+	 * controllers transfer correctly from an address that is not 4 byte
+	 * aligned. Frames mac80211 sends through the nl80211 control port,
+	 * as wpa_supplicant does with EAPOL, can end up unaligned once the
+	 * HTT and HTC headers are pushed, so bounce those through an aligned
+	 * copy, like ath6kl does.
+	 */
+	if (!IS_ALIGNED((unsigned long)buf, 4)) {
+		bounce = kmemdup(buf, len, GFP_KERNEL);
+		if (!bounce)
+			return -ENOMEM;
+		buf = bounce;
+	}
 
 	sdio_claim_host(func);
 
@@ -344,6 +359,7 @@ static int ath10k_sdio_write(struct ath10k *ar, u32 addr, const void *buf, size_
 
 out:
 	sdio_release_host(func);
+	kfree(bounce);
 
 	return ret;
 }
