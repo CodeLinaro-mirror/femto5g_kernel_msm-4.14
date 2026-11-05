@@ -167,7 +167,7 @@ static void binder_selftest_free_page(struct binder_alloc *alloc)
 			      NULL, count);
 	}
 
-	for (i = 0; i < (alloc->buffer_size / PAGE_SIZE); i++) {
+	for (i = 0; i < DIV_ROUND_UP(alloc->buffer_size, PAGE_SIZE); i++) {
 		if (alloc_to_wrap(alloc)->pages[i]) {
 			pr_err("expect free but is %s at page index %d\n",
 			       list_empty(page_to_lru(alloc_to_wrap(alloc)->pages[i])) ?
@@ -275,6 +275,47 @@ static void binder_selftest_alloc_offset(struct binder_alloc *alloc,
 	}
 }
 
+static void binder_selftest_partial_tail_exact_fit(struct binder_alloc *alloc)
+{
+	size_t orig_size = alloc->buffer_size;
+	struct binder_buffer *buffer;
+	bool allocated;
+	size_t size;
+	int i;
+
+	if (orig_size < PAGE_SIZE)
+		return;
+
+	/* Model a mapping ending halfway through its final kernel page. */
+	size = (orig_size & PAGE_MASK) - PAGE_SIZE / 2;
+	alloc->buffer_size = size;
+	buffer = binder_alloc_new_buf(alloc, size, 0, 0, 0);
+	if (IS_ERR_OR_NULL(buffer)) {
+		pr_err("partial tail exact-fit alloc failed\n");
+		binder_selftest_failures++;
+		alloc->buffer_size = orig_size;
+		return;
+	}
+
+	allocated = check_buffer_pages_allocated(alloc, buffer, size);
+	if (!allocated)
+		binder_selftest_failures++;
+
+	binder_alloc_free_buf(alloc, buffer);
+	for (i = 0; allocated && i < DIV_ROUND_UP(size, PAGE_SIZE); i++) {
+		struct page *page = alloc_to_wrap(alloc)->pages[i];
+
+		if (!page || list_empty(page_to_lru(page))) {
+			pr_err("expect lru but is %s at page index %d\n",
+			       page ? "alloc" : "free", i);
+			binder_selftest_failures++;
+		}
+	}
+
+	binder_selftest_free_page(alloc);
+	alloc->buffer_size = orig_size;
+}
+
 /**
  * binder_selftest_alloc() - Test alloc and free of buffer pages.
  * @alloc: Pointer to alloc struct.
@@ -295,6 +336,7 @@ void binder_selftest_alloc(struct binder_alloc *alloc)
 		goto done;
 	pr_info("STARTED\n");
 	binder_selftest_alloc_offset(alloc, end_offset, 0);
+	binder_selftest_partial_tail_exact_fit(alloc);
 	binder_selftest_run = false;
 	if (binder_selftest_failures > 0)
 		pr_info("%d tests FAILED\n", binder_selftest_failures);
