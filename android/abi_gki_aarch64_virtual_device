@@ -11,6 +11,7 @@
   __arch_copy_to_user
   arm64_const_caps_ready
   arm64_use_ng_mappings
+  baswap
   bcmp
   bpf_trace_run1
   bpf_trace_run2
