@@ -590,6 +590,9 @@ int hmm_range_fault(struct hmm_range *range)
 
 	mmap_assert_locked(mm);
 
+	if (p3s_4k_unsupported(mm))
+		return -EOPNOTSUPP;
+
 	do {
 		/* If range is no longer valid force retry. */
 		if (mmu_interval_check_retry(range->notifier,
