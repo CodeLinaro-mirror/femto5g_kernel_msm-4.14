@@ -5379,6 +5379,11 @@ fallback:
 		goto fallback;
 	}
 
+	if (is_cow && p3s_reuse_file_cow_folio(folio, NULL, vmf)) {
+		ret = 0;
+		goto unlock;
+	}
+
 	folio_ref_add(folio, nr_pages - 1);
 	set_pte_range(vmf, folio, page, nr_pages, addr);
 	type = is_cow ? MM_ANONPAGES : mm_counter_file(folio);

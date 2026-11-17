@@ -41,10 +41,11 @@ static inline bool p3s_anon_folio_unreferenced(struct folio *folio)
 }
 
 /*
- * p3s_anon_folio_lookaround_pte - Find adjacent anonymous folio in slice window
+ * __p3s_anon_folio_lookaround_pte - Find adjacent anonymous folio in slice window
  * @vma: Pointer to struct vm_area_struct
  * @pte: Faulting PTE pointer
  * @addr: Faulting virtual address
+ * @keep_locked: Return with the sibling folio locked when true
  *
  * Returns a referenced sibling folio whose slice for @addr is unused, or
  * NULL. A folio qualifies only if every mapping of it is a sibling PTE in
@@ -54,16 +55,16 @@ static inline bool p3s_anon_folio_unreferenced(struct folio *folio)
  * it again would alias it. The folio lock excludes in-flight migration and
  * reclaim.
  */
-static inline struct folio *p3s_anon_folio_lookaround_pte(struct vm_area_struct *vma,
-							  pte_t *pte,
-							  unsigned long addr)
+static inline struct folio *
+__p3s_anon_folio_lookaround_pte(struct vm_area_struct *vma, pte_t *pte,
+				unsigned long addr, bool keep_locked)
 {
 	unsigned int total_slices;
 	unsigned long window_start;
 	pte_t *pte_base;
 	unsigned int i;
 
-	if (!vma_is_p3s_4k(vma))
+	if (!vma_is_p3s_4k(vma) || !vma->anon_vma)
 		return NULL;
 
 	vma_folio_slice_bounds(vma, addr, &total_slices, &window_start);
@@ -75,6 +76,7 @@ static inline struct folio *p3s_anon_folio_lookaround_pte(struct vm_area_struct 
 	for (i = 0; i < total_slices; i++) {
 		unsigned long slice_addr = window_start + (i << PAGE_SHIFT_4KB);
 		pte_t ptent = ptep_get(pte_base + i);
+		struct anon_vma *anon_vma;
 		struct folio *f;
 		bool ok;
 
@@ -91,17 +93,29 @@ static inline struct folio *p3s_anon_folio_lookaround_pte(struct vm_area_struct 
 
 		if (!folio_trylock(f))
 			continue;
-		ok = !folio_test_swapcache(f) &&
+		anon_vma = folio_anon_vma(f);
+		ok = anon_vma && anon_vma->root == vma->anon_vma->root &&
+		     !folio_test_swapcache(f) &&
+		     vma_anon_index_matches(vma, folio_pgoff(f), addr) &&
 		     p3s_count_folio_slices(vma, pte_base, window_start,
-					    total_slices, f) == folio_mapcount(f) &&
+					    total_slices, f) ==
+			     folio_mapcount(f) &&
 		     p3s_anon_folio_unreferenced(f) &&
 		     folio_try_get(f);
-		folio_unlock(f);
+		if (!ok || !keep_locked)
+			folio_unlock(f);
 		if (ok)
 			return f;
 	}
 
 	return NULL;
+}
+
+static inline struct folio *
+p3s_anon_folio_lookaround_pte(struct vm_area_struct *vma, pte_t *pte,
+			      unsigned long addr)
+{
+	return __p3s_anon_folio_lookaround_pte(vma, pte, addr, false);
 }
 
 /*
@@ -750,7 +764,68 @@ static inline bool p3s_wp_reuse_zero_folio(struct folio *new_folio,
 }
 
 /*
- * p3s_wp_install_folio_slices - Map a COW copy or reuse a zero-page sibling
+ * Reuse a locked exclusive sibling anonymous folio for a private file
+ * mapping's first COW, copying only the faulting 4KB slice from @new_folio
+ * so untouched sibling PTEs keep mapping the page cache. @old_folio is the
+ * read-only file folio replaced by wp_page_copy(), or NULL in finish_fault().
+ */
+static inline bool p3s_reuse_file_cow_folio(struct folio *new_folio,
+					    struct folio *old_folio,
+					    struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct folio *existing;
+	unsigned long offset;
+	pte_t entry;
+
+	if (!vma_is_p3s_4k(vma) || !vma->vm_file ||
+	    (vma->vm_flags & (VM_SHARED | VM_MTE)) ||
+	    (old_folio && folio_test_anon(old_folio)) ||
+	    unlikely(userfaultfd_armed(vma)) ||
+	    (vmf->flags & FAULT_FLAG_UNSHARE))
+		return false;
+
+	existing = __p3s_anon_folio_lookaround_pte(vma, vmf->pte,
+						   vmf->address, true);
+	if (!existing)
+		return false;
+
+	offset = (unsigned long)vma_slice_offset(vma, vmf->address) <<
+		 PAGE_SHIFT_4KB;
+	memcpy(folio_address(existing) + offset,
+	       folio_address(new_folio) + offset, PAGE_SIZE_4KB);
+	flush_dcache_folio(existing);
+
+	/* Publish the copied slice before its PTE can expose it. */
+	smp_wmb();
+
+	entry = vma_pte_add_slice(vma, vmf->address,
+				  mk_pte(&existing->page, vma->vm_page_prot));
+	entry = pte_sw_mkyoung(entry);
+	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+	if (old_folio) {
+		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
+		ptep_clear_flush(vma, vmf->address, vmf->pte);
+	} else {
+		inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
+	}
+	folio_add_anon_rmap_pte(existing, &existing->page, vma,
+				vmf->address, RMAP_NONE);
+	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
+	update_mmu_cache_range(vmf, vma, vmf->address, vmf->pte, 1);
+	if (old_folio)
+		folio_remove_rmap_pte(old_folio, vmf->page, vma);
+
+	folio_unlock(existing);
+
+	/* The PTE owns the lookaround reference, not the temporary COW copy. */
+	folio_put(new_folio);
+
+	return true;
+}
+
+/*
+ * p3s_wp_install_folio_slices - Map a COW copy or reuse a sibling folio
  * @new_folio: Copy of @old_folio or a zeroed folio, holding its allocation
  *             reference
  * @old_folio: Folio that the faulting PTE maps, or NULL for the zero page
@@ -778,7 +853,8 @@ static inline bool p3s_wp_reuse_zero_folio(struct folio *new_folio,
  * drops. The caller widened its MMU notifier range to the window with
  * p3s_wp_widen_range().
  *
- * For a zero-page PTE, see p3s_wp_reuse_zero_folio().
+ * For a zero-page or private-file PTE, see p3s_wp_reuse_zero_folio() and
+ * p3s_reuse_file_cow_folio().
  *
  * Returns false, having changed nothing, if wp_page_copy() must install
  * only the faulting PTE.
@@ -796,6 +872,8 @@ static inline bool p3s_wp_install_folio_slices(struct folio *new_folio,
 
 	if (!old_folio)
 		return p3s_wp_reuse_zero_folio(new_folio, vmf);
+	if (!folio_test_anon(old_folio))
+		return p3s_reuse_file_cow_folio(new_folio, old_folio, vmf);
 	if (!p3s_wp_slice_bounds(old_folio, vmf, &nr_slices, &start_addr))
 		return false;
 
@@ -921,6 +999,13 @@ static inline bool p3s_wp_can_reuse_anon_folio(struct folio *folio,
 					       struct vm_area_struct *vma,
 					       unsigned long addr,
 					       pte_t *pte)
+{
+	return false;
+}
+
+static inline bool p3s_reuse_file_cow_folio(struct folio *new_folio,
+					    struct folio *old_folio,
+					    struct vm_fault *vmf)
 {
 	return false;
 }
