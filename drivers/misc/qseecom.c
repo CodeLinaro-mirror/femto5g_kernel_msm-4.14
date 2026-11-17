@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QTI Secure Execution Environment Communicator (QSEECOM) driver
  *
@@ -4220,7 +4221,7 @@ out:
 	}
 	return ret;
 err:
-	for (i = 0; i < MAX_ION_FD; i++)
+	for (i = 0; i < MAX_ION_FD; i++) {
 		if (data->client.sec_buf_fd[i].is_sec_buf_fd &&
 			data->client.sec_buf_fd[i].vbase)
 			dma_free_coherent(qseecom.dev,
@@ -4229,6 +4230,7 @@ err:
 				data->client.sec_buf_fd[i].pbase);
 		memset(&data->client.sec_buf_fd[i], 0,
 			sizeof(struct qseecom_sec_buf_fd_info));
+	}
 	if (!IS_ERR_OR_NULL(sg_ptr)) {
 		qseecom_dmabuf_unmap(sg_ptr, attach, dmabuf);
 		MAKE_NULL(sg_ptr, attach, dmabuf);
