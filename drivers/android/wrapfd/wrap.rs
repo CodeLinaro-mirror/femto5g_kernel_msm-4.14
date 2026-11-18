@@ -821,7 +821,7 @@ fn with_wrap_helper(
 /// - `mappable` must be a valid pointer to a live C `struct wrapfd_mappable`.
 /// - The caller must ensure `file`, `dev` and `mappable` remain allocated for the duration of
 ///   this call.
-unsafe extern "C" fn wrapfd_get_mappable(
+unsafe extern "C" fn rust_wrapfd_get_mappable(
     file: *mut bindings::file,
     dev: *mut bindings::device,
     mappable: *mut bindings::wrapfd_mappable,
@@ -879,7 +879,7 @@ unsafe extern "C" fn wrapfd_get_mappable(
 /// - `mappable` must be a valid pointer to a live C `struct wrapfd_mappable`.
 /// - The caller must ensure `file`, `dev` and `mappable` remain allocated for the duration of
 ///   this call.
-unsafe extern "C" fn wrapfd_put_mappable(
+unsafe extern "C" fn rust_wrapfd_put_mappable(
     file: *mut bindings::file,
     dev: *mut bindings::device,
     mappable: *mut bindings::wrapfd_mappable,
@@ -935,7 +935,7 @@ unsafe extern "C" fn wrapfd_put_mappable(
 /// - `ops` must be a valid pointer to a live C `struct wrapfd_listener_operations`.
 /// - The caller must ensure `file` and `dev` remain allocated for the duration of this call.
 /// - `ops` must remain allocated and `param` valid until a matching call to `wrapfd_del_listener`.
-unsafe extern "C" fn wrapfd_add_listener(
+unsafe extern "C" fn rust_wrapfd_add_listener(
     file: *mut bindings::file,
     dev: *mut bindings::device,
     ops: *const bindings::wrapfd_listener_operations,
@@ -997,7 +997,7 @@ unsafe extern "C" fn wrapfd_add_listener(
 /// # Safety
 ///
 /// - `file` must be a valid, non-null pointer to a live C `struct file` created by this driver.
-unsafe extern "C" fn wrapfd_del_listener(
+unsafe extern "C" fn rust_wrapfd_del_listener(
     file: *mut bindings::file,
     handle: *mut ffi::c_void,
 ) -> ffi::c_int {
@@ -1022,7 +1022,7 @@ unsafe extern "C" fn wrapfd_del_listener(
 }
 
 #[export]
-unsafe extern "C" fn wrapfd_acquire_ownership(
+unsafe extern "C" fn rust_wrapfd_acquire_ownership(
     file: *mut bindings::file,
     dev: *mut bindings::device,
 ) -> ffi::c_int {
@@ -1065,7 +1065,7 @@ unsafe extern "C" fn wrapfd_acquire_ownership(
 }
 
 #[export]
-unsafe extern "C" fn wrapfd_release_ownership(
+unsafe extern "C" fn rust_wrapfd_release_ownership(
     file: *mut bindings::file,
     dev: *mut bindings::device,
 ) -> ffi::c_int {
@@ -1111,7 +1111,7 @@ unsafe extern "C" fn wrapfd_release_ownership(
 ///
 /// - `file` must be NULL or a valid pointer to a live C `struct file`.
 /// - `dev` must be NULL or a valid pointer to a live C `struct device`.
-unsafe extern "C" fn empty_wrapfd(
+unsafe extern "C" fn rust_empty_wrapfd(
     file: *mut bindings::file,
     dev: *mut bindings::device,
 ) -> ffi::c_int {

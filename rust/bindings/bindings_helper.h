@@ -90,5 +90,5 @@ const size_t RUST_CONST_HELPER_ASHMEM_FULL_NAME_LEN = ASHMEM_FULL_NAME_LEN;
 const vm_flags_t RUST_CONST_HELPER_VM_MERGEABLE = VM_MERGEABLE;
 
 #if IS_ENABLED(CONFIG_ANDROID_WRAPFD)
-#include <linux/wrapfd.h>
+#include "../../drivers/android/wrapfd/wrapfd_exports.h"
 #endif

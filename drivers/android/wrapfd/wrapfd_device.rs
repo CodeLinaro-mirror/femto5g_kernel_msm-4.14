@@ -83,7 +83,7 @@ impl WrapFdDevice {
 /// # Safety
 ///
 /// Must be called from a task with a file table, the new wrapfd is installed in it.
-unsafe extern "C" fn create_wrapfd(
+unsafe extern "C" fn rust_create_wrapfd(
     fd: kernel::ffi::c_int,
     prot: kernel::ffi::c_int,
 ) -> kernel::ffi::c_int {
