@@ -58,7 +58,7 @@ int wrapfd_release_ownership(struct file *file, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(wrapfd_release_ownership);
 
-#if IS_ENABLED(CONFIG_ANDROID_WRAPFD_KUNIT_TEST)
+#if IS_ENABLED(CONFIG_KUNIT)
 int create_wrapfd(int fd, int prot)
 {
 	return rust_create_wrapfd(fd, prot);

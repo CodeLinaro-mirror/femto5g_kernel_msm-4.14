@@ -25,7 +25,7 @@ int rust_wrapfd_del_listener(struct file *file, void *handle);
 int rust_wrapfd_acquire_ownership(struct file *file, struct device *dev);
 int rust_wrapfd_release_ownership(struct file *file, struct device *dev);
 
-#if IS_ENABLED(CONFIG_ANDROID_WRAPFD_KUNIT_TEST)
+#if IS_ENABLED(CONFIG_KUNIT)
 int rust_create_wrapfd(int fd, int prot);
 int rust_empty_wrapfd(struct file *file, struct device *dev);
 #endif
