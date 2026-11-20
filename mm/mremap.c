@@ -32,6 +32,7 @@
 #include <asm/pgalloc.h>
 
 #include "internal.h"
+#include "p3s/mremap.h"
 #include <linux/p3s_user_pages.h>
 
 /* Classify the kind of remap operation being performed. */
@@ -794,9 +795,11 @@ unsigned long move_page_tables(struct pagetable_move_control *pmc)
 {
 	unsigned long extent;
 	struct mmu_notifier_range range;
+	struct p3s_mremap_copy copy = {};
 	pmd_t *old_pmd, *new_pmd;
 	pud_t *old_pud, *new_pud;
 	struct mm_struct *mm = pmc->old->vm_mm;
+	int err;
 
 	if (!pmc->len_in)
 		return 0;
@@ -867,13 +870,16 @@ again:
 			continue;
 		if (pte_alloc(pmc->new->vm_mm, new_pmd))
 			break;
-		if (move_ptes(pmc, extent, old_pmd, new_pmd) < 0)
+		err = p3s_move_ptes(pmc, extent, old_pmd, new_pmd, &copy);
+		if (err == -EAGAIN)
 			goto again;
+		if (err)
+			break;
 	}
 
 	mmu_notifier_invalidate_range_end(&range);
 
-	return pmc_progress(pmc);
+	return p3s_mremap_copy_finish(pmc, &copy, pmc_progress(pmc));
 }
 
 /* Set vrm->delta to the difference in VMA size specified by user. */
@@ -1659,10 +1665,6 @@ static int check_prep_vma(struct vma_remap_struct *vrm)
 	if (!vma)
 		return -EFAULT;
 
-	if ((vrm->flags & MREMAP_FIXED) &&
-	    !mm_mremap_fixed_keeps_slice(vma, addr, vrm->new_addr))
-		return -EINVAL;
-
 	/* If mseal()'d, mremap() is prohibited. */
 	if (vma_is_sealed(vma))
 		return -EPERM;
@@ -1724,6 +1726,11 @@ static int check_prep_vma(struct vma_remap_struct *vrm)
 	 */
 	if (old_len > vma->vm_end - addr)
 		return -EFAULT;
+
+	if ((vrm->flags & MREMAP_FIXED) &&
+	    !mm_mremap_fixed_keeps_slice(vma, addr, vrm->new_addr) &&
+	    !p3s_mremap_can_copy(vma, addr, old_len))
+		return -EINVAL;
 
 	if (new_len == old_len)
 		return 0;
