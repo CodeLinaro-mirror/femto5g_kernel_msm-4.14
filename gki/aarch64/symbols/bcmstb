@@ -1394,6 +1394,7 @@
   recalc_sigpending
   alloc_pages_bulk_noprof
   rt_mutex_lock_interruptible
+  schedule_hrtimeout_range
 
 # required by bstm.ko
   phys_mem_access_prot
