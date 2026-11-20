@@ -32,6 +32,7 @@
 #include <asm/pgalloc.h>
 
 #include "internal.h"
+#include "p3s/mremap.h"
 #include <linux/p3s_user_pages.h>
 
 static pud_t *get_old_pud(struct mm_struct *mm, unsigned long addr)
@@ -594,10 +595,12 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		unsigned long new_addr, unsigned long len,
 		bool need_rmap_locks, bool for_stack)
 {
-	unsigned long extent, old_end;
+	unsigned long extent, old_end, progress;
+	struct p3s_mremap_copy copy = {};
 	struct mmu_notifier_range range;
 	pmd_t *old_pmd, *new_pmd;
 	pud_t *old_pud, *new_pud;
+	int err;
 
 	if (!len)
 		return 0;
@@ -678,9 +681,13 @@ again:
 			continue;
 		if (pte_alloc(new_vma->vm_mm, new_pmd))
 			break;
-		if (move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-			      new_vma, new_pmd, new_addr, need_rmap_locks) < 0)
+		err = p3s_move_ptes(vma, old_pmd, old_addr, old_addr + extent,
+				    new_vma, new_pmd, new_addr, need_rmap_locks,
+				    &copy);
+		if (err == -EAGAIN)
 			goto again;
+		if (err)
+			break;
 	}
 
 	mmu_notifier_invalidate_range_end(&range);
@@ -689,10 +696,9 @@ again:
 	 * Prevent negative return values when {old,new}_addr was realigned
 	 * but we broke out of the above loop for the first PMD itself.
 	 */
-	if (old_addr < old_end - len)
-		return 0;
-
-	return len + old_addr - old_end;	/* how much done */
+	progress = old_addr < old_end - len ? 0 : len + old_addr - old_end;
+	return p3s_mremap_copy_finish(vma, old_addr, old_end, len, new_addr,
+				      &copy, progress);
 }
 
 static unsigned long move_vma(struct vm_area_struct *vma,
@@ -1087,16 +1093,24 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 		goto out;
 	}
 
-	if ((flags & MREMAP_FIXED) &&
-	    !mm_mremap_fixed_keeps_slice(vma, addr, new_addr)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* Don't allow remapping vmas when they have already been sealed */
 	if (!can_modify_vma(vma)) {
 		ret = -EPERM;
 		goto out;
+	}
+
+	if ((flags & MREMAP_FIXED) &&
+	    !mm_mremap_fixed_keeps_slice(vma, addr, new_addr)) {
+		unsigned long move_len = min(old_len, new_len);
+
+		if (move_len > vma->vm_end - addr) {
+			ret = -EFAULT;
+			goto out;
+		}
+		if (!move_len || !p3s_mremap_can_copy(vma, addr, move_len)) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	if (is_vm_hugetlb_page(vma)) {
