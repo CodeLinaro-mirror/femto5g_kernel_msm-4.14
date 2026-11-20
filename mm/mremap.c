@@ -1107,7 +1107,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 			ret = -EFAULT;
 			goto out;
 		}
-		if (!move_len || !p3s_mremap_can_copy(vma, addr, move_len)) {
+		if (!move_len ||
+		    !p3s_mremap_can_copy(vma, addr, new_addr, move_len)) {
 			ret = -EINVAL;
 			goto out;
 		}

@@ -250,7 +250,6 @@ static inline unsigned long mm_stack_guard_gap(const struct mm_struct *mm)
 /*
  * mm_mmap_pgoff - vm_pgoff for the page offset passed to mmap()
  * @mm: Pointer to struct mm_struct
- * @file: File being mapped, or NULL for an anonymous mapping
  * @pgoff: Page offset passed to mmap in process page units
  *
  * A 4KB process passes @pgoff in 4KB pages, but vm_pgoff counts 16KB file
@@ -271,31 +270,28 @@ static inline unsigned long mm_stack_guard_gap(const struct mm_struct *mm)
  *  16KB file   │           0           │           1           │
  *  pages       └───────────────────────┴───────────────────────┘
  *
- * Anonymous mappings and other processes keep @pgoff unchanged. An
- * anonymous 4KB VMA counts 4KB pages (see vma_linear_page_index()).
+ * An anonymous mapping passes the 4KB page of its address (see do_mmap()),
+ * which splits into its 16KB-aligned window and the slice of the address.
+ * Other processes keep @pgoff unchanged.
  */
-static inline pgoff_t mm_mmap_pgoff(const struct mm_struct *mm,
-				    const struct file *file, pgoff_t pgoff)
+static inline pgoff_t mm_mmap_pgoff(const struct mm_struct *mm, pgoff_t pgoff)
 {
-	return (mm_is_p3s_4k(mm) && file) ? (pgoff >> P3S_SLICE_SHIFT) : pgoff;
+	return mm_is_p3s_4k(mm) ? (pgoff >> P3S_SLICE_SHIFT) : pgoff;
 }
 
 /*
  * mm_mmap_slice_off - vm_slice_off for the page offset passed to mmap()
  * @mm: Pointer to struct mm_struct
- * @file: File being mapped, or NULL for an anonymous mapping
  * @pgoff: Page offset passed to mmap in process page units
  *
  * For a 4KB process, 4KB page @pgoff is slice @pgoff & P3S_SLICE_MASK of
  * file page mm_mmap_pgoff(), and this returns that slice (see the diagram
- * at mm_mmap_pgoff()). Returns 0 for anonymous mappings and other
- * processes.
+ * at mm_mmap_pgoff()). Returns 0 for other processes.
  */
 static inline unsigned short mm_mmap_slice_off(const struct mm_struct *mm,
-					       const struct file *file,
 					       pgoff_t pgoff)
 {
-	return (mm_is_p3s_4k(mm) && file) ? (pgoff & P3S_SLICE_MASK) : 0;
+	return mm_is_p3s_4k(mm) ? (pgoff & P3S_SLICE_MASK) : 0;
 }
 
 #endif /* _LINUX_P3S_MM_H */

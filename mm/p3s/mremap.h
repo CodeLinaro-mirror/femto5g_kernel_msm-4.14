@@ -561,20 +561,32 @@ static inline int p3s_mremap_copy_pte(struct vm_area_struct *old_vma,
 /**
  * p3s_mremap_can_copy - Check that a cross-slice mremap() can copy a range
  * @vma: Source VMA
- * @addr: Start of the range
+ * @addr: Start of the source range
+ * @new_addr: Start of the destination range
  * @len: Length of the range
  *
  * Runs before the destination is unmapped. Write-locks @vma before the
  * walk, can sleep, frees the swap space of the swap-cache folios it checks
  * and can drain the LRU caches.
  *
- * Return: true if move_page_tables() can copy every page of the range.
+ * Return: true if @new_addr is outside the 16KB window of @addr and
+ * move_page_tables() can copy every page of the range.
  */
 static inline bool p3s_mremap_can_copy(struct vm_area_struct *vma,
-				       unsigned long addr, unsigned long len)
+				       unsigned long addr,
+				       unsigned long new_addr,
+				       unsigned long len)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long end = addr + len;
+
+	/*
+	 * vm_pgoff counts kernel pages, so a copy into the source's own 16KB
+	 * window is pgoff-linear with it, and copy_vma() would merge it into
+	 * the faulted source VMA.
+	 */
+	if (!((addr ^ new_addr) & PAGE_MASK_KERNEL))
+		return false;
 
 	if ((vma->vm_flags & (VM_MTE | VM_LOCKED | VM_DROPPABLE)) ||
 	    userfaultfd_armed(vma))
@@ -704,7 +716,9 @@ p3s_mremap_copy_finish(struct vm_area_struct *vma, unsigned long old_addr,
 struct p3s_mremap_copy {};
 
 static inline bool p3s_mremap_can_copy(struct vm_area_struct *vma,
-				       unsigned long addr, unsigned long len)
+				       unsigned long addr,
+				       unsigned long new_addr,
+				       unsigned long len)
 {
 	return true;
 }

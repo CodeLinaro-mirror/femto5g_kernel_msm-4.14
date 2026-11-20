@@ -96,7 +96,7 @@ __p3s_anon_folio_lookaround_pte(struct vm_area_struct *vma, pte_t *pte,
 		anon_vma = folio_anon_vma(f);
 		ok = anon_vma && anon_vma->root == vma->anon_vma->root &&
 		     !folio_test_swapcache(f) &&
-		     vma_anon_index_matches(vma, folio_pgoff(f), addr) &&
+		     folio_pgoff(f) == linear_page_index(vma, addr) &&
 		     p3s_count_folio_slices(vma, pte_base, window_start,
 					    total_slices, f) ==
 			     folio_mapcount(f) &&

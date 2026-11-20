@@ -33,7 +33,7 @@ static inline bool mm_mremap_fixed_keeps_slice(const struct vm_area_struct *vma,
 					       unsigned long old_addr,
 					       unsigned long new_addr)
 {
-	return vma->vm_file || vma->vm_ops || !vma_is_p3s_4k(vma) ||
+	return !vma_slices_follow_address(vma) || !vma_is_p3s_4k(vma) ||
 	       !((old_addr ^ new_addr) & ~PAGE_MASK_KERNEL);
 }
 

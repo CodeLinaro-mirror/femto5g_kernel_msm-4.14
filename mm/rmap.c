@@ -1246,8 +1246,8 @@ static void __page_check_anon_rmap(struct folio *folio, struct page *page,
 	 */
 	VM_BUG_ON_FOLIO(folio_anon_vma(folio)->root != vma->anon_vma->root,
 			folio);
-	VM_BUG_ON_PAGE(!vma_anon_index_matches(vma, page_to_pgoff(page),
-					       address), page);
+	VM_BUG_ON_PAGE(page_to_pgoff(page) != linear_page_index(vma, address),
+		       page);
 }
 
 static void __folio_mod_stat(struct folio *folio, int nr, int nr_pmdmapped)
@@ -2649,15 +2649,12 @@ static void rmap_walk_anon(struct folio *folio,
 
 	pgoff_start = folio_pgoff(folio);
 	pgoff_end = pgoff_start + folio_nr_pages(folio) - 1;
-	p3s_anon_rmap_range(folio, anon_vma, &pgoff_start, &pgoff_end);
 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
 			pgoff_start, pgoff_end) {
 		struct vm_area_struct *vma = avc->vma;
-		unsigned long address = vma_address(vma, folio_pgoff(folio),
+		unsigned long address = vma_address(vma, pgoff_start,
 				folio_nr_pages(folio));
 
-		if (p3s_anon_rmap_skip(vma, folio, &address))
-			continue;
 		VM_BUG_ON_VMA(address == -EFAULT, vma);
 		cond_resched();
 

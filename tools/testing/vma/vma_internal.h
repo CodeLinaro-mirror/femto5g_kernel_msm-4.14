@@ -668,14 +668,20 @@ static inline void vma_set_split_offset(struct vm_area_struct *target,
 	target->vm_pgoff = vma_linear_page_index(src, addr);
 }
 
-static inline pgoff_t mm_mmap_pgoff(const struct mm_struct *mm,
-				    const struct file *file, pgoff_t pgoff)
+static inline pgoff_t vma_pgoff_grow(const struct vm_area_struct *vma,
+				     unsigned long addr)
+{
+	return (vma->vm_start >> PAGE_SHIFT) - (addr >> PAGE_SHIFT);
+}
+
+#define PAGE_SHIFT_KERNEL PAGE_SHIFT
+
+static inline pgoff_t mm_mmap_pgoff(const struct mm_struct *mm, pgoff_t pgoff)
 {
 	return pgoff;
 }
 
 static inline unsigned short mm_mmap_slice_off(const struct mm_struct *mm,
-					       const struct file *file,
 					       pgoff_t pgoff)
 {
 	return 0;

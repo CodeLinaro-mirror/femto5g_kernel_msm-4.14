@@ -9182,7 +9182,7 @@ void perf_event_mmap(struct vm_area_struct *vma)
 			/* .tid */
 			.start  = vma->vm_start,
 			.len    = vma->vm_end - vma->vm_start,
-			.pgoff  = p3s_mmap_pgoff(vma),
+			.pgoff  = vma_file_offset(vma),
 		},
 		/* .maj (attr_mmap2 only) */
 		/* .min (attr_mmap2 only) */

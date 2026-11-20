@@ -67,59 +67,6 @@ static inline unsigned long vma_slice_walk_end(const struct vm_area_struct *vma,
 }
 
 /*
- * p3s_anon_rmap_range - Widen the anon_vma lookup of @folio to its window
- * @folio: Folio being walked
- * @anon_vma: Locked anon_vma tree
- * @start: First page offset to look up
- * @end: Last page offset to look up
- *
- * A small folio in a 4KB anonymous VMA can be mapped from the four slices
- * of one 16KB window, and a VMA split or a 4KB mremap() can leave some of
- * them in a VMA whose page range does not contain the folio's index. Look
- * up every page offset of the window. Native trees keep the exact lookup.
- */
-static inline void p3s_anon_rmap_range(const struct folio *folio,
-				       struct anon_vma *anon_vma,
-				       pgoff_t *start, pgoff_t *end)
-{
-	struct rb_node *node;
-
-	if (!IS_ENABLED(CONFIG_ARM64_PER_PROCESS_PAGE_SIZE) ||
-	    folio_test_large(folio))
-		return;
-
-	/* fork() copies the page size, so all VMAs of one tree share it. */
-	node = rb_first_cached(&anon_vma->rb_root);
-	if (!node ||
-	    !vma_is_p3s_4k(rb_entry(node, struct anon_vma_chain, rb)->vma))
-		return;
-	*start -= min_t(pgoff_t, *start, P3S_SLICE_MASK);
-	*end += P3S_SLICE_MASK;
-}
-
-/*
- * p3s_anon_rmap_skip - Check whether an anon rmap walk of @folio skips @vma
- * @vma: VMA found by the lookup that p3s_anon_rmap_range() widened
- * @folio: Folio being walked
- * @address: vma_address() of @folio in @vma; the start of the walk on return
- *
- * In a 4KB anonymous VMA without a file, whose page offsets count 4KB
- * pages, the walk starts at the first address of @folio's window in @vma.
- * Return true if the widened lookup found a VMA that holds no part of
- * the window. Other mappings retain the address from vma_address().
- */
-static inline bool p3s_anon_rmap_skip(const struct vm_area_struct *vma,
-				      const struct folio *folio,
-				      unsigned long *address)
-{
-	if (!vma_is_p3s_4k(vma) || folio_test_large(folio))
-		return false;
-	if (!vma->vm_ops && !vma->vm_file)
-		*address = vma_anon_slice_window(vma, folio->index);
-	return *address == -EFAULT;
-}
-
-/*
  * p3s_folio_mapped_by_slices - Check if other slice PTEs may map @folio
  * @vma: Pointer to struct vm_area_struct
  * @folio: Folio mapped by a PTE of @vma
@@ -293,30 +240,6 @@ static inline int p3s_madvise_folio_pte_batch(struct vm_area_struct *vma,
 			*any_dirty = true;
 	}
 	return nr;
-}
-
-/*
- * vma_anon_index_matches - Check an anonymous page's index against @addr
- * @vma: Pointer to struct vm_area_struct
- * @pgoff: Index of the page (page_pgoff())
- * @addr: Virtual address the page is mapped at
- *
- * In a 4KB anonymous VMA without a file, the index of a small folio is
- * that of the slice that faulted first, and its other slices are mapped in
- * the same 16KB window, so compare the windows. Elsewhere, including
- * private mappings of /dev/zero, whose folios are indexed by file page,
- * the index must match linear_page_index() exactly.
- */
-static inline bool vma_anon_index_matches(const struct vm_area_struct *vma,
-					  pgoff_t pgoff, unsigned long addr)
-{
-	unsigned long first;
-
-	if (!vma_is_p3s_4k(vma) || vma->vm_ops || vma->vm_file)
-		return pgoff == vma_linear_page_index(vma, addr);
-
-	first = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT_4KB);
-	return (first & PAGE_MASK_KERNEL) == (addr & PAGE_MASK_KERNEL);
 }
 
 #endif /* __MM_P3S_RMAP_H */

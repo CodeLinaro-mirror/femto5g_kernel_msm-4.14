@@ -1224,12 +1224,14 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 	/* Somebody else might have raced and expanded it already */
 	if (address < vma->vm_start) {
 		unsigned long size, grow;
+		pgoff_t pgoff_grow;
 
 		size = vma->vm_end - address;
 		grow = (vma->vm_start - address) >> PAGE_SHIFT;
+		pgoff_grow = vma_pgoff_grow(vma, address);
 
 		error = -ENOMEM;
-		if (grow <= vma->vm_pgoff) {
+		if (pgoff_grow <= vma->vm_pgoff) {
 			error = acct_stack_growth(vma, size, grow);
 			if (!error) {
 				/*
@@ -1247,7 +1249,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 				vm_stat_account(mm, vma->vm_flags, grow);
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_start = address;
-				vma->vm_pgoff -= grow;
+				vma->vm_pgoff -= pgoff_grow;
 				/* Overwrite old entry in mtree. */
 				vma_iter_store_overwrite(&vmi, vma);
 				anon_vma_interval_tree_post_update_vma(vma);
@@ -1409,9 +1411,9 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	int error;
 	VMA_ITERATOR(vmi, mm, addr);
 	VMG_STATE(vmg, mm, &vmi, addr, end, vm_flags,
-		  mm_mmap_pgoff(mm, file, pgoff));
+		  mm_mmap_pgoff(mm, pgoff));
 
-	vmg.slice_off = mm_mmap_slice_off(mm, file, pgoff);
+	vmg.slice_off = mm_mmap_slice_off(mm, pgoff);
 	vmg.file = file;
 	/* Find the first overlapping VMA */
 	vma = vma_find(&vmi, end);
@@ -1477,8 +1479,8 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	}
 
 	vma_iter_config(&vmi, addr, end);
-	vma_set_range(vma, addr, end, mm_mmap_pgoff(mm, file, pgoff));
-	vma_set_slice_off(vma, mm_mmap_slice_off(mm, file, pgoff));
+	vma_set_range(vma, addr, end, mm_mmap_pgoff(mm, pgoff));
+	vma_set_slice_off(vma, mm_mmap_slice_off(mm, pgoff));
 	vm_flags_init(vma, vm_flags);
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 
@@ -1496,7 +1498,7 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 		/* Drivers cannot alter the address of the VMA. */
 		WARN_ON_ONCE(addr != vma->vm_start);
 		VM_WARN_ON_ONCE(vma_slice_off_stale(vma,
-				mm_mmap_pgoff(mm, file, pgoff)));
+				mm_mmap_pgoff(mm, pgoff)));
 		/*
 		 * Drivers should not permit writability when previously it was
 		 * disallowed.
@@ -1866,8 +1868,10 @@ static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * occur after forking, so the expand will only happen on new VMAs.
 	 */
 	if (vma && vma->vm_end == addr) {
-		VMG_STATE(vmg, mm, vmi, addr, addr + len, flags, addr >> PAGE_SHIFT);
+		VMG_STATE(vmg, mm, vmi, addr, addr + len, flags,
+			  addr >> PAGE_SHIFT_KERNEL);
 
+		vmg_set_slice_off(&vmg, vma_slice_offset(vma, addr));
 		vmg.prev = vma;
 		/* vmi is positioned at prev, which this mode expects. */
 		vmg.merge_flags = VMG_FLAG_JUST_EXPAND;
@@ -1886,7 +1890,7 @@ static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		goto unacct_fail;
 
 	vma_set_anonymous(vma);
-	vma_set_range(vma, addr, addr + len, addr >> PAGE_SHIFT);
+	vma_set_range(vma, addr, addr + len, addr >> PAGE_SHIFT_KERNEL);
 	vm_flags_init(vma, flags);
 	vma->vm_page_prot = vm_get_page_prot(flags);
 	vma_start_write(vma);
@@ -2060,7 +2064,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 */
 	if (vma_is_anonymous(vma)) {
 		BUG_ON(vma->anon_vma);
-		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
+		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT_KERNEL;
 	}
 
 	if (vma_link(mm, vma)) {

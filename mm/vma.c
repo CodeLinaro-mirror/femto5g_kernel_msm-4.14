@@ -1693,7 +1693,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	 * to match new location, to increase its chance of merging.
 	 */
 	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma)) {
-		pgoff = addr >> PAGE_SHIFT;
+		pgoff = addr >> PAGE_SHIFT_KERNEL;
 		faulted_in_anon_vma = false;
 	}
 
