@@ -542,15 +542,13 @@ static void collect_procs_anon(const struct folio *folio,
 {
 	struct task_struct *tsk;
 	struct anon_vma *av;
-	pgoff_t pgoff, pgoff_end;
+	pgoff_t pgoff;
 
 	av = folio_lock_anon_vma_read(folio, NULL);
 	if (av == NULL)	/* Not actually mapped anymore */
 		return;
 
 	pgoff = page_pgoff(folio, page);
-	pgoff_end = pgoff;
-	p3s_anon_rmap_range(folio, av, &pgoff, &pgoff_end);
 	rcu_read_lock();
 	for_each_process(tsk) {
 		struct vm_area_struct *vma;
@@ -561,7 +559,7 @@ static void collect_procs_anon(const struct folio *folio,
 		if (!t)
 			continue;
 		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
-					       pgoff, pgoff_end) {
+					       pgoff, pgoff) {
 			vma = vmac->vma;
 			if (vma->vm_mm != t->mm)
 				continue;

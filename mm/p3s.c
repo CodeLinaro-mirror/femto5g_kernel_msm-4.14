@@ -49,16 +49,15 @@ unlock:
  * @right_slice: Starting subpage slice of right range (0..3)
  * @boundary: Virtual address where left ends and right begins
  * @is_p3s_4k: Whether process is running in 4KB compat mode
- * @is_file: Whether mapping is file-backed
  */
 static bool vma_can_merge_offsets(const struct vm_area_struct *left,
 				  pgoff_t right_pgoff,
 				  unsigned short right_slice,
 				  unsigned long boundary,
-				  bool is_p3s_4k, bool is_file)
+				  bool is_p3s_4k)
 {
 	return vma_linear_page_index(left, boundary) == right_pgoff &&
-	       (!is_p3s_4k || !is_file ||
+	       (!is_p3s_4k ||
 		vma_slice_offset(left, boundary) == right_slice);
 }
 
@@ -76,14 +75,6 @@ bool vmg_can_merge_offsets(struct vma_merge_struct *vmg, bool merge_next)
 			return vmg->next->vm_pgoff ==
 			       vmg->pgoff + PHYS_PFN(vmg->end - vmg->start);
 
-		/*
-		 * Count pages the way next does (see vma_linear_page_index()):
-		 * 4KB pages without a file, else slices from vmg->slice_off.
-		 */
-		if (!vmg->next->vm_ops && !vmg->next->vm_file)
-			return vmg->next->vm_pgoff ==
-			       vmg->pgoff + ((vmg->end - vmg->start) >> PAGE_SHIFT_4KB);
-
 		total_slices = vmg->slice_off + ((vmg->end - vmg->start) >> PAGE_SHIFT_4KB);
 
 		return vmg->next->vm_pgoff == vmg->pgoff + (total_slices >> P3S_SLICE_SHIFT) &&
@@ -92,7 +83,7 @@ bool vmg_can_merge_offsets(struct vma_merge_struct *vmg, bool merge_next)
 	}
 
 	return vma_can_merge_offsets(vmg->prev, vmg->pgoff, vmg->slice_off,
-				     vmg->start, vmg_is_p3s_4k(vmg), !!vmg->file);
+				     vmg->start, vmg_is_p3s_4k(vmg));
 }
 
 /*

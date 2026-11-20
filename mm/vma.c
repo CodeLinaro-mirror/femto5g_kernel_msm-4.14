@@ -53,8 +53,8 @@ struct mmap_state {
 		.vmi = vmi_,						\
 		.addr = addr_,						\
 		.end = (addr_) + (len_),				\
-		.pgoff = mm_mmap_pgoff(mm_, file_, pgoff_),		\
-		.slice_off = mm_mmap_slice_off(mm_, file_, pgoff_),	\
+		.pgoff = mm_mmap_pgoff(mm_, pgoff_),			\
+		.slice_off = mm_mmap_slice_off(mm_, pgoff_),		\
 		.pglen = (len_) >> PAGE_SHIFT,				\
 		.vm_flags = vm_flags_,					\
 		.file = file_,						\
@@ -1898,7 +1898,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	 * to match new location, to increase its chance of merging.
 	 */
 	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma)) {
-		pgoff = addr >> PAGE_SHIFT;
+		pgoff = addr >> PAGE_SHIFT_KERNEL;
 		faulted_in_anon_vma = false;
 	}
 
@@ -2876,8 +2876,9 @@ int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * occur after forking, so the expand will only happen on new VMAs.
 	 */
 	if (vma && vma->vm_end == addr) {
-		VMG_STATE(vmg, mm, vmi, addr, addr + len, vm_flags, addr >> PAGE_SHIFT);
+		VMG_STATE(vmg, mm, vmi, addr, addr + len, vm_flags, addr >> PAGE_SHIFT_KERNEL);
 
+		vmg_set_slice_off(&vmg, vma_slice_offset(vma, addr));
 		vmg.prev = vma;
 		/* vmi is positioned at prev, which this mode expects. */
 		vmg.just_expand = true;
@@ -2896,7 +2897,7 @@ int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		goto unacct_fail;
 
 	vma_set_anonymous(vma);
-	vma_set_range(vma, addr, addr + len, addr >> PAGE_SHIFT);
+	vma_set_range(vma, addr, addr + len, addr >> PAGE_SHIFT_KERNEL);
 	vm_flags_init(vma, vm_flags);
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma_start_write(vma);
@@ -3208,12 +3209,14 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 	/* Somebody else might have raced and expanded it already */
 	if (address < vma->vm_start) {
 		unsigned long size, grow;
+		pgoff_t pgoff_grow;
 
 		size = vma->vm_end - address;
 		grow = (vma->vm_start - address) >> PAGE_SHIFT;
+		pgoff_grow = vma_pgoff_grow(vma, address);
 
 		error = -ENOMEM;
-		if (grow <= vma->vm_pgoff) {
+		if (pgoff_grow <= vma->vm_pgoff) {
 			error = acct_stack_growth(vma, size, grow);
 			if (!error) {
 				if (vma->vm_flags & VM_LOCKED)
@@ -3221,7 +3224,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 				vm_stat_account(mm, vma->vm_flags, grow);
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_start = address;
-				vma->vm_pgoff -= grow;
+				vma->vm_pgoff -= pgoff_grow;
 				/* Overwrite old entry in mtree. */
 				vma_iter_store_overwrite(&vmi, vma);
 				anon_vma_interval_tree_post_update_vma(vma);
@@ -3284,7 +3287,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 */
 	if (vma_is_anonymous(vma)) {
 		BUG_ON(vma->anon_vma);
-		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
+		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT_KERNEL;
 	}
 
 	if (vma_link(mm, vma)) {

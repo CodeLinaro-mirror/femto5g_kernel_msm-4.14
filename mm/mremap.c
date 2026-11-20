@@ -1729,7 +1729,7 @@ static int check_prep_vma(struct vma_remap_struct *vrm)
 
 	if ((vrm->flags & MREMAP_FIXED) &&
 	    !mm_mremap_fixed_keeps_slice(vma, addr, vrm->new_addr) &&
-	    !p3s_mremap_can_copy(vma, addr, old_len))
+	    !p3s_mremap_can_copy(vma, addr, vrm->new_addr, old_len))
 		return -EINVAL;
 
 	if (new_len == old_len)

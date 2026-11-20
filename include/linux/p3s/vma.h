@@ -68,9 +68,29 @@ static inline unsigned long vma_offset_in_page(const struct vm_area_struct *vma,
 	return mm_offset_in_page(vma->vm_mm, addr);
 }
 
+/*
+ * Anonymous memory without a file: its slices follow the address. A private
+ * /dev/zero mapping retains vm_file without vm_ops and keeps its stored slice.
+ */
+static inline bool vma_slices_follow_address(const struct vm_area_struct *vma)
+{
+	return !vma->vm_ops && !vma->vm_file;
+}
+
 #ifdef CONFIG_ARM64_PER_PROCESS_PAGE_SIZE
+/*
+ * vma_slice_off - Slice of kernel page vm_pgoff that vm_start maps
+ * @vma: Pointer to struct vm_area_struct
+ *
+ * vm_pgoff counts kernel pages in every VMA. An anonymous VMA without a file
+ * maps each 16KB-aligned window of addresses to one kernel page, so the slice
+ * of vm_start follows from the address. Other VMAs map by offset and store it.
+ */
 static inline unsigned short vma_slice_off(const struct vm_area_struct *vma)
 {
+	if (vma_slices_follow_address(vma))
+		return (vma->vm_start >> PAGE_SHIFT_4KB) & P3S_SLICE_MASK;
+
 	return vma->vm_slice_off;
 }
 
@@ -196,7 +216,7 @@ static inline unsigned int vma_slice_offset(const struct vm_area_struct *vma,
 	 * addresses, so the index of @addr's 4KB page in that window is its
 	 * slice.
 	 */
-	if (!vma->vm_ops && !vma->vm_file)
+	if (vma_slices_follow_address(vma))
 		return (addr >> PAGE_SHIFT_4KB) & P3S_SLICE_MASK;
 
 	/*
@@ -215,8 +235,8 @@ static inline unsigned short
 vma_mremap_slice_off(const struct vm_area_struct *vma, unsigned long old_addr,
 		     unsigned long new_addr)
 {
-	return vma_slice_offset(vma, vma->vm_file || vma->vm_ops ?
-				    old_addr : new_addr);
+	return vma_slice_offset(vma, vma_slices_follow_address(vma) ?
+				     new_addr : old_addr);
 }
 
 /*
@@ -389,19 +409,15 @@ static inline loff_t vma_file_offset_at(const struct vm_area_struct *vma,
  *                                               ▲
  *                                               └─ vma_linear_page_index()
  *
- * Anonymous 4KB VMAs count 4KB pages from vm_pgoff instead. Native VMAs,
- * and 4KB VMAs with vm_ops but no file, count 16KB pages.
+ * An anonymous 4KB VMA is counted the same way: vma_slice_off() is the slice
+ * of vm_start in its 16KB-aligned window. Native VMAs count 16KB pages.
  */
 static inline pgoff_t vma_linear_page_index(const struct vm_area_struct *vma,
 					    unsigned long addr)
 {
-	if (!vma_is_p3s_4k(vma) || (vma->vm_ops && !vma->vm_file))
+	if (!vma_is_p3s_4k(vma))
 		return vma->vm_pgoff +
 		       ((addr - vma->vm_start) >> PAGE_SHIFT_KERNEL);
-
-	if (!vma->vm_ops && !vma->vm_file)
-		return vma->vm_pgoff +
-		       ((addr - vma->vm_start) >> PAGE_SHIFT_4KB);
 
 	return vma->vm_pgoff +
 	       ((vma_slice_off(vma) + ((addr - vma->vm_start) >> PAGE_SHIFT_4KB)) >>
@@ -412,7 +428,7 @@ static inline pgoff_t vma_linear_page_index(const struct vm_area_struct *vma,
 static inline pgoff_t vma_mmap_pgoff(const struct vm_area_struct *vma,
 				     unsigned long addr)
 {
-	if (vma_is_p3s_4k(vma) && vma->vm_file)
+	if (vma_is_p3s_4k(vma))
 		return (vma->vm_pgoff << P3S_SLICE_SHIFT) +
 		       vma_slice_off(vma) +
 		       ((addr - vma->vm_start) >> PAGE_SHIFT_4KB);
@@ -445,13 +461,13 @@ static inline pgoff_t vma_mmap_pgoff(const struct vm_area_struct *vma,
  *  pages       └───────────────────────┴───────────────────────┘
  *              │◄────────── vma_pgoff_pages() = 2 ────────────►│
  *
- * Anonymous 4KB VMAs count 4KB pages, and native VMAs count 16KB pages.
+ * Native VMAs count 16KB pages.
  */
 static inline pgoff_t vma_pgoff_pages(const struct vm_area_struct *vma)
 {
 	unsigned long nr_slices = vma_nr_ptes(vma);
 
-	if (!vma_is_p3s_4k(vma) || (!vma->vm_ops && !vma->vm_file))
+	if (!vma_is_p3s_4k(vma))
 		return nr_slices;
 
 	return DIV_ROUND_UP(vma_slice_off(vma) + nr_slices,
@@ -484,8 +500,7 @@ static inline pgoff_t vma_pgoff_pages(const struct vm_area_struct *vma)
  *  16KB file   │        vm_pgoff       │      vm_pgoff + 1     │
  *  pages       └───────────────────────┴───────────────────────┘
  *
- * A page after the VMA gives vm_end. For an anonymous VMA, @pgoff
- * counts pages of the process page size.
+ * A page after the VMA gives vm_end.
  */
 static inline unsigned long
 vma_pgoff_to_address(const struct vm_area_struct *vma, pgoff_t pgoff)
@@ -495,40 +510,10 @@ vma_pgoff_to_address(const struct vm_area_struct *vma, pgoff_t pgoff)
 	if (pgoff <= vma->vm_pgoff)
 		return vma->vm_start;
 
-	if (vma->vm_ops || vma->vm_file) {
-		addr = vma->vm_start +
-			((pgoff - vma->vm_pgoff) << PAGE_SHIFT_KERNEL) -
-			((unsigned long)vma_slice_off(vma) << PAGE_SHIFT_4KB);
-	} else {
-		addr = vma->vm_start +
-			((pgoff - vma->vm_pgoff) << mm_pte_shift(vma->vm_mm));
-	}
+	addr = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT_KERNEL) -
+	       ((unsigned long)vma_slice_off(vma) << PAGE_SHIFT_4KB);
 
 	return min(addr, vma->vm_end);
-}
-
-/*
- * vma_anon_slice_window - First address of the slices of a page in @vma
- * @vma: Anonymous VMA without a file
- * @pgoff: Index of a small anonymous folio
- *
- * In a 4KB anonymous VMA, @pgoff counts 4KB pages and the slices of the
- * folio are mapped within one 16KB-aligned window of addresses. A VMA split
- * or a 4KB mremap() can leave some of them in a VMA whose page range does
- * not contain @pgoff; unsigned wrap-around then gives the address of the
- * window below vm_start. Returns the first address of the window within
- * @vma, or -EFAULT if @vma holds no part of the window.
- */
-static inline unsigned long vma_anon_slice_window(const struct vm_area_struct *vma,
-						  pgoff_t pgoff)
-{
-	unsigned long win = (vma->vm_start +
-			     ((pgoff - vma->vm_pgoff) << PAGE_SHIFT_4KB)) &
-			    PAGE_MASK_KERNEL;
-
-	if (win >= vma->vm_end || win + PAGE_SIZE_KERNEL <= vma->vm_start)
-		return -EFAULT;
-	return max(win, vma->vm_start);
 }
 
 /*
@@ -613,6 +598,21 @@ static inline void vma_set_split_offset(struct vm_area_struct *target,
 {
 	target->vm_pgoff = vma_linear_page_index(src, addr);
 	vma_set_slice_off(target, vma_slice_offset(src, addr));
+}
+
+/*
+ * vma_pgoff_grow - vm_pgoff delta when expanding @vma down to @addr
+ * @vma: Stack VMA being expanded downwards
+ * @addr: New lower vm_start
+ *
+ * vm_pgoff counts kernel pages in every VMA, so a downward stack growth
+ * decrements it by the number of 16KB windows crossed rather than 4KB pages.
+ */
+static inline pgoff_t vma_pgoff_grow(const struct vm_area_struct *vma,
+				     unsigned long addr)
+{
+	return (vma->vm_start >> PAGE_SHIFT_KERNEL) -
+	       (addr >> PAGE_SHIFT_KERNEL);
 }
 
 /*
