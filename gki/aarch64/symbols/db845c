@@ -95,7 +95,6 @@
   debugfs_create_u32
   debugfs_create_x32
   debugfs_remove
-  debug_lockdep_rcu_enabled
   debug_locks
   debug_locks_off
   debug_locks_silent
@@ -259,7 +258,6 @@
   dma_release_channel
   dma_request_chan
   dma_resv_add_fence
-  dma_resv_reset_max_fences
   dma_set_coherent_mask
   dma_set_mask
   __dma_sync_single_for_cpu
@@ -326,8 +324,6 @@
   free_irq
   free_netdev
   __free_pages
-  fs_reclaim_acquire
-  fs_reclaim_release
   fwnode_property_match_string
   fwnode_property_read_u32_array
   fwnode_typec_mux_get
@@ -501,7 +497,6 @@
   irq_set_chip_and_handler_name
   irq_set_chip_data
   irq_set_irq_wake
-  __irq_set_lockdep_class
   irq_work_queue
   is_vmalloc_addr
   jiffies
@@ -536,17 +531,7 @@
   __kvmalloc_node_noprof
   __list_add_valid_or_report
   __list_del_entry_valid_or_report
-  __local_bh_disable_ip
   __local_bh_enable_ip
-  lock_acquire
-  lockdep_init_map_type
-  lockdep_rcu_suspicious
-  lockdep_register_key
-  lockdep_rht_bucket_is_held
-  lockdep_rht_mutex_is_held
-  lockdep_unregister_key
-  lock_is_held_type
-  lock_release
   log_post_read_mmio
   log_post_write_mmio
   log_read_mmio
@@ -569,7 +554,6 @@
   memstart_addr
   memunmap
   michael_mic
-  __might_fault
   mipi_dsi_dcs_enter_sleep_mode_multi
   mipi_dsi_dcs_exit_sleep_mode_multi
   mipi_dsi_dcs_set_display_off_multi
@@ -584,10 +568,11 @@
   module_put
   __msecs_to_jiffies
   msleep
-  mutex_destroy
-  mutex_init_lockdep
+  mutex_init_generic
   mutex_is_locked
-  mutex_lock_nested
+  mutex_lock
+  mutex_lock_interruptible
+  mutex_trylock
   mutex_unlock
   napi_complete_done
   napi_disable
@@ -756,7 +741,6 @@
   _raw_read_unlock_irqrestore
   _raw_spin_lock
   _raw_spin_lock_bh
-  __raw_spin_lock_init
   _raw_spin_lock_irq
   _raw_spin_lock_irqsave
   _raw_spin_unlock
@@ -769,10 +753,7 @@
   _raw_write_unlock_irq
   rb_next
   rcu_is_watching
-  rcu_lock_map
   __rcu_read_lock
-  rcu_read_lock_any_held
-  rcu_read_lock_held
   __rcu_read_unlock
   rdev_get_drvdata
   refcount_dec_and_mutex_lock
@@ -840,7 +821,7 @@
   rproc_remove_subdev
   rproc_report_crash
   rsi_present
-  __rwlock_init
+  rt_mutex_lock
   schedule
   schedule_timeout
   scnprintf
@@ -979,8 +960,6 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
-  trace_hardirqs_off
-  trace_hardirqs_on
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_post_write
   __traceiter_rwmmio_read
@@ -1142,7 +1121,6 @@
   of_reserved_mem_region_to_resource_byname
   pcpu_alloc_noprof
   pskb_put
-  rcu_lockdep_current_cpu_online
   si_meminfo
   skb_cow_data
   skb_pull_data
@@ -1263,14 +1241,12 @@
   hdmi_drm_infoframe_init
   hdmi_infoframe_pack
   hdmi_spd_infoframe_init
-  _mutex_trylock_nest_lock
   system_long_wq
 
 # required by drm_dp_aux_bus.ko
   device_for_each_child_reverse
 
 # required by drm_exec.ko
-  debug_check_no_locks_freed
   dma_resv_reserve_fences
   kvrealloc_node_align_noprof
   reservation_ww_class
@@ -1324,7 +1300,6 @@
   gpiod_get_optional
 
 # required by gpu-sched.ko
-  alloc_workqueue_lockdep_map
   dma_fence_add_callback
   dma_fence_remove_callback
   dma_resv_iter_first
@@ -1363,7 +1338,6 @@
 # required by i2c-mux.ko
   i2c_adapter_depth
   __i2c_transfer
-  rt_mutex_lock_nested
   rt_mutex_trylock
   rt_mutex_unlock
 
@@ -1708,7 +1682,6 @@
   mipi_dsi_host_register
   mipi_dsi_host_unregister
   mipi_dsi_packet_format_is_long
-  mutex_lock_interruptible_nested
   noop_llseek
   nr_swap_pages
   of_devfreq_cooling_register
@@ -2038,8 +2011,6 @@
   cpu_pm_register_notifier
   cpu_pm_unregister_notifier
   dev_pm_genpd_get_next_hrtimer
-  hardirqs_enabled
-  lockdep_recursion
   __num_online_cpus
   _raw_spin_trylock
   system_state

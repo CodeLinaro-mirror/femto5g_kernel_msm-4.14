@@ -42,7 +42,6 @@
   debugfs_create_file_full
   debugfs_create_u32
   debugfs_create_u8
-  debug_lockdep_rcu_enabled
   debug_locks
   default_llseek
   delayed_work_timer_fn
@@ -260,14 +259,7 @@
   __kvmalloc_node_noprof
   __list_add_valid_or_report
   __list_del_entry_valid_or_report
-  __local_bh_disable_ip
   __local_bh_enable_ip
-  lock_acquire
-  lockdep_init_map_type
-  lockdep_rcu_suspicious
-  lockdep_rtnl_is_held
-  lock_is_held_type
-  lock_release
   log_post_read_mmio
   log_post_write_mmio
   log_read_mmio
@@ -277,16 +269,15 @@
   memmove
   memset
   memstart_addr
-  __might_fault
   misc_deregister
   misc_register
   mod_timer
   __msecs_to_jiffies
   msleep
-  mutex_destroy
-  mutex_init_lockdep
-  mutex_lock_interruptible_nested
-  mutex_lock_nested
+  mutex_init_generic
+  mutex_lock
+  mutex_lock_interruptible
+  mutex_trylock
   mutex_unlock
   napi_complete_done
   napi_disable
@@ -353,19 +344,15 @@
   ___ratelimit
   _raw_spin_lock
   _raw_spin_lock_bh
-  __raw_spin_lock_init
   _raw_spin_lock_irq
   _raw_spin_lock_irqsave
-  _raw_spin_lock_nested
   _raw_spin_trylock
   _raw_spin_unlock
   _raw_spin_unlock_bh
   _raw_spin_unlock_irq
   _raw_spin_unlock_irqrestore
   rcu_is_watching
-  rcu_lock_map
   __rcu_read_lock
-  rcu_read_lock_held
   __rcu_read_unlock
   refcount_warn_saturate
   register_netdevice
@@ -450,8 +437,6 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
-  trace_hardirqs_off
-  trace_hardirqs_on
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_post_write
   __traceiter_rwmmio_read
@@ -815,9 +800,6 @@
   init_net
   irq_work_queue
   kstrndup
-  lockdep_recursion
-  lockdep_rht_bucket_is_held
-  lockdep_rht_mutex_is_held
   __netdev_alloc_skb
   netif_rx
   netlink_broadcast_filtered
@@ -830,7 +812,6 @@
   nla_find
   nla_memcpy
   preempt_schedule
-  rcu_read_lock_any_held
   register_pernet_device
   regulatory_hint
   rhashtable_destroy
@@ -948,7 +929,6 @@
   netif_open
   netif_set_mtu
   passthru_features_check
-  rcu_read_lock_bh_held
   register_netdev
   vlan_uses_dev
   vlan_vid_add
@@ -1104,7 +1084,6 @@
   idr_find
   idr_for_each
   kstrtoull
-  _mutex_lock_killable
   v4l2_format_info
   video_device_alloc
   video_device_release
@@ -1176,7 +1155,6 @@
   dma_max_mapping_size
   dma_resv_add_fence
   dma_resv_reserve_fences
-  dma_resv_reset_max_fences
   dma_resv_test_signaled
   dma_resv_wait_timeout
   dma_unmap_resource
@@ -1428,7 +1406,6 @@
 
 # required by vivid.ko
   cec_get_edid_phys_addr
-  debug_check_no_locks_held
   find_font
   freezer_active
   freezing_slow_path
@@ -1438,7 +1415,6 @@
   media_device_unregister
   media_entity_pads_init
   msleep_interruptible
-  _mutex_trylock_nest_lock
   platform_device_register
   prandom_u32_state
   __refrigerator
@@ -1513,8 +1489,6 @@
   __devm_drm_dev_alloc
   devres_open_group
   devres_release_group
-  dma_fence_begin_signalling
-  dma_fence_end_signalling
   drm_atomic_add_affected_planes
   drm_atomic_helper_check_wb_connector_state
   drm_atomic_helper_cleanup_planes
@@ -1565,8 +1539,6 @@
   drm_writeback_signal_completion
   faux_device_create
   faux_device_destroy
-  fs_reclaim_acquire
-  fs_reclaim_release
   kasprintf
   kfree_const
   kstrdup_const
