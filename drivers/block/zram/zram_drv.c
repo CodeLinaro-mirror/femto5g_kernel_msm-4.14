@@ -1397,6 +1397,9 @@ next:
 	if (req)
 		release_wb_req(req);
 
+	if (blk_idx != INVALID_BDEV_BLOCK)
+		zram_release_bdev_block(zram, blk_idx);
+
 	while (atomic_read(&wb_ctl->num_inflight) > 0) {
 		wait_event(wb_ctl->done_wait, !list_empty(&wb_ctl->done_reqs));
 		err = zram_complete_done_reqs(zram, wb_ctl);
@@ -2445,6 +2448,8 @@ static int read_from_zspool_raw(struct zram *zram, struct page *page, u32 index)
 	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
 	memcpy_to_page(page, 0, src, size);
 	zs_unmap_object(zram->mem_pool, handle);
+
+	memzero_page(page, size, PAGE_SIZE - size);
 
 	return 0;
 }
