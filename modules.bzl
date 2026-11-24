@@ -163,7 +163,6 @@ _KUNIT_FRAMEWORK_MODULES = [
 # Modules defined by tools/testing/kunit/configs/android/kunit_defconfig
 _KUNIT_COMMON_MODULES_LIST = [
     # keep sorted
-    "drivers/android/tests/wrapfd_kunit.ko",
     "drivers/base/regmap/regmap-kunit.ko",
     "drivers/base/regmap/regmap-ram.ko",
     "drivers/base/regmap/regmap-raw-ram.ko",
@@ -191,6 +190,12 @@ _KUNIT_CLK_MODULES_LIST = [
     "drivers/clk/clk_kunit_helpers.ko",
 ]
 
+# KUnit modules that depend on RUST && 64BIT
+_KUNIT_RUST_MODULES_LIST = [
+    # keep sorted
+    "drivers/android/tests/wrapfd_kunit.ko",
+]
+
 # buildifier: disable=unnamed-macro
 def get_kunit_modules_list(arch = None):
     """ Provides the list of GKI modules.
@@ -205,11 +210,11 @@ def get_kunit_modules_list(arch = None):
     if arch == "arm":
         kunit_modules_list += _KUNIT_CLK_MODULES_LIST
     elif arch == "arm64":
-        kunit_modules_list += _KUNIT_CLK_MODULES_LIST
+        kunit_modules_list += _KUNIT_CLK_MODULES_LIST + _KUNIT_RUST_MODULES_LIST
     elif arch == "i386":
         kunit_modules_list += []
     elif arch == "x86_64":
-        kunit_modules_list += []
+        kunit_modules_list += _KUNIT_RUST_MODULES_LIST
     else:
         fail("{}: arch {} not supported. Use one of [arm, arm64, i386, x86_64]".format(
             str(native.package_relative_label(":x")).removesuffix(":x"),
